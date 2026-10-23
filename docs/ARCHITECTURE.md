@@ -9,7 +9,7 @@ flowchart LR
     H["Merlin handset<br/>USB audio, proposed"] --> J["Judicom endpoint<br/>Raspberry Pi 3 B+"]
     B["Physical buttons +<br/>7-inch HDMI display"] --- J
     J --> S["Ringtone speaker<br/>3.5 mm + amplifier, proposed"]
-    J -->|Tailscale| N["NAS<br/>Raspberry Pi 4 Model B Rev 1.5"]
+    J -->|Tailscale| N["NAS/PBX<br/>Raspberry Pi 4 Model B Rev 1.5"]
     N -->|Tailscale| J
     N --- A["Asterisk 22<br/>Docker"]
     A -->|SIP / RTP| V["VoIP.ms"]
