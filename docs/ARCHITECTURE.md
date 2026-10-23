@@ -6,14 +6,17 @@ Judicom is a simple, physical communications device intended for a person who ma
 
 ```mermaid
 flowchart LR
-    H[Merlin handset<br/>USB audio, proposed] --> J[Judicom endpoint<br/>Raspberry Pi 3 B+]
-    B[Physical buttons +<br/>7-inch HDMI display] --- J
-    S[Ringtone speaker<br/>3.5 mm + amplifier, proposed] <-- J
-    J <-->|Private network / Tailscale| N[NAS<br/>Raspberry Pi 4 Model B Rev 1.5]
-    N --- A[Asterisk 22<br/>Docker]
-    A <-->|SIP / RTP| V[VoIP.ms]
-    F[Family-facing services<br/>and media workflows] --- N
+    H["Merlin handset<br/>USB audio, proposed"] --> J["Judicom endpoint<br/>Raspberry Pi 3 B+"]
+    B["Physical buttons +<br/>7-inch HDMI display"] --- J
+    J --> S["Ringtone speaker<br/>3.5 mm + amplifier, proposed"]
+    J -->|Tailscale| N["NAS<br/>Raspberry Pi 4 Model B Rev 1.5"]
+    N -->|Tailscale| J
+    N --- A["Asterisk 22<br/>Docker"]
+    A -->|SIP / RTP| V["VoIP.ms"]
+    V -->|SIP / RTP| A
+    F["Family-facing services<br/>and media workflows"] --- N
 ```
+
 
 The endpoint is designed to communicate with the NAS over a private network. The NAS hosts Asterisk and other application/media services. VoIP.ms provides external SIP connectivity; inbound calling is not yet documented as end-to-end working.
 
