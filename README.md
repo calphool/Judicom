@@ -1,7 +1,7 @@
 # Judicom
 VoiP Pproject For Memory Care Patients - simplified /safe telephone interface with family photo frame functionality
 
-![Concept Photo](img/Judicom 2.0 Family Video Phone Concept.png)
+![Concept Photo]("img/Judicom 2.0 Family Video Phone Concept.png")
 
 Judicom is an open initiative to build a fully customizable specialty audio / video conferencing device
 specially tailored for use by elderly patients dealing with degraded memory.  It has an extremely simple 
