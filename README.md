@@ -31,6 +31,8 @@ from Head Sun, though with appropriate enclosure modification any HDMI touch scr
 functionality isn't strictly necessary, and for now any use of it will be secondary or supportive rather than 
 required.
 
+The microphone of the Merlin is not an electret mic, and so its circuitry had to be modified.  The wires to the existing microphone were cut, a small holes was drilled into the handset near the mouthpiece, and a standard electric mic was added.  Green and white wires go to the speaker of the handset, and black and red go to the electret microphone.
+
 ## Software
 
 The Raspberry Pi on the device is run without a desktop, and graphics are drawn directly using PyGame.  PBX 
