@@ -28,6 +28,12 @@ PARTS (each one is exported as its own STL, already laid flat and ready to slice
                 short front wall as an upturned lip.
   ButtonSlider x2, ButtonAnchor_Clark / _Amy, ButtonFrame_Clark / _Amy
                 the printed parts that turn YOUR arcade buttons into short-throw buttons (see THE BUTTONS).
+  ButtonBracket, ButtonBar, ButtonFrameU_Clark / _Amy
+                the TWO-PART ANCHOR that replaces ButtonAnchor_* + ButtonFrame_* and leaves the display's USB / HDMI ports free
+                (see THE TWO-PART ANCHOR).  The slider is the same.
+  ButtonBarDirect
+                the FRAMELESS version of the bar (BT_UNIT_DIRECT, the default): the switches are screwed straight onto it, so
+                ButtonBar and ButtonFrameU_* are not needed any more - print ButtonBracket + ButtonBarDirect (see THE FRAMELESS BAR).
   DCJackFitTest     a small slice of the back wall around the DC-jack tunnel - print
                 this first (about 20 minutes) to check the jack fits before printing Back.
   PhoneJackFitTest  the same idea for the phone jack: a slice of the left wall around
@@ -127,7 +133,86 @@ The long part - 29 mm of barrel, 23 mm plunger legs and the 22 mm spring - is re
   is 18 mm and the hole 11 mm (your numbers).  The ghosts of the housing, nut and plunger (REF_Housing, REF_Nut,
   REF_Plunger) are drawn from your numbers, not scanned.  REF_Screws shows the screws and nuts.
 
-THE HANG-UP SWITCH  (adapter for the BIS-10 hook switch; Panel and BottomPlate untouched)
+THE TWO-PART ANCHOR  (BT_UNIT = True; replaces ButtonAnchor_* and ButtonFrame_*; Panel and BottomPlate untouched)
+------------------------------------------------------------------------------
+Why: the old anchor plate stands on the screen side of each frame, directly in front of the display module's bottom edge, where the
+touch-screen micro-USB, the power and the HDMI connectors are (about 4 mm of room for the touch plug, 1 mm for HDMI).  Here the nuts
+are on the FRONT side of the frames (bottom-plate side) and the screws go in from the screen side, so nothing is left under the display
+except the frame's end wall: about 10 mm of free run for the touch plug (11 mm with a plug that is only 6 mm thick), 8 mm for the HDMI
+adapter, 13 mm for the power plug.  A right-angle micro-USB plug is the safe choice; a straight one is about 11 mm long.
+  ButtonBracket (print 1)    both anchor rings (2.5 mm, clamped between the Panel and the mounting nuts; hole 25.6 mm = the old 24.6 + 1 mm for
+                             fitting play) joined by a web, and on each outer side an arm, a leg and a 2.5 mm strap that lies IN FRONT of the bar's
+                             end tab, with two 3.4 mm holes.  Prints ring-face-down.  The lower front edge of legs and straps is cut parallel to the
+                             bottom plate, 0.8 mm above it (BT_UNIT_FLOOR_CLEAR).
+  ButtonBar (print 1)        the nut plate: one 6 mm thick bar across both buttons, in front of the frames.  Per frame screw a +-1 mm vertical slot
+                             (the same tuning travel as before) and, open to the bar's REAR face, a pocket for the M3 nut.  A raised block around the
+                             far pocket of each button, and at each end a taller tab with two more nut pockets for the strap screws.  The lower
+                             front edge is cut parallel to the bottom plate, like the bracket.  Prints front-face-down (pockets up).
+  ButtonFrameU_Clark / _Amy  (print one each)  the frame as before, with the corner relief of the end wall 2 mm wider (BT_UNIT_CORNER_EXTRA) so
+                             that it clears the raised block.  The old ButtonFrame_* work if you trim that corner, but print the new ones.
+  Hardware per Judicom: 4 x M3 x 20 pan head + 4 nuts (frame -> bar), 4 x M3 x 10 pan head + 4 nuts (bar -> bracket).  M3 x 25 would stick out
+  about 3 mm toward the bottom plate; M3 x 8 for the strap also works (the tip then ends inside the nut).  No inserts.
+  ORDER (Panel face-down on the bench, inside up) - every step was swept in 3-D against the real parts:
+  1. Housing, plunger and slider as in THE BUTTONS.  Bracket straight onto both barrels (legs and straps pointing away from the Panel), flat on the
+     Panel; then the mounting nuts on both barrels, snug (a nut clamps its ring; hold the bracket by a leg while you turn).
+  2. Bar: straight in along the press axis, between the legs and BEHIND the straps (0.3 mm to spare at the legs, 0.3 mm at the straps).  It cannot
+     go in before the mounting nuts are on: it would stand in the nut's way.
+  3. A nut into each of the four pockets of the two end tabs (push it in flush, the pockets open toward the screen), then the four M3 x 10 from the
+     FRONT (the edge of the Panel, before the bottom plate is fitted), through the straps into those nuts.  Snug.
+  4. A nut into each of the four frame pockets (from the screen side).  Switch into the frame, frame down along the slope from the screen side until
+     its outer wall is 0.25 mm from the bar; the screw holes line up with the slots.  Four M3 x 20 from the SCREEN side through the frame's inner wall,
+     the switch, the outer wall and the slot into the nut.  Slide the frame up or down in the slots until the switch plunger just touches the flange at
+     rest (about 0.1 mm), then tighten: the nut is pulled against the frame's outer wall and clamps it.
+  The screw heads are under the display module's bottom edge.  The module stands 8 mm from them, but only at w > -12.6: a driver lying below
+  the module reaches them straight along the slope, so they can be done with the module in place (the controller board and its connectors are NOT
+  modelled - if they are in the way, do the frame screws before the module goes in).  Never use a longer screw than 20 mm without checking the model.
+  ASSUMED (please check): plug zone w -21..-13 and the connector positions (touch about 140 mm from the left wall, power 152, HDMI 116-130) are
+  estimated from photos (+-3 mm); the legs have not been stress-tested (print in PETG, 4 perimeters); the high frame screw's head (w -25.2..-19.6)
+  reaches 1.4 mm into the plug zone at the HDMI side of Clark / the outer side of Amy.
+
+THE FRAMELESS BAR  (BT_UNIT_DIRECT = True, the default; ButtonBracket is the same, ButtonBar and ButtonFrameU_* are no longer needed)
+------------------------------------------------------------------------------
+You found that the switch holders are not needed: the BLEE switch is screwed straight onto the horizontal bar.  That moves the switch 3.2 mm
+toward the bottom plate (BT_UNIT_DIRECT puts its front face on the bar's rear face) and removes the frame's end wall from under the display, so
+the room for the plugs grows.  ButtonBarDirect is the bar with that done, plus the index marks you suggested:
+  - Per switch screw a +-1 mm vertical slot (the tuning travel, as before) and a pocket for the M3 nut that is open to the bar's FRONT face
+    (bottom-plate side).  The screw (head on the switch, from the screen side) pulls the nut up against the pocket's ceiling, so the BAR is
+    clamped between the switch and the nut.  With a nut in a pocket on the screen side the nut would press on the switch, the bar would not be
+    clamped, and the switch could creep along the press axis; this is why the pockets face the front.
+  - Two ribs on the rear face stand at the two short ends of the switch (0.15 mm clearance each side, 1.2 mm high, 1.2 mm wide) and run along the
+    press axis, so the switch can slide in its slots but stays square.  Each rib carries two half-round crush bumps (BT_UNIT_BUMP = 0.3 mm
+    tall); they press 0.15 mm into the switch's ends and take the last play out, so it also stays put while the screws are loose.  The rib at
+    the plunger end stops below the flange (the flange keeps 1.4 mm to it at full press).
+  - Beside the plunger-end rib an index scale of three engraved lines (0.5 mm wide, 0.4 mm deep) at -1 / 0 / +1 mm of the switch's lower edge.
+    0 is the nominal position (plunger 0.1 mm under the flange).  Note the position that clicks right and you can repeat it on the second button.
+  - The hard stop is now the switch body (0.1 mm under the flange at full press, W_STOP); the frame's end wall is gone.  At the +1 mm extreme of the
+    slot the body stops the flange about 1 mm early, at -1 mm there is 1.1 mm to spare.
+  - The lower front edge is cut parallel to the bottom plate (0.8 mm clear), like the bracket.  The low pocket of each button runs out into that
+    cut (its nut is still 0.86 mm clear of the cut plane and is held by the screw).
+  Hardware per Judicom: 4 x M3 x 16 + 4 nuts (switch -> bar; a small washer under each head is a good idea, the heads press on the switch's
+  thin case) and the same 4 x M3 x 10 + 4 nuts as before (bar -> bracket).  M3 x 16 ends 0.3 mm inside the bar's front face; M3 x 18 ends 1.7 mm
+  past it (still 1.1 mm from the bottom plate); M3 x 20 would touch the bottom plate.  Do not go longer than 18.
+  ORDER (Panel face-down on the bench, inside up) - swept in 3-D against the real parts:
+  1. As in THE TWO-PART ANCHOR: housing, plunger and slider; bracket onto both barrels; mounting nuts on; bar straight in between the legs and
+     behind the straps; nuts into the four end-tab pockets (from the screen side) and four M3 x 10 from the FRONT through the straps.
+  2. A nut into each of the four front pockets, from the FRONT (before the bottom plate is fitted: the low nut of each button is 0.9 mm above the
+     plate and cannot be reached afterwards).  Easiest: push the screw through the switch's hole and the bar's slot first, thread the nut on its tip
+     from the front (the hex pocket stops it turning) and turn the screw.
+  3. The switch drops in along the slope from the screen side, between the two ribs, until its front face is on the bar (the bumps grip it - a
+     little push).  Four M3 x 16 from the SCREEN side, through the switch and the slot into the nuts.  Slide the switch in the slots until the plunger
+     just touches the flange at rest (about 0.1 mm; read the index scale), then tighten.
+  All four screw heads and the nuts were swept in 3-D: free paths, no overlaps; a 6 mm driver has free access along the screw axis from the screen
+  side (the display module stands 15.7 mm from the heads and does not reach down to the driver's path) and the strap screws from the front.
+  FREE RUN for the plugs, measured from the module's bottom edge toward the front (band w -21..-13), in the model: touch micro-USB 11.0 mm,
+  HDMI 12.5 mm, power 13.25 mm (frame version: 10.25 / 8.25 / 13.25; old anchor: 4 / 1 / 4).  What limits it now is the mounting nut of the
+  original button (at v 42.5 / 41.0 / 40.25), not any printed part.  You measured 13 mm to that nut at the touch port, so a plug that sticks out
+  less than 13 mm when pushed in fits; a right-angle micro-USB plug is the safe choice.
+  PRINTING: the front face lies on the bed, so the four front pockets are bridged (the ceiling is 2 mm thick with the slot through it); a few
+  bridged layers are fine, or add a little support in those four pockets.  The index lines and ribs are on the top face.
+  ASSUMED (please check): the BLEE switch's size and screw holes (27 x 15.9 x 10.3, holes 22.2 x 10.3 apart, 3.4 mm), the connector
+  positions (+-3 mm) and the controller board, which is not modelled.
+
+THE HANG-UP SWITCH (adapter for the BIS-10 hook switch; Panel and BottomPlate untouched)
 ------------------------------------------------------------------------------
 The switch (37 x 29 x 14 mm, pins on the thin face, spring lever with a 4 mm wide shaft and an 11 mm finger) hangs behind the
 cradle with its lever finger resting on the cradle's white actuator, about 11 mm of the body sticking out past the cradle's
@@ -330,6 +415,35 @@ BT_NARROW_SIDE = None                     # "Clark" or "Amy": the button next to
                                           #   its ButtonAnchor_<side>.stl.  None: both buttons get the normal anchor (the two ButtonAnchorNarrow_*
                                           #   files are exported either way, and shown hidden in the model as ALT_ButtonAnchorNarrow_*)
 BT_SLOT = 1.0                             # +- tuning travel of the frame along the press axis (slots in the anchor plate)
+
+# --- the TWO-PART anchor ("bracket + nut bar") that frees the touch-screen USB / HDMI ports -----------------------------
+# The old anchor plate stood on the screen side of the frame, right in front of the display module's connectors.  The new
+# pair puts the nuts on the FRONT side of the frame (toward the bottom plate), the screws go in from the screen side:
+#   ButtonBracket  both anchor rings + an arm and a leg on each outer side (one printed piece for both buttons)
+#   ButtonBar      the nut plate: one bar across both buttons, screwed to the two legs, one nut pocket per frame screw
+#   ButtonFrameU_* the same frame, with a 2 mm larger corner relief (the bar has a raised block around the far nut pocket)
+BT_UNIT = True                            # True: the model shows the new pair; False: the old anchors, exactly as before
+BT_UNIT_RING_ID = BT_RING_ID + 1.0        # ring hole of the bracket: 1 mm wider than the old anchors' (play for fitting)
+BT_UNIT_SCREW_L = 20.0                    # M3 screws from the screen side through frame + switch into the nuts in the bar
+BT_UNIT_TAB_SCREW_L = 10.0                # M3 screws that hold the bar to the bracket: from the FRONT, through a strap of the bracket into the bar's end tab
+BT_UNIT_FLOOR_CLEAR = 0.8                 # the lower front edge of bar and legs is cut away parallel to the bottom plate, this far above it
+BT_UNIT_CORNER_EXTRA = 2.0                # frame variant: the end wall's corner relief reaches this much further along u
+BT_UNIT_POCKET_DEPTH = 2.7                # nut pocket in the bar, from the bar's rear face (nut is 2.4 thick)
+BT_UNIT_BOSS_WALL = 1.2                   # plastic around the nut pockets of the bar
+BT_UNIT_LEG_T = 5.0                       # leg thickness (along u)
+BT_UNIT_ARM_V0, BT_UNIT_ARM_V1 = -8.0, 5.0   # arm / leg extent along v, around the button centre line
+BT_UNIT_STRAP_T = 2.5                     # strap on the leg that lies in front of the bar's end tab and carries the heads of the tab screws
+BT_UNIT_STRAP_GAP = 0.3                   # strap to the bar's front face (so the bar goes in behind the strap)
+BT_UNIT_END_GAP = 0.3                     # bar end to leg inner face (so the bar goes in between the legs)
+# the DIRECT variant: no frame at all, the BLEE switch is screwed straight onto the bar (ButtonBarDirect)
+BT_UNIT_DIRECT = True                     # True: the model and the kit use ButtonBarDirect and no frame; False: the bar + frame pair exactly as delivered before
+BT_UNIT_SW_SCREW_L = 16.0                 # M3 screws from the screen side: head on the switch, through switch and bar, into a nut in a FRONT pocket of the bar
+BT_UNIT_FRONT_POCKET_DEPTH = 4.0          # nut pocket depth, from the bar's FRONT face (the nut is pulled against the ceiling, so the bar is clamped
+                                          #   between the switch and the nut)
+BT_UNIT_RIB_W, BT_UNIT_RIB_H = 1.2, 1.2   # two ribs on the bar that locate the two ends of the switch (width, height above the bar face)
+BT_UNIT_RIB_CLEAR = 0.15                  # ... gap between a rib and the switch end
+BT_UNIT_BUMP = 0.3                        # crush bumps on the ribs squeeze the switch ends by this much (play out, no slack)
+BT_UNIT_TICK_W, BT_UNIT_TICK_D = 0.5, 0.4 # index marks next to the plunger-end rib: width and depth of each engraved line
 
 # --- speaker on the right side wall: 4 standoffs on a square + grille ---------
 SPK_Y, SPK_Z = 135.0, 45.0     # centre of the speaker: depth from the front, height
@@ -1020,12 +1134,14 @@ def make_anchor(narrow=False):
     return refine(a)
 
 
-def make_frame():
+def make_frame(corner_extra=0.0):
     """Frame: end wall (the hard stop, exactly BT_TRAVEL below the flange) + an outer and an inner wall that
     hold the BLEE switch by its own two holes (M3 screws through plain 3.4 mm holes).  It is slid onto the
     anchor plate from the OUTSIDE (-u for Clark) with the switch already in it; the stop block on the anchor
     lines the screw holes up with the slots.  Prints end-wall-down (the flange's contact face is the bottom).
-    This is the version for the LEFT button (Clark); the right button uses its mirror image."""
+    This is the version for the LEFT button (Clark); the right button uses its mirror image.
+    corner_extra > 0 (the ButtonFrameU_* variant for the two-part anchor): the corner relief of the end wall reaches that much
+    further along u, because the nut bar has a raised block around the far nut pocket.  0 gives the original frame."""
     f = lbox(FR_U0, BT_FRAME_FRONT_V, W_END_BOT, FR_U1, FR_VI, W_STOP)                           # end wall
     f = f.fuse(lbox(FR_U0, FR_VT, W_FR_BOT, FR_U1, FR_V0, W_END_BOT + 0.01))                      # outer wall
     f = f.fuse(lbox(FR_U0, FR_V1, W_FR_BOT, FR_U1, FR_VI, W_END_BOT + 0.01))                      # inner wall
@@ -1034,8 +1150,218 @@ def make_frame():
         f = f.cut(cyl(SW_HOLE_D / 2.0, FR_VI - FR_VT + 2.0, V(u, FR_VT - 1.0, w), V(0, 1, 0)))
         if w + BT_SCREW_HEAD_D / 2.0 + 0.3 > W_END_BOT:                       # this screw head would sit under the end wall:
             f = f.cut(lbox(FR_U0 - 1.0, BT_FRAME_FRONT_V - 1.0, w - BT_SCREW_HEAD_D / 2.0 - 0.4,   # cut the end wall's front corner away
-                           u + BT_SCREW_HEAD_D / 2.0 + 0.4, FR_VT, W_STOP + 1.0))               # (it is not under the flange anyway)
+                           u + BT_SCREW_HEAD_D / 2.0 + 0.4 + corner_extra, FR_VT, W_STOP + 1.0))   # (it is not under the flange anyway)
     return refine(f)
+
+
+# =============================================================================
+# THE TWO-PART ANCHOR: ButtonBracket + ButtonBar   (BT_UNIT)
+# =============================================================================
+# Pair coordinates:  x = u - scr_cu (0 = on the line between the two buttons),  y = v - btn_cv,  z = w.
+# Clark's axis is at x = -UN_CX, Amy's at +UN_CX, and every Amy feature is the mirror image of Clark's about x = 0.
+# "u'" below = the button-local u of a Clark feature (x = u' - UN_CX).
+BTN_CV = btn_v0 + BTN_HOLE_L / 2.0                       # button centre, along the slope
+UN_CX = BTN_HOLE_W / 2.0 + BTN_GAP / 2.0                 # button axis -> centre line (18.5)
+UN_Y_R = FR_VT - BT_SLIDE_GAP                            # rear face of the bar (toward the screen), just short of the frame's outer wall
+UN_Y_F = UN_Y_R - BT_PLATE_T                             # front face (toward the bottom plate)
+UN_W_TOP = W_END_BOT - 0.8                               # top of the plain bar: 0.8 mm under the frame's end wall
+UN_W_BOT = W_AN_BOT                                      # bottom of the bar and legs (the floor cut trims it)
+UN_TAB_W = POCKET_U + 2.0 * BT_UNIT_BOSS_WALL           # end tab of the bar (it carries the two nuts for the strap screws): width along u
+UN_TAB_U1 = FR_U0 - 0.8                                  # ... inner end (0.8 mm from the frame)
+UN_TAB_U0 = UN_TAB_U1 - UN_TAB_W                         # ... outer end
+UN_TAB_UC = 0.5 * (UN_TAB_U0 + UN_TAB_U1)                # axis of the strap screws (along v)
+UN_TAB_TOP = -12.0                                       # top of the end tab
+UN_TAB_SCREW_W = (-17.0, -29.5)                          # heights of the two strap screws
+UN_TAB_POCKET_W = 6.35 + 0.3                             # their nut pockets, along w (corners up)
+UN_LEG_U1 = UN_TAB_U0 - BT_UNIT_END_GAP                  # inner face of the bracket leg
+UN_LEG_U0 = UN_LEG_U1 - BT_UNIT_LEG_T                    # outer face of the leg
+UN_STRAP_Y1 = UN_Y_F - BT_UNIT_STRAP_GAP                 # strap: rear face (toward the bar) ...
+UN_STRAP_Y0 = UN_STRAP_Y1 - BT_UNIT_STRAP_T              # ... front face (screw heads)
+UN_STRAP_W1 = max(UN_TAB_SCREW_W) + BT_SCREW_HEAD_D / 2.0 + BT_UNIT_BOSS_WALL
+UN_STRAP_W0 = min(UN_TAB_SCREW_W) - BT_SCREW_HEAD_D / 2.0 - BT_UNIT_BOSS_WALL
+UN_SCREW_TIP = FR_VI - BT_UNIT_SCREW_L                   # tip of the frame screws (heads bear on the frame's inner wall)
+UN_NUT_FRONT = FR_VT - BT_NUT3_H                         # front face of a frame nut, clamped against the frame's outer wall
+# DIRECT variant: the switch lies on the bar's rear face
+UN_SW_Y0 = UN_Y_R                                        # switch front face = bar rear face
+UN_SW_Y1 = UN_Y_R + SW_D                                 # switch screen-side face = bearing face of the screw heads
+UN_SW_SHIFT = (UN_SW_Y0 + SW_D / 2.0) - BT_PIN_V         # how far the switch moves toward the bar compared with the frame version (about -3.2)
+UN_D_W_TOP = W_STOP - BT_SLOT - 0.4                      # plain top of the direct bar: clears the flange at the end of its travel, also at the slot's end
+UN_D_POCKET_Y1 = UN_Y_F + BT_UNIT_FRONT_POCKET_DEPTH     # ceiling of the front nut pockets
+UN_D_TIP = UN_SW_Y1 - BT_UNIT_SW_SCREW_L                 # screw tip
+assert UN_D_TIP <= UN_D_POCKET_Y1 - BT_NUT3_H - 0.3, "BT_UNIT_SW_SCREW_L too short: the screw would not come through the nut"
+assert UN_D_POCKET_Y1 < UN_Y_R - 1.2, "front nut pockets too deep for the bar"
+assert UN_Y_R - BT_UNIT_POCKET_DEPTH > UN_Y_F + 1.5, "nut pockets in the bar are too deep for its thickness"
+assert UN_TAB_TOP - (max(UN_TAB_SCREW_W) + UN_TAB_POCKET_W / 2.0) >= 1.2, "end tab too low for the upper strap-screw pocket"
+assert FR_VT - UN_Y_R <= BT_UNIT_POCKET_DEPTH - BT_NUT3_H + 1.0, "nut pocket too shallow"
+
+
+def _mirror_x(s):
+    return s.mirror(V(0, 0, 0), V(1, 0, 0))
+
+
+def _both_sides(clark_local):
+    """A shape built for Clark in button-local u' -> the same shape for Clark and Amy in pair coordinates."""
+    c = clark_local.copy()
+    c.translate(V(-UN_CX, 0, 0))
+    return c, _mirror_x(c)
+
+
+def floor_cut_tool(clear=None):
+    """Everything on the bottom-plate side of the plane that lies `clear` above the top face of the BottomPlate (pair coordinates).
+    The bottom plate's top face is the horizontal world plane z = 0; in slope coordinates it is v*sin(a) + w*cos(a) + FRONT_H = 0."""
+    clear = BT_UNIT_FLOOR_CLEAR if clear is None else clear
+
+    def vp(w):
+        return (clear - FRONT_H - w * CA) / SA - BTN_CV
+
+    w_lo, w_hi = -70.0, 5.0
+    pts = [V(-90.0, vp(w_lo), w_lo), V(-90.0, vp(w_hi), w_hi), V(-90.0, -90.0, w_hi), V(-90.0, -90.0, w_lo)]
+    pts.append(pts[0])
+    return Part.Face(Part.makePolygon(pts)).extrude(V(180.0, 0, 0))
+
+
+def make_button_bracket():
+    """ButtonBracket (print 1): both anchor rings (clamped between the Panel and the mounting nuts, hole 1 mm wider than the old
+    anchors') joined by a web, and on each outer side an arm and a leg that reaches down beside the bar.  A strap on each leg
+    lies in front of the bar's end tab (bottom-plate side) and carries the heads of two M3 x 10 screws that go into nuts in the tab.
+    The lower front edge of legs and straps is cut parallel to the bottom plate.
+    Prints ring-face-down (the face that touches the Panel lies on the bed)."""
+    ring_top, ring_bot = -SLOPE_WALL, W_NUT_TOP
+    x_in, x_out = -UN_CX + UN_LEG_U1, -UN_CX + UN_LEG_U0
+    x_tab_in = -UN_CX + UN_TAB_U1
+    v0, v1 = BT_UNIT_ARM_V0, BT_UNIT_ARM_V1
+    half = lbox(x_out, v0, ring_bot, -UN_CX, v1, ring_top)                               # arm, in the ring layer
+    half = half.fuse(lbox(x_out, v0, UN_W_BOT, x_in, v1, ring_top - 0.01))               # leg
+    half = half.fuse(lbox(x_in - 0.01, UN_STRAP_Y0, UN_STRAP_W0, x_tab_in, UN_STRAP_Y1, UN_STRAP_W1))   # strap in front of the bar's end tab
+    half = half.fuse(zc(BT_NUT_D / 2.0, ring_bot, ring_top, -UN_CX, 0.0))               # ring disc
+    br = half.fuse(_mirror_x(half)).fuse(lbox(-UN_CX, -9.0, ring_bot, UN_CX, 9.0, ring_top))   # + the web between the discs
+    for sx in (-1, 1):
+        br = br.cut(zc(BT_UNIT_RING_ID / 2.0, ring_bot - 1.0, ring_top + 1.0, sx * UN_CX, 0.0))      # hole for the barrel
+    holes = []
+    for wt in UN_TAB_SCREW_W:                                                              # 3.4 mm holes in the straps (along v)
+        for xc in (-UN_CX + UN_TAB_UC, UN_CX - UN_TAB_UC):
+            holes.append(cyl(SW_HOLE_D / 2.0, BT_UNIT_STRAP_T + 2.0, V(xc, UN_STRAP_Y0 - 1.0, wt), V(0, 1, 0)))
+    br = cut_all(br, holes)
+    return refine(br.cut(floor_cut_tool()))
+
+
+def make_button_bar():
+    """ButtonBar (print 1): the nut plate, one bar across both buttons, IN FRONT of the frames (bottom-plate side).  Per frame screw
+    a vertical slot (+-BT_SLOT, the same tuning travel as before) and, open to the bar's REAR face, a pocket for the M3 nut; the nut
+    is pulled against the frame's outer wall when the screw is tightened.  A raised block around the pocket of the far screw.  At
+    each end a taller tab with two more nut pockets (same kind) for the M3 x 10 screws that come from the front through the straps
+    of the bracket.  The lower front edge is cut parallel to the bottom plate.  It goes in AFTER the mounting nuts are on:
+    straight up (+w) between the legs, behind the straps.  Prints front-face-down."""
+    xe = UN_CX - UN_TAB_U0
+    bar = lbox(-xe, UN_Y_F, UN_W_BOT, xe, UN_Y_R, UN_W_TOP)
+    adds, cuts = [], []
+    for (u, w) in SW_HOLES:
+        top = w + POCKET_W / 2.0 + BT_UNIT_BOSS_WALL
+        if top > UN_W_TOP:                                      # the pocket reaches above the plain bar: raised block
+            adds.append(lbox(u - POCKET_U / 2.0 - BT_UNIT_BOSS_WALL, UN_Y_F, UN_W_TOP - 0.01,
+                             u + POCKET_U / 2.0 + BT_UNIT_BOSS_WALL, UN_Y_R, top))
+        cuts.append(lbox(u - SW_HOLE_D / 2.0, UN_Y_F - 1.0, w - BT_SLOT, u + SW_HOLE_D / 2.0, UN_Y_R + 1.0, w + BT_SLOT))
+        for dw in (-BT_SLOT, BT_SLOT):
+            cuts.append(cyl(SW_HOLE_D / 2.0, UN_Y_R - UN_Y_F + 2.0, V(u, UN_Y_F - 1.0, w + dw), V(0, 1, 0)))
+        cuts.append(lbox(u - POCKET_U / 2.0, UN_Y_R - BT_UNIT_POCKET_DEPTH, w - POCKET_W / 2.0,
+                         u + POCKET_U / 2.0, UN_Y_R + 1.0, w + POCKET_W / 2.0))
+    adds.append(lbox(UN_TAB_U0, UN_Y_F, UN_W_BOT, UN_TAB_U1, UN_Y_R, UN_TAB_TOP))      # end tab: as thick as the bar, but taller
+    for wt in UN_TAB_SCREW_W:
+        cuts.append(cyl(SW_HOLE_D / 2.0, UN_Y_R - UN_Y_F + 2.0, V(UN_TAB_UC, UN_Y_F - 1.0, wt), V(0, 1, 0)))
+        cuts.append(lbox(UN_TAB_UC - POCKET_U / 2.0, UN_Y_R - BT_UNIT_POCKET_DEPTH, wt - UN_TAB_POCKET_W / 2.0,
+                         UN_TAB_UC + POCKET_U / 2.0, UN_Y_R + 1.0, wt + UN_TAB_POCKET_W / 2.0))
+    for a in adds:
+        for side in _both_sides(a):
+            bar = bar.fuse(side)
+    for c in cuts:
+        for side in _both_sides(c):
+            bar = bar.cut(side)
+    return refine(bar.cut(floor_cut_tool()))
+
+
+def make_button_bar_direct():
+    """ButtonBarDirect (print 1): the nut plate WITHOUT any frame - the BLEE switch is screwed straight onto the bar's rear face
+    (toward the screen).  Per switch hole a vertical slot (+-BT_SLOT, the tuning travel) and, open to the bar's FRONT face, a pocket for the
+    M3 nut: the screw (head on the switch, from the screen side) pulls the nut against the pocket's ceiling, so the BAR is clamped between
+    the switch and the nut and the switch cannot slide when the button is pressed.  Two ribs on the rear face hold the two ends of the switch
+    (they keep it square and in line, and each has two small crush bumps that take the slack out); next to the plunger-end rib an index scale
+    of three engraved lines (-1 / 0 / +1 mm) shows where the lower edge of the switch sits in the tuning travel.  Raised block around the far
+    pocket (its ceiling needs the plastic), end tabs and nut pockets for the strap screws as in ButtonBar.  Lower front edge cut parallel to
+    the bottom plate.  Goes in after the mounting nuts, straight up between the legs and behind the straps.  Prints front-face-down:
+    the front pockets then face the bed (print them with a few bridged layers, or add support under the 4 pockets in the slicer)."""
+    xe = UN_CX - UN_TAB_U0
+    bar = lbox(-xe, UN_Y_F, UN_W_BOT, xe, UN_Y_R, UN_D_W_TOP)
+    adds, cuts = [], []
+    for (u, w) in SW_HOLES:
+        top = w + POCKET_W / 2.0 + BT_UNIT_BOSS_WALL
+        if top > UN_D_W_TOP:
+            adds.append(lbox(u - POCKET_U / 2.0 - BT_UNIT_BOSS_WALL, UN_Y_F, UN_D_W_TOP - 0.01,
+                             u + POCKET_U / 2.0 + BT_UNIT_BOSS_WALL, UN_Y_R, top))
+        cuts.append(lbox(u - SW_HOLE_D / 2.0, UN_Y_F - 1.0, w - BT_SLOT, u + SW_HOLE_D / 2.0, UN_Y_R + 1.0, w + BT_SLOT))
+        for dw in (-BT_SLOT, BT_SLOT):
+            cuts.append(cyl(SW_HOLE_D / 2.0, UN_Y_R - UN_Y_F + 2.0, V(u, UN_Y_F - 1.0, w + dw), V(0, 1, 0)))
+        cuts.append(lbox(u - POCKET_U / 2.0, UN_Y_F - 1.0, w - POCKET_W / 2.0,
+                         u + POCKET_U / 2.0, UN_D_POCKET_Y1, w + POCKET_W / 2.0))         # nut pocket, open to the FRONT face
+    # the two ribs that locate the switch ends (they run along w, the direction of the tuning travel)
+    rib_lo = W_SW_BOT - BT_SLOT - 0.5
+    ru0 = SW_U0 - BT_UNIT_RIB_CLEAR                                                         # inner face of the rib at the terminal end
+    ru1 = SW_U1 + BT_UNIT_RIB_CLEAR                                                         # inner face of the rib at the plunger end
+    adds.append(lbox(ru0 - BT_UNIT_RIB_W, UN_Y_R - 0.01, rib_lo, ru0, UN_Y_R + BT_UNIT_RIB_H, W_SW_TOP + BT_SLOT))
+    adds.append(lbox(ru1, UN_Y_R - 0.01, rib_lo, ru1 + BT_UNIT_RIB_W, UN_Y_R + BT_UNIT_RIB_H, UN_D_W_TOP))
+    for wb in (W_SW_BOT + 3.5, W_SW_TOP - 4.4):                                             # crush bumps: half-round, they protrude BT_UNIT_BUMP
+        adds.append(cyl(0.6, BT_UNIT_RIB_H + 0.01, V(ru0 + BT_UNIT_BUMP - 0.6, UN_Y_R - 0.01, wb), V(0, 1, 0)))
+        adds.append(cyl(0.6, BT_UNIT_RIB_H + 0.01, V(ru1 - BT_UNIT_BUMP + 0.6, UN_Y_R - 0.01, wb), V(0, 1, 0)))
+    tu0 = ru1 + BT_UNIT_RIB_W + 1.0                                                         # index scale: -1 / 0 / +1 mm of the switch's lower edge
+    for k, ln in ((-1, 3.0), (0, 4.0), (1, 3.0)):
+        wk = W_SW_BOT + k * BT_SLOT
+        cuts.append(lbox(tu0, UN_Y_R - BT_UNIT_TICK_D, wk - BT_UNIT_TICK_W / 2.0, tu0 + ln, UN_Y_R + 0.1, wk + BT_UNIT_TICK_W / 2.0))
+    # end tabs with the two nut pockets of the strap screws: as in ButtonBar
+    adds.append(lbox(UN_TAB_U0, UN_Y_F, UN_W_BOT, UN_TAB_U1, UN_Y_R, UN_TAB_TOP))
+    for wt in UN_TAB_SCREW_W:
+        cuts.append(cyl(SW_HOLE_D / 2.0, UN_Y_R - UN_Y_F + 2.0, V(UN_TAB_UC, UN_Y_F - 1.0, wt), V(0, 1, 0)))
+        cuts.append(lbox(UN_TAB_UC - POCKET_U / 2.0, UN_Y_R - BT_UNIT_POCKET_DEPTH, wt - UN_TAB_POCKET_W / 2.0,
+                         UN_TAB_UC + POCKET_U / 2.0, UN_Y_R + 1.0, wt + UN_TAB_POCKET_W / 2.0))
+    for a in adds:
+        for side in _both_sides(a):
+            bar = bar.fuse(side)
+    for c in cuts:
+        for side in _both_sides(c):
+            bar = bar.cut(side)
+    return refine(bar.cut(floor_cut_tool()))
+
+
+def orient_bar(s):
+    s.rotate(V(0, 0, 0), V(1, 0, 0), 90)             # +v points up: the bar's front face lies on the bed (ButtonBar: its pockets open upward; ButtonBarDirect: its 4 front pockets face the bed and are bridged)
+
+
+def _hex_nut_along_v(u, w, y0):
+    """M3 nut ghost with its axis along v (corners along w), from y0 to y0 + nut thickness."""
+    r = 0.5 * 6.35
+    pts = [V(u + r * math.cos(math.radians(90 + 60 * k)), y0, w + r * math.sin(math.radians(90 + 60 * k))) for k in range(6)]
+    pts.append(pts[0])
+    return Part.Face(Part.makePolygon(pts)).extrude(V(0, BT_NUT3_H, 0)).cut(cyl(1.5, 4.0, V(u, y0 - 1.0, w), V(0, 1, 0)))
+
+
+def make_ref_hardware_unit(direct=False):
+    """Ghosts (pair coordinates), per button: the two frame screws (M3 x BT_UNIT_SCREW_L, from the screen side, head on the frame's
+    inner wall) with their nuts clamped against the frame's outer wall, then the two strap screws (M3 x BT_UNIT_TAB_SCREW_L, from the
+    front, head on the strap) with their nuts on the floor of the tab pockets.  Order per button: head, shank, nut for each of the 4."""
+    clark = []
+    for (u, w) in SW_HOLES:
+        if direct:      # head on the switch, nut against the ceiling of the pocket in the bar's front face
+            clark.append(cyl(BT_SCREW_HEAD_D / 2.0, BT_SCREW_HEAD_H, V(u, UN_SW_Y1, w), V(0, 1, 0)))
+            clark.append(cyl(1.5, BT_UNIT_SW_SCREW_L, V(u, UN_D_TIP, w), V(0, 1, 0)))
+            clark.append(_hex_nut_along_v(u, w, UN_D_POCKET_Y1 - BT_NUT3_H))
+            continue
+        clark.append(cyl(BT_SCREW_HEAD_D / 2.0, BT_SCREW_HEAD_H, V(u, FR_VI, w), V(0, 1, 0)))
+        clark.append(cyl(1.5, BT_UNIT_SCREW_L, V(u, FR_VI - BT_UNIT_SCREW_L, w), V(0, 1, 0)))
+        clark.append(_hex_nut_along_v(u, w, UN_NUT_FRONT))
+    for wt in UN_TAB_SCREW_W:
+        clark.append(cyl(BT_SCREW_HEAD_D / 2.0, BT_SCREW_HEAD_H, V(UN_TAB_UC, UN_STRAP_Y0 - BT_SCREW_HEAD_H, wt), V(0, 1, 0)))
+        clark.append(cyl(1.5, BT_UNIT_TAB_SCREW_L, V(UN_TAB_UC, UN_STRAP_Y0, wt), V(0, 1, 0)))
+        clark.append(_hex_nut_along_v(UN_TAB_UC, wt, UN_Y_R - BT_UNIT_POCKET_DEPTH))
+    a, b = _both_sides(Part.makeCompound(clark))
+    return Part.makeCompound([a, b])
 
 
 def make_ref_switch():
@@ -1351,6 +1677,13 @@ def layout_warnings():
     if nut_margin < 0.0:
         w.append("The mounting nut (behind the %.1f mm anchor ring) sticks out %.1f mm past the barrel stub - the flange "
                  "would rest on the nut. Make BT_RING_T smaller or BT_STUB_END longer." % (BT_RING_T, -nut_margin))
+    if BT_UNIT:
+        if UN_SCREW_TIP < UN_Y_F:
+            w.append("The frame screws (M3 x %.0f) stick out %.1f mm past the front face of the bar, toward the bottom plate - use a shorter screw."
+                     % (BT_UNIT_SCREW_L, UN_Y_F - UN_SCREW_TIP))
+        if UN_SCREW_TIP > UN_NUT_FRONT - 0.8:
+            w.append("The frame screws (M3 x %.0f) end only %.1f mm past the nuts - not enough thread through the nut."
+                     % (BT_UNIT_SCREW_L, UN_NUT_FRONT - UN_SCREW_TIP))
     if WALL - (INSERT_DEPTH - SPK_POST_H) < 1.0:
         w.append("Speaker insert holes leave only %.1f mm of skin on the outside of the wall."
                  % (WALL - (INSERT_DEPTH - SPK_POST_H)))
@@ -1427,30 +1760,63 @@ def main():
     use_anchor = {"Clark": anchor_narrow if BT_NARROW_SIDE == "Clark" else anchor,
                   "Amy": narrow_amy if BT_NARROW_SIDE == "Amy" else anchor_amy}
     frame_amy = frame.mirror(V(0, 0, 0), V(1, 0, 0))
+    frame_u = make_frame(BT_UNIT_CORNER_EXTRA)               # frame for the two-part anchor (larger corner relief)
+    frame_u_amy = frame_u.mirror(V(0, 0, 0), V(1, 0, 0))
+    bracket, bar = make_button_bracket(), make_button_bar()
+    bar_direct = make_button_bar_direct()
+    direct = BT_UNIT and BT_UNIT_DIRECT
     ref_sw, ref_hw = make_ref_switch(), make_ref_hardware()
     ref_hous, ref_nut, ref_pl = make_ref_button_parts()
-    btn_cv = btn_v0 + BTN_HOLE_L / 2.0
+    btn_cv = BTN_CV
+    ref_sw_use = ref_sw.copy()
+    if direct:                                   # no frame: the switch lies on the bar, about 3.2 mm closer to it
+        ref_sw_use.translate(V(0, UN_SW_SHIFT, 0))
     for sgn, label in ((-1, "Clark"), (1, "Amy")):
         cu = scr_cu + sgn * (BTN_HOLE_W / 2.0 + BTN_GAP / 2.0)
-        items = [("ButtonSlider_" + label, slider, (0.85, 0.85, 0.80)),
-                 ("ButtonAnchor_" + label, use_anchor[label], (0.30, 0.34, 0.46)),
-                 ("ButtonFrame_" + label, frame if sgn < 0 else frame_amy, (0.18, 0.55, 0.52))]
+        items = [("ButtonSlider_" + label, slider, (0.85, 0.85, 0.80))]
+        hidden = []
+        if BT_UNIT:
+            (hidden if direct else items).append((("ALT_" if direct else "") + "ButtonFrameU_" + label,
+                                                  frame_u if sgn < 0 else frame_u_amy, (0.18, 0.55, 0.52)))
+            hidden += [("ALT_ButtonAnchor_" + label, use_anchor[label], (0.30, 0.34, 0.46)),
+                       ("ALT_ButtonFrame_" + label, frame if sgn < 0 else frame_amy, (0.18, 0.55, 0.52))]
+        else:
+            items += [("ButtonAnchor_" + label, use_anchor[label], (0.30, 0.34, 0.46)),
+                      ("ButtonFrame_" + label, frame if sgn < 0 else frame_amy, (0.18, 0.55, 0.52))]
         if SHOW_REFERENCE:
             items += [("REF_Housing_" + label, ref_hous, (0.08, 0.08, 0.08)), ("REF_Nut_" + label, ref_nut, (0.5, 0.5, 0.5)),
                       ("REF_Plunger_" + label, ref_pl, (0.95, 0.95, 0.95)),
-                      ("REF_Switch_" + label, ref_sw if sgn < 0 else ref_sw.mirror(V(0, 0, 0), V(1, 0, 0)), (0.10, 0.25, 0.80)),
-                      ("REF_Screws_" + label, ref_hw if sgn < 0 else ref_hw.mirror(V(0, 0, 0), V(1, 0, 0)), (0.75, 0.75, 0.78))]
+                      ("REF_Switch_" + label, ref_sw_use if sgn < 0 else ref_sw_use.mirror(V(0, 0, 0), V(1, 0, 0)), (0.10, 0.25, 0.80))]
+            if not BT_UNIT:
+                items.append(("REF_Screws_" + label, ref_hw if sgn < 0 else ref_hw.mirror(V(0, 0, 0), V(1, 0, 0)), (0.75, 0.75, 0.78)))
         for name, shp, col in items:
             c = shp.copy()
             c.translate(V(cu, btn_cv, 0))
             add_part(doc, name, on_slope(c), col, 30 if name.startswith("REF") else 0)
         if BT_NARROW_SIDE is None:      # the alternative anchor, in place but hidden: switch it on in the tree to look at it
-            c = (anchor_narrow if sgn < 0 else narrow_amy).copy()
+            hidden.append(("ALT_ButtonAnchorNarrow_" + label, anchor_narrow if sgn < 0 else narrow_amy, (0.75, 0.30, 0.28)))
+        for name, shp, col in hidden:
+            c = shp.copy()
             c.translate(V(cu, btn_cv, 0))
-            alt = add_part(doc, "ALT_ButtonAnchorNarrow_" + label, on_slope(c), (0.75, 0.30, 0.28))
+            alt = add_part(doc, name, on_slope(c), col)
             if App.GuiUp:
                 try:
                     alt.ViewObject.Visibility = False
+                except Exception:
+                    pass
+    if BT_UNIT:                                                # the bracket and the bar span both buttons: pair coordinates
+        pair = [("ButtonBracket", bracket, (0.30, 0.34, 0.46), 0, True),
+                ("ButtonBarDirect" if direct else "ButtonBar", bar_direct if direct else bar, (0.62, 0.40, 0.18), 0, True),
+                ("ALT_ButtonBar" if direct else "ALT_ButtonBarDirect", bar if direct else bar_direct, (0.75, 0.30, 0.28), 0, False)]
+        if SHOW_REFERENCE:
+            pair.append(("REF_ScrewsU", make_ref_hardware_unit(direct), (0.75, 0.75, 0.78), 30, True))
+        for name, shp, col, tr, vis in pair:
+            c = shp.copy()
+            c.translate(V(scr_cu, btn_cv, 0))
+            obj = add_part(doc, name, on_slope(c), col, tr)
+            if not vis and App.GuiUp:
+                try:
+                    obj.ViewObject.Visibility = False
                 except Exception:
                     pass
 
@@ -1494,6 +1860,20 @@ def main():
                   else "exported as extra files and kept hidden in the model as ALT_ButtonAnchorNarrow_*; set BT_NARROW_SIDE to use one"))
     msg.append("           anchor ring %.1f mm thick, hole %.1f mm; nut ends %.1f mm above the barrel's cut end"
                % (BT_RING_T, BT_RING_ID, BT_STUB_END - (SLOPE_WALL + BT_RING_T + BT_NUT_T)))
+    if BT_UNIT:
+        msg.append("  Two-part anchor (BT_UNIT): ButtonBracket (rings, hole %.1f mm) + ButtonBar (nut plate in FRONT of the frames) + ButtonFrameU_Clark/_Amy"
+                   % BT_UNIT_RING_ID)
+        msg.append("           frame screws: M3 x %.0f from the screen side, tip ends %.2f mm %s the bar's front face;  "
+                   "strap screws: 4 x M3 x %.0f + 4 nuts" % (BT_UNIT_SCREW_L, abs(UN_SCREW_TIP - UN_Y_F),
+                                                           "inside" if UN_SCREW_TIP >= UN_Y_F else "PAST", BT_UNIT_TAB_SCREW_L))
+        msg.append("           bar %.1f x %.2f mm, floor clearance %.1f mm; the old ButtonAnchor_* / ButtonFrame_* are still exported (and hidden as ALT_ in "
+                   "the model) but are NOT used with the bar" % (2.0 * (UN_CX - UN_TAB_U0), UN_Y_R - UN_Y_F, BT_UNIT_FLOOR_CLEAR))
+        if direct:
+            msg.append("  DIRECT variant (BT_UNIT_DIRECT): ButtonBarDirect, NO frames - the switch is screwed straight onto the bar: 4 x M3 x %.0f from the "
+                       "screen side (head on the switch, nut in a pocket in the bar's FRONT face, tip %.2f mm %s the nut's front face)"
+                       % (BT_UNIT_SW_SCREW_L, abs(UN_D_TIP - (UN_D_POCKET_Y1 - BT_NUT3_H)), "past" if UN_D_TIP < UN_D_POCKET_Y1 - BT_NUT3_H else "short of"))
+            msg.append("           the switch sits %.1f mm closer to the bar than in the frame; end ribs, crush bumps %.2f mm, index lines at -1 / 0 / +1 mm"
+                       % (-UN_SW_SHIFT, BT_UNIT_BUMP))
     if HU_ENABLE:
         msg.append("  HookSwitchInsert_x3: three inserts (left to right, 1/2/3 grooves) with the slab pad %s mm thinner/thicker than nominal; nominal pads: slab %.1f, strip %.1f mm"
                    % (", ".join("%+.1f" % dv for dv in HU_INS_VARIANTS), HU_SW_T + 0.1 - HU_SLAB_H, HU_SW_T + 0.1 - HU_STRIP_H))
@@ -1512,6 +1892,11 @@ def main():
             ("ButtonFrame_Amy", frame_amy, orient_button_flip),
             ("ButtonAnchorNarrow_Clark", anchor_narrow, orient_button_flip),                          # only for the button next to the HDMI plug
             ("ButtonAnchorNarrow_Amy", narrow_amy, orient_button_flip),
+            ("ButtonBracket", bracket, orient_button_flip),                                           # the two-part anchor (BT_UNIT)
+            ("ButtonBar", bar, orient_bar),                                                           # with frames (the first version)
+            ("ButtonBarDirect", bar_direct, orient_bar),                                              # switches screwed straight onto the bar: no frames
+            ("ButtonFrameU_Clark", frame_u, orient_button_flip),
+            ("ButtonFrameU_Amy", frame_u_amy, orient_button_flip),
             ] + ([("HangupAdapter", hangup, None), ("HookSwitchInsert_x3", ins_set, None)] if hangup is not None else []) + [
             ("DCJackFitTest", dc_jack_fit_test(parts["Back"]), orient_back),
             ("PhoneJackFitTest", phone_jack_fit_test(parts["SideLeft"]), orient_side_left)]
