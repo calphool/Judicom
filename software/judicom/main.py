@@ -118,7 +118,7 @@ def snapshots(folder, buttons):
     left = next(iter(buttons.values()))
     shots = [("1_lifted", Mode.LIFTED, None), ("2_calling", Mode.CALLING, left), ("3_ongoing", Mode.ONGOING, left),
              ("4_no_answer", Mode.NO_ANSWER, left), ("5_ended", Mode.ENDED, left), ("6_incoming", Mode.INCOMING, Party("Hannah", "granddaughter")),
-             ("7_incoming_unknown", Mode.INCOMING, Party(dial="(555) 010-2345")), ("8_please_hang_up", Mode.PLEASE_HANG_UP, None)]
+             ("7_incoming_unknown", Mode.INCOMING, Party(dial="312-555-0199")), ("8_please_hang_up", Mode.PLEASE_HANG_UP, None)]
     for name, mode, party in shots:
         view.draw(display.logical, mode, party, 0.35)
         pygame.image.save(display.logical, str(folder / (name + ".png")))

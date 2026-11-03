@@ -9,6 +9,7 @@
   CALLING         the handset on a white panel with rings spreading out, "Calling Ann (daughter)..."
   ONGOING         sound waves from the handset, "Speaking with Ann (daughter)"
   INCOMING        the handset shaking, rings spreading, "Incoming call from / Hannah / granddaughter", "Pick up the handset to answer"
+                  (someone not in the contacts file: "Incoming call from / unknown caller: / 312-555-0123")
   NO_ANSWER       "No answer." and who it was
   ENDED           "Call just ended with Ann (daughter)"
   PLEASE_HANG_UP  yellow all over: "Please put the handset back on the phone."
@@ -187,8 +188,11 @@ class CallView:
                     y = draw.centered(tmp, draw.text(party.name, "bold", 92, INK, W - 60), y + 2)
                     if party.relationship:
                         y = draw.centered(tmp, draw.text(party.relationship, "reg", 52, AMBER, W - 60), y)
-                else:
-                    y = draw.centered(tmp, draw.text(label, "bold", 70, INK, W - 60), y + 6)
+                else:                                                         # not in the contacts file: it rings all the same
+                    y = draw.centered(tmp, draw.text("unknown caller" + (":" if party and party.dial else ""), "bold", 60, INK,
+                                                     W - 60), y + 6)
+                    if party and party.dial:
+                        y = draw.centered(tmp, draw.text(party.dial, "bold", 76, AMBER, W - 60), y + 6)
             self._words = tmp.subsurface((0, 0, W, max(1, min(y, tmp.get_height())))).copy()
             self._words_key = key
         return self._words

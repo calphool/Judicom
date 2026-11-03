@@ -160,7 +160,7 @@ class WithContacts(unittest.TestCase):
     def test_unknown_number_shows_the_number(self):
         self.phone.step(["u"])
         self.assertEqual(self.machine.mode, Mode.INCOMING)
-        self.assertEqual(self.machine.party.label, "(312) 555-0199")
+        self.assertEqual(self.machine.party.label, "312-555-0199")
 
     def test_i_key_is_the_right_button_person_calling(self):
         self.phone.step(["i"])

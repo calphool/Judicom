@@ -16,7 +16,9 @@ THE FILE (see contacts.example.txt), one person per line, fields separated by |
   relationship  the way it should read on the screen ("husband", "granddaughter")
   button        left or right for the two people on the buttons; empty for everyone else
 Lines starting with # and empty lines are skipped.  A line that cannot be read is reported (with its line number) and skipped.
-Whether a caller gets through at all is decided by the PBX, not here: this file only puts a name on the screen.
+Whether a caller gets through at all is decided by the PBX, not here: this file only puts a name on the screen.  A call from a
+number that is not in the file still rings ("Incoming call from unknown caller: 312-555-0123"), so a file that has fallen behind
+the PBX's list never keeps anyone from getting through.
 
 If the file is missing, the buttons from config.BUTTONS are used (a PC demo), and incoming calls show only the number.
 """
@@ -43,9 +45,10 @@ def normalize(number):
 
 
 def pretty(number):
-    """'2125550142' -> '(212) 555-0142' for the screen; anything else is left as it is."""
+    """For the screen: '+12125550142' -> '212-555-0142'; other numbers as their digits ('sip:101@pbx' -> '101');
+    '' when there is no number at all (a caller who hides it: 'sip:anonymous@...')."""
     d = normalize(number)
-    return "(%s) %s-%s" % (d[:3], d[3:6], d[6:]) if len(d) == 10 else (number or "")
+    return "%s-%s-%s" % (d[:3], d[3:6], d[6:]) if len(d) == 10 else d
 
 
 def parse(text, log=None):
@@ -125,6 +128,7 @@ class Contacts:
         return dict(self._buttons)
 
     def lookup(self, number):
-        """The person with this number, or a Party with only the number (shown as '(312) 555-0123')."""
+        """The person with this number, or a Party with only the number (name ""), which the screen shows as
+        "Incoming call from unknown caller: 312-555-0123".  The call is let through either way: screening is the PBX's job."""
         party = self._people.get(normalize(number))
         return party if party else Party(dial=pretty(number))
