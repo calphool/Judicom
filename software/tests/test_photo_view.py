@@ -36,6 +36,8 @@ def setUpModule():
 
 def tearDownModule():
     if pygame:
+        from judicom import draw
+        draw.reset()                                        # cached fonts must not outlive pygame (crash on the next init)
         pygame.quit()
 
 
