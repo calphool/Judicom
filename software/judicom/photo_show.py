@@ -49,7 +49,7 @@ def main(argv=None):
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))              # a clean stop when a service is stopped
     terminal = TerminalKeys() if TerminalKeys.available() else None
     clock = pygame.time.Clock()
-    last_version, running = -1, True
+    running = True
     try:
         view.start()
         while running:
@@ -59,10 +59,9 @@ def main(argv=None):
                 elif key == "next":
                     view.next()
             view.tick()
-            if view.animated() or view.version != last_version:
+            if view.needs_redraw():
                 view.draw(display.logical)
                 display.present()
-                last_version = view.version
             clock.tick(30)
     except KeyboardInterrupt:
         pass
