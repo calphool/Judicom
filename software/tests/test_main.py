@@ -118,5 +118,70 @@ class PhoneTest(unittest.TestCase):
         self.assertEqual(self.photos.nexts, 1)
 
 
+class FakeContacts:
+    def __init__(self):
+        self.people = {"3125550187": ANN_FILE}
+        self.left = FRANK_FILE
+        self.changed = False
+        self.refreshes = 0
+
+    def buttons(self):
+        return {"left": self.left, "right": ANN_FILE}
+
+    def refresh(self):
+        self.refreshes += 1
+        changed, self.changed = self.changed, False
+        return changed
+
+    def lookup(self, number):
+        from judicom.contacts import normalize, pretty
+        return self.people.get(normalize(number)) or Party(dial=pretty(number))
+
+
+FRANK_FILE = Party("Frank", "husband", "2125550142", "2125550142")
+ANN_FILE = Party("Ann", "daughter", "3125550187", "3125550187")
+
+
+class WithContacts(unittest.TestCase):
+    def setUp(self):
+        self.clock = Clock()
+        self.machine = Machine({}, clock=self.clock)
+        self.calls, self.sounds, self.photos, self.contacts = Calls(), Sounds(), Photos(), FakeContacts()
+        self.phone = Phone(self.machine, KeyControls(), self.calls, self.sounds, self.photos, self.contacts, clock=self.clock)
+
+    def test_buttons_come_from_the_contacts(self):
+        self.assertEqual(self.machine.buttons["left"], FRANK_FILE)
+
+    def test_incoming_number_gets_its_name(self):
+        self.phone.step()
+        self.phone._handle(("incoming", "sip:+13125550187@pbx"))
+        self.assertEqual(self.machine.party, ANN_FILE)
+
+    def test_unknown_number_shows_the_number(self):
+        self.phone.step(["u"])
+        self.assertEqual(self.machine.mode, Mode.INCOMING)
+        self.assertEqual(self.machine.party.label, "(312) 555-0199")
+
+    def test_i_key_is_the_right_button_person_calling(self):
+        self.phone.step(["i"])
+        self.assertEqual(self.machine.party, ANN_FILE)
+
+    def test_a_changed_file_reaches_the_buttons_and_the_screen(self):
+        self.phone.step()
+        self.assertFalse(self.phone.step())
+        self.contacts.left = Party("Grandpa", "husband", "2125550142", "2125550142")
+        self.contacts.changed = True
+        self.clock.t += 2
+        self.assertFalse(self.phone.step())                         # not looked at yet: every few seconds only
+        self.clock.t += 4
+        self.assertTrue(self.phone.step())                          # redraw: the names above the arrows may have changed
+        self.assertEqual(self.machine.buttons["left"].name, "Grandpa")
+
+    def test_without_contacts_a_number_is_still_shown(self):
+        phone = Phone(Machine({}, clock=self.clock), KeyControls(), Calls(), Sounds(), Photos(), clock=self.clock)
+        phone._handle(("incoming", "+13125550199"))
+        self.assertEqual(phone.machine.party.label, "+13125550199")
+
+
 if __name__ == "__main__":
     unittest.main()

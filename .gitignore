@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Judicom: the real contacts file has family phone numbers; only contacts.example.txt belongs in git
+contacts.txt
