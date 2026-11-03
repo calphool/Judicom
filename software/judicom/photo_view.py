@@ -3,9 +3,10 @@
 The picture is shown whole (never cropped) on a blurred, darkened copy of itself, so tall and wide pictures both fill the 600 x 1024
 screen.  The order comes from photos.PhotoDeck (shuffled rounds); the caption from the picture's .meta file (see photos.py).
 
-The screen asks `view.draw(surface)` every frame it needs one: `view.animated()` is true during a cross-fade and `view.version` changes
-whenever the picture changes, so a program only has to redraw when one of those says so.  Time comes from `clock` (time.monotonic),
-which tests replace with a fake.
+A program calls `view.tick()` often and draws `view.draw(surface)` whenever `view.needs_redraw()` says so: while a cross-fade runs, when
+the picture changes, and once more after a fade so that the finished picture replaces the last half-faded frame.  (Without that last frame
+the old picture stays faintly visible under the new one.)  `view.version` changes whenever the picture changes.  Time comes from
+`clock` (time.monotonic), which tests replace with a fake.
 """
 import time
 
@@ -110,6 +111,7 @@ class PhotoView:
         self.since = 0.0                 # when the current one appeared
         self.shown = 0                   # how many pictures have been shown (a state machine can count "5, then the weather")
         self.version = 0                 # changes whenever the picture changes
+        self._dirty = True               # the screen does not show the current state yet
         self._retry_at = 0.0
 
     # ---- control
@@ -138,8 +140,13 @@ class PhotoView:
     def animated(self):
         return self.previous is not None and self.clock() - self.since < self.fade
 
+    def needs_redraw(self):
+        """True when the screen should be drawn again.  Stays true after a half-faded frame until a finished one has been drawn."""
+        return self._dirty or self.animated()
+
     def draw(self, surf):
         cur = self.current
+        self._dirty = False
         if cur is None:
             surf.fill(BG)
             y = draw.block(surf, "No photos yet", "bold", 64, INK, H // 2 - 80)
@@ -147,6 +154,7 @@ class PhotoView:
             return
         elapsed = self.clock() - self.since
         if self.previous is not None and elapsed < self.fade:
+            self._dirty = True                                           # a half-faded frame is never the last word
             f = max(0.0, elapsed) / self.fade                            # 0 .. 1 through the fade
             self.previous.draw(surf, 255, int(255 * max(0.0, 1.0 - 2.0 * f)))   # old caption fades out in the first half ...
             cur.draw(surf, int(255 * f), int(255 * max(0.0, 2.0 * f - 1.0)))   # ... the picture cross-fades all the way, the new caption fades in after
@@ -169,6 +177,7 @@ class PhotoView:
     def _advance(self, fade):
         photo = self._load_next()
         now = self.clock()                               # after loading: the 15 seconds start when the picture is really on the screen
+        self._dirty = True
         if photo is None:
             if self.current is not None:                 # only a change counts: a retry that finds nothing again redraws nothing
                 self.log("no picture to show in %s" % self.deck.folder)

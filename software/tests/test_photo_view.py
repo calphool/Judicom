@@ -223,6 +223,48 @@ class View(unittest.TestCase):
             v.draw(surf)
         self.assertEqual([(c[0] is new, c[1], c[2]) for c in calls], [(True, 255, 255)])
 
+    # ---- the program's main loop, simulated: tick(), then draw() only when needs_redraw() says so
+    def loop(self, view, seconds, frame, screen):
+        end, draws = self.clock.t + seconds, 0
+        while self.clock.t < end:
+            view.tick()
+            if view.needs_redraw():
+                view.draw(screen)
+                draws += 1
+            self.clock.advance(frame)
+        return draws
+
+    @staticmethod
+    def pixels(surface):
+        return (getattr(pygame.image, "tobytes", None) or pygame.image.tostring)(surface, "RGB")
+
+    def test_after_a_fade_nothing_of_the_old_picture_is_left(self):
+        solid(self.dir / "a.png", (250, 20, 20), (600, 1024))                # red, then blue: any leftover shows
+        solid(self.dir / "b.png", (20, 20, 250), (600, 1024))
+        screen, ref = pygame.Surface((W, H)), pygame.Surface((W, H))
+        for frame in (1 / 60.0, 1 / 30.0, 0.041, 0.05, 0.075, 0.1, 0.13, 0.2):      # a fast PC ... a slow Pi
+            for offset in (0.0, 0.013, 0.027):                                      # the change can land anywhere between two frames
+                v = self.view(seconds=15, fade=0.8)
+                v.start()
+                self.loop(v, 0.2, frame, screen)
+                self.clock.advance(offset)
+                v.next()
+                self.loop(v, 3.0, frame, screen)
+                v.current.draw(ref)
+                self.assertEqual(self.pixels(screen), self.pixels(ref), "frame time %s, offset %s" % (frame, offset))
+
+    def test_redraws_only_when_something_changes(self):
+        self.pictures(2)
+        screen = pygame.Surface((W, H))
+        v = self.view(seconds=15, fade=0.8)
+        v.start()
+        draws = self.loop(v, 3.0, 1 / 30.0, screen)
+        self.assertEqual(draws, 1)                                                  # one picture, no fade: drawn once, then left alone
+        v.next()
+        draws = self.loop(v, 0.8 + 0.2, 1 / 30.0, screen)
+        self.assertTrue(24 <= draws <= 32, draws)                                   # about one per frame during the fade, plus the final one
+        self.assertEqual(self.loop(v, 5.0, 1 / 30.0, screen), 0)                    # and nothing once it has settled
+
     def test_next_key_goes_on_straight_away(self):
         self.pictures()
         v = self.view()
