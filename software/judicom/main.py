@@ -5,7 +5,8 @@
     python3 -m judicom.main --snapshots DIR    save a PNG of every phone screen into DIR, then stop (no screen needed)
 
 The phone software (baresip) is not connected yet, so a call never really goes out: "Calling..." turns into "No answer." after
-RING_OUT_SECONDS.  These keys pretend to be it:  y = they answer   f = the call fails   e = they hang up   i = an incoming call.
+RING_OUT_SECONDS.  These keys pretend to be it:  y = they answer   f = the call fails   e = they hang up
+i = an incoming call from the person on the right button   u = an incoming call from a number that is not in the contacts file.
 Other keys: space = next photo, q or Esc = quit.  Keys are typed in the terminal that started the program, or in the window.
 Needs:  sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio alsa-utils
 """
@@ -16,10 +17,11 @@ import time
 from pathlib import Path
 
 from . import config
-from .machine import Machine, Mode, Party, buttons_from_config
+from .machine import Machine, Mode, Party
 
-SIMULATED = {"y": ("answered",), "f": ("call_failed",), "e": ("remote_ended",),
-             "i": ("incoming", Party("Sydney", "granddaughter", "+15550102345"))}
+SIMULATED = {"y": ("answered",), "f": ("call_failed",), "e": ("remote_ended",)}
+UNKNOWN_NUMBER = "+15155550199"                 # the "u" key: a caller who is not in the contacts file
+CONTACTS_CHECK_SECONDS = 5.0                    # how often the contacts file is looked at for changes
 
 
 class NoCalls:
@@ -37,10 +39,27 @@ class Phone:
     """Ties the parts together, without any drawing: switches and keys -> machine -> phone software and sounds.
     The program calls step() once a frame, then draws if step() says the screen changed."""
 
-    def __init__(self, machine, controls, calls, sounds, photos, log=None):
+    def __init__(self, machine, controls, calls, sounds, photos, contacts=None, log=None, clock=time.monotonic):
         self.machine, self.controls, self.calls, self.sounds, self.photos = machine, controls, calls, sounds, photos
+        self.contacts, self.clock = contacts, clock
         self.log = log or (lambda msg: None)
         self._version = None
+        self._buttons_changed = False
+        self._checked = clock()
+        if contacts is not None:
+            machine.buttons = contacts.buttons()
+
+    def simulated(self, key):
+        """The pretend phone-software event for a key, or None."""
+        if key in SIMULATED:
+            return SIMULATED[key]
+        if key == "i":
+            right = self.machine.buttons.get("right")
+            has_number = right is not None and any(ch.isdigit() for ch in right.dial)
+            return ("incoming", right.dial if has_number else UNKNOWN_NUMBER)
+        if key == "u":
+            return ("incoming", UNKNOWN_NUMBER)
+        return None
 
     def step(self, keys=()):
         """keys: key names from keys.py.  Returns True when the mode or the party changed (the whole screen must be drawn)."""
@@ -49,12 +68,15 @@ class Phone:
         for key in keys:                                # in order: "lift, then next photo" must not change the photo
             if key == "next" and self.machine.mode == Mode.IDLE:
                 self.photos.next()
-            for event in self.controls.key(key) + ([SIMULATED[key]] if key in SIMULATED else []):
+            sim = self.simulated(key)
+            for event in self.controls.key(key) + ([sim] if sim else []):
                 self._handle(event)
         for action in self.machine.tick():
             self.calls.do(action)
         self.sounds.update(self.machine.dial_tone, self.machine.ringing, self.machine.dialing_tones)
-        changed = self.machine.version != self._version
+        self._check_contacts()
+        changed = self.machine.version != self._version or self._buttons_changed
+        self._buttons_changed = False
         if changed:
             self._version = self.machine.version
             if self.machine.mode == Mode.IDLE:
@@ -63,7 +85,22 @@ class Phone:
             self.photos.tick()
         return changed
 
+    def _check_contacts(self):
+        now = self.clock()
+        if self.contacts is None or now - self._checked < CONTACTS_CHECK_SECONDS:
+            return
+        self._checked = now
+        if self.contacts.refresh():
+            self.machine.buttons = self.contacts.buttons()
+            self._buttons_changed = True                # the names above the arrows may have changed
+
     def _handle(self, event):
+        if event[0] == "incoming" and len(event) > 1 and not isinstance(event[1], Party):
+            if self.contacts is not None:               # the phone software gives a number: put the name to it
+                self.contacts.refresh()
+                event = ("incoming", self.contacts.lookup(event[1]))
+            else:
+                event = ("incoming", Party(dial=str(event[1])))
         self.log(" ".join(x.label if isinstance(x, Party) else str(x) for x in event))
         for action in self.machine.handle(*event):
             self.calls.do(action)
@@ -80,7 +117,7 @@ def snapshots(folder, buttons):
     folder.mkdir(parents=True, exist_ok=True)
     left = next(iter(buttons.values()))
     shots = [("1_lifted", Mode.LIFTED, None), ("2_calling", Mode.CALLING, left), ("3_ongoing", Mode.ONGOING, left),
-             ("4_no_answer", Mode.NO_ANSWER, left), ("5_ended", Mode.ENDED, left), ("6_incoming", Mode.INCOMING, SIMULATED["i"][1]),
+             ("4_no_answer", Mode.NO_ANSWER, left), ("5_ended", Mode.ENDED, left), ("6_incoming", Mode.INCOMING, Party("Sydney", "granddaughter")),
              ("7_incoming_unknown", Mode.INCOMING, Party(dial="(555) 010-2345")), ("8_please_hang_up", Mode.PLEASE_HANG_UP, None)]
     for name, mode, party in shots:
         view.draw(display.logical, mode, party, 0.35)
@@ -102,7 +139,11 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.speed <= 0:
         sys.exit("--speed must be above zero")
-    buttons = buttons_from_config()
+    from .contacts import Contacts
+    start = time.monotonic()
+    log = lambda msg: print("[%7.1f s] %s" % (time.monotonic() - start, msg), flush=True)       # noqa: E731
+    contacts = Contacts(log=log)
+    buttons = contacts.buttons()
     if args.snapshots:
         for path in snapshots(args.snapshots, buttons):
             print(path)
@@ -117,18 +158,17 @@ def main(argv=None):
     from .photos import PhotoDeck
     from .sound import Sounds
 
-    start = time.monotonic()
-    log = lambda msg: print("[%7.1f s] %s" % (time.monotonic() - start, msg), flush=True)       # noqa: E731
     clock = lambda: start + (time.monotonic() - start) * args.speed                           # noqa: E731
     controls, source = make_controls(args.demo, log)
     display = Display(window=args.window, rotate=not args.no_rotate, flip=args.flip)
     sounds = Sounds(log, enabled=not args.no_sound)
     photos = PhotoView(PhotoDeck(args.folder), log=log)
-    phone = Phone(Machine(buttons, clock=clock, log=log), controls, NoCalls(log), sounds, photos, log)
+    phone = Phone(Machine(buttons, clock=clock, log=log), controls, NoCalls(log), sounds, photos, contacts, log)
     call_view = CallView(buttons)
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
         ", turned 90 degrees" if display.rotate else "", args.folder, source, sounds.describe()))
-    log("Pretend phone software: y = answer, f = fail, e = they hang up, i = incoming call.  space = next photo, q = quit.")
+    log("Pretend phone software: y = answer, f = fail, e = they hang up, i = incoming call (right button's person), "
+        "u = incoming call (unknown number).  space = next photo, q = quit.")
 
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))              # a clean stop when a service is stopped
     terminal = TerminalKeys() if TerminalKeys.available() else None
@@ -145,6 +185,7 @@ def main(argv=None):
                     photos.draw(display.logical)
                     display.present()
             elif changed or call_view.animated(mode):
+                call_view.buttons = phone.machine.buttons
                 call_view.draw(display.logical, mode, phone.machine.party, time.monotonic())
                 display.present()
             frames.tick(30)

@@ -2,6 +2,18 @@
 
 Run these from this folder (`software/`).  Needs `sudo apt install python3-pygame python3-pil` for anything that draws.
 
+## The contacts file (on the Judicom, not in git)
+
+Who the two buttons call and the names shown for incoming calls are in `/home/joe/contacts.txt` on the Judicom (setting:
+`CONTACTS_FILE` in `judicom/config.py`, or the `JUDICOM_CONTACTS` environment variable).  Start from `contacts.example.txt`:
+
+    641-555-0142 | Clark  | husband       | left
+    515-555-0187 | Amy    | daughter      | right
+    515-555-0123 | Sydney | granddaughter
+
+The file is not kept in git (the repository is public, and these are family phone numbers; `.gitignore` keeps `contacts.txt` out).
+The phone reads it again by itself within a few seconds of a change.  Whether a caller gets through at all is up to the PBX.
+
 ## Step 4: the whole phone (photos + call screens + dial tone + ringer)
 
     python3 -m judicom.main                   # on the Judicom: photos, and the phone screens when the handset is lifted or a call comes in
@@ -9,11 +21,12 @@ Run these from this folder (`software/`).  Needs `sudo apt install python3-pygam
     python3 -m judicom.main --snapshots DIR   # a PNG of every phone screen, to look at (no screen needed)
 
 The phone software (baresip) is not connected yet: "Calling..." turns into "No answer." after 30 s.  Keys pretend to be it:
-**y** = they answer, **f** = the call fails, **e** = they hang up, **i** = an incoming call.  **space** = next photo, **q** = quit.
+**y** = they answer, **f** = the call fails, **e** = they hang up, **i** = an incoming call (from the right button's
+person), **u** = an incoming call from a number that is not in the contacts file.  **space** = next photo, **q** = quit.
 The dial tone plays on the USB sound device (the handset), the ringer on the `Headphones` card (the jack -> LM386 -> speaker); a missing
 card is reported at start and stays silent.  `--no-sound` turns both off, `--speed 10` runs the phone's timers faster.
 Pressing a button plays touch-tone digits in the handset first (about 2 s, the screen already says "Calling ..."), then the call goes
-out.  Which digits: `"tones"` for each button in `judicom/config.py` (or the digits of `"dial"`; `"tones": ""` turns it off).
+out.  The digits are the person's number from the contacts file.
 
 ## Step 3: the hook switch, the buttons, and what the phone does
 
@@ -55,6 +68,7 @@ top of `judicom/photos.py`.
     judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
+    judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/sound.py        dial tone and ringer, looped through aplay                        (no pygame)
     judicom/main.py         the program: switches + keys -> machine -> screens, sounds, phone software
     judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only (step 2)

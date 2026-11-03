@@ -1,0 +1,14 @@
+# Judicom contacts.  Copy this file to /home/joe/contacts.txt on the Judicom and put the real people in it.
+# (The real file is not kept in git: the repository is public.)
+#
+# One person per line:   number | name | relationship | button
+#   number        written any way you like: 641-555-0142, (641) 555-0142 and +1 641 555 0142 are the same number
+#   relationship  the way it should read on the screen
+#   button        left or right for the two people on Judi's buttons; leave it empty for everyone else
+#
+# The buttons dial these numbers (and Judi hears their digits as touch-tones).  For incoming calls this file only puts a name on the
+# screen: which callers get through at all is decided by the PBX.  The phone reads the file again by itself when it changes.
+
+641-555-0142 | Clark  | husband       | left
+515-555-0187 | Amy    | daughter      | right
+515-555-0123 | Sydney | granddaughter

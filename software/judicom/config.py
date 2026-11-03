@@ -36,6 +36,10 @@ HANG_UP_SETTLE = 0.50         # ... and as hung up after it has been down this l
 BUTTON_SETTLE = 0.05          # a button press counts after this long (contact bounce)
 
 # ---- the phone: who the buttons call ----------------------------------------------------------------------------------------
+# The real people are in the contacts file on the Judicom (not in git: the repository is public).  See contacts.example.txt.
+CONTACTS_FILE = Path(os.environ.get("JUDICOM_CONTACTS", "/home/joe/contacts.txt"))
+
+# Only used when there is no contacts file (a demo on a PC).  Made-up 555 numbers.
 # "dial" is what is sent to the PBX (an extension or a number).
 # "tones" are the touch-tone digits played in the handset when the button is pressed, so it sounds like a phone dialing.  Leave it out
 # and the digits of "dial" are used (if it has any); "" = no dialing sound.  The same digits every time: the same little tune per person.
