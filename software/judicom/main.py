@@ -4,8 +4,9 @@
     python3 -m judicom.main --demo --window    on a PC: l = lift / hang up the handset, 1 / 2 = left / right button
     python3 -m judicom.main --snapshots DIR    save a PNG of every phone screen into DIR, then stop (no screen needed)
 
-The phone software (baresip) is not connected yet, so a call never really goes out: "Calling..." turns into "No answer." after
-RING_OUT_SECONDS.  These keys pretend to be it:  y = they answer   f = the call fails   e = they hang up
+Calls go through baresip (start it first: see judicom/calls.py); if it is not running, the phone still works and a call ends in
+"No answer." straight away.  --no-calls leaves baresip alone.  These keys pretend to be the phone software (useful on a PC):
+y = they answer   f = the call fails   e = they hang up
 i = an incoming call from the person on the right button   u = an incoming call from a number that is not in the contacts file.
 Other keys: space = next photo, q or Esc = quit.  Keys are typed in the terminal that started the program, or in the window.
 Needs:  sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio alsa-utils
@@ -17,22 +18,12 @@ import time
 from pathlib import Path
 
 from . import config
+from .calls import NoCalls
 from .machine import Machine, Mode, Party
 
 SIMULATED = {"y": ("answered",), "f": ("call_failed",), "e": ("remote_ended",)}
 UNKNOWN_NUMBER = "+15155550199"                 # the "u" key: a caller who is not in the contacts file
 CONTACTS_CHECK_SECONDS = 5.0                    # how often the contacts file is looked at for changes
-
-
-class NoCalls:
-    """Stands in for the phone software until baresip is connected: says what it would have done."""
-
-    def __init__(self, log):
-        self.log = log
-
-    def do(self, action):
-        what = " ".join(a.label if isinstance(a, Party) else a for a in action)
-        self.log("      (phone software not connected: would %s)" % what)
 
 
 class Phone:
@@ -66,7 +57,7 @@ class Phone:
 
     def step(self, keys=()):
         """keys: key names from keys.py.  Returns True when the mode or the party changed (the whole screen must be drawn)."""
-        for event in self.controls.poll():
+        for event in self.controls.poll() + self.calls.poll():
             self._handle(event)
         for key in keys:                                # in order: "lift, then next photo" must not change the photo
             if key == "next" and self.machine.mode == Mode.IDLE:
@@ -135,6 +126,7 @@ def main(argv=None):
     ap.add_argument("--demo", action="store_true", help="no GPIO: l = lift / hang up, 1 / 2 = buttons")
     ap.add_argument("--speed", type=float, default=1.0, help="run the phone's timers this many times faster (for trying it out)")
     ap.add_argument("--no-sound", action="store_true", help="no dial tone and no ringer")
+    ap.add_argument("--no-calls", action="store_true", help="do not use baresip (the keys y / f / e / i / u pretend to be it)")
     ap.add_argument("--snapshots", metavar="DIR", help="save a PNG of every phone screen into DIR and stop")
     ap.add_argument("--window", action="store_true", help="small window instead of full screen (for a PC), no turning")
     ap.add_argument("--no-rotate", action="store_true", help="do not turn the picture 90 degrees (normal portrait monitor)")
@@ -166,7 +158,12 @@ def main(argv=None):
     display = Display(window=args.window, rotate=not args.no_rotate, flip=args.flip)
     sounds = Sounds(log, enabled=not args.no_sound)
     photos = PhotoView(PhotoDeck(args.folder), log=log)
-    phone = Phone(Machine(buttons, clock=clock, log=log), controls, NoCalls(log), sounds, photos, contacts, log)
+    if args.no_calls:
+        calls = NoCalls(log)
+    else:
+        from .calls import Baresip
+        calls = Baresip(log=log)
+    phone = Phone(Machine(buttons, clock=clock, log=log), controls, calls, sounds, photos, contacts, log)
     call_view = CallView(buttons)
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
         ", turned 90 degrees" if display.rotate else "", args.folder, source, sounds.describe()))
@@ -195,6 +192,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        calls.close()
         sounds.close()
         controls.close()
         if terminal:
