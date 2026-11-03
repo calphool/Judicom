@@ -1,7 +1,7 @@
 """The family-photo screen: one picture at a time, cross-faded, with its caption in a band near the bottom.
 
 The picture is shown whole (never cropped) on a blurred, darkened copy of itself, so tall and wide pictures both fill the 600 x 1024
-screen.  The order comes from photos.PhotoDeck (shuffled rounds); the caption from the picture's .meta file (see photos.py).
+screen.  With a caption, the photo is placed in the space above the caption band (layout.py) so the words cover as little as possible.  The order comes from photos.PhotoDeck (shuffled rounds); the caption from the picture's .meta file (see photos.py).
 
 A program calls `view.tick()` often and draws `view.draw(surface)` whenever `view.needs_redraw()` says so: while a cross-fade runs, when
 the picture changes, and once more after a fade so that the finished picture replaces the last half-faded frame.  (Without that last frame
@@ -16,6 +16,7 @@ from . import draw
 from .config import BG, FADE_SECONDS, INK, MAX_PHOTO_PX, PHOTO_SECONDS, SOFT
 from .config import SCREEN_H as H
 from .config import SCREEN_W as W
+from .layout import place_photo
 from .photos import Caption, load_caption
 
 
@@ -39,8 +40,9 @@ def load_image(path):
     return img
 
 
-def compose_picture(img):
-    """The 600 x 1024 picture without its caption: a blurred, darkened copy as the backdrop and the photo fitted whole in the middle."""
+def compose_picture(img, band_y=None):
+    """The 600 x 1024 picture without its caption: a blurred, darkened copy as the backdrop and the photo fitted whole on top of it.
+    `band_y` (where the caption band starts, if there is one) makes the photo move up out of the caption's way: see layout.place_photo."""
     iw, ih = img.get_size()
     img32 = pygame.Surface((iw, ih), 0, 32)                      # smoothscale only works on 24 / 32 bit surfaces
     img32.blit(img, (0, 0))
@@ -49,9 +51,8 @@ def compose_picture(img):
     shade = pygame.Surface((W, H))
     shade.set_alpha(120)
     back.blit(shade, (0, 0))
-    fit = min(W / float(iw), H / float(ih))
-    fw, fh = max(1, int(iw * fit)), max(1, int(ih * fit))
-    back.blit(pygame.transform.smoothscale(img, (fw, fh)), ((W - fw) // 2, (H - fh) // 2))
+    x, y, fw, fh = place_photo(iw, ih, band_y)
+    back.blit(pygame.transform.smoothscale(img, (fw, fh)), (x, y))
     return back.convert()
 
 
@@ -95,8 +96,9 @@ class Photo:
 def load_photo(path):
     """Read one picture and its caption file and compose the finished screen.  Raises if the picture cannot be read."""
     caption = load_caption(path)
-    made = compose_caption(caption)
-    return Photo(path, compose_picture(load_image(path)), caption, *(made or (None, 0)))
+    made = compose_caption(caption)                              # first: how much room the caption needs decides where the photo goes
+    band, band_y = made if made else (None, None)
+    return Photo(path, compose_picture(load_image(path), band_y), caption, band, band_y or 0)
 
 
 class PhotoView:

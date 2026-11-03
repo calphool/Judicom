@@ -70,6 +70,25 @@ class Compose(unittest.TestCase):
             self.assertLess(corner[0], 200)                                                     # the backdrop is darkened
             self.assertGreater(corner[0], 60)                                                   # ... but still the picture's colour
 
+    def test_photo_moves_up_out_of_the_captions_way(self):
+        img = pygame.Surface((1600, 1200))
+        img.fill((200, 20, 20))
+        centred = photo_view.compose_picture(img)                                               # no caption: in the middle (y 287 - 737)
+        raised = photo_view.compose_picture(img, band_y=758)                                    # with a caption below: higher (y 147 - 597)
+        red = lambda surf, y: surf.get_at((W // 2, y))[0] > 150                                 # the picture, not the dark backdrop
+        self.assertTrue(red(centred, 700) and not red(raised, 700))
+        self.assertTrue(red(raised, 200) and not red(centred, 200))
+
+    def test_loaded_photo_with_caption_leaves_the_words_clear_of_the_picture(self):
+        solid(self.dir / "a.png", (200, 20, 20), (1600, 1200))
+        (self.dir / "a.meta").write_text("people: Frank and Ann\nrelationship: Your husband and your daughter\ntaken: 2019-06-14\n")
+        ph = photo_view.load_photo(self.dir / "a.png")
+        surf = pygame.Surface((W, H))
+        ph.draw(surf)
+        for y in range(ph.band_y, H - 36, 10):                                                  # nothing of the red picture inside the band
+            self.assertLess(surf.get_at((5, y))[0], 120, y)
+        self.assertGreater(surf.get_at((W // 2, ph.band_y // 2))[0], 150)                       # the picture is above it, undisturbed
+
     def test_no_caption_no_band(self):
         self.assertIsNone(photo_view.compose_caption(Caption()))
 
