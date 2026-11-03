@@ -177,6 +177,13 @@ class WithContacts(unittest.TestCase):
         self.assertTrue(self.phone.step())                          # redraw: the names above the arrows may have changed
         self.assertEqual(self.machine.buttons["left"].name, "Grandpa")
 
+    def test_i_key_without_a_contacts_file_is_still_the_right_button_person(self):
+        machine = Machine({"left": CLARK, "right": AMY}, clock=self.clock)      # Amy's "dial" is "amy": no number, like config.py
+        phone = Phone(machine, KeyControls(), Calls(), Sounds(), Photos(), clock=self.clock)
+        phone.step(["i"])
+        self.assertEqual(machine.mode, Mode.INCOMING)
+        self.assertEqual(machine.party, AMY)
+
     def test_without_contacts_a_number_is_still_shown(self):
         phone = Phone(Machine({}, clock=self.clock), KeyControls(), Calls(), Sounds(), Photos(), clock=self.clock)
         phone._handle(("incoming", "+15155550199"))
