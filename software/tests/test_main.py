@@ -21,9 +21,14 @@ class Clock:
 class Calls:
     def __init__(self):
         self.done = []
+        self.events = []                            # what the phone software will report on the next poll
 
     def do(self, action):
         self.done.append(action)
+
+    def poll(self):
+        events, self.events = self.events, []
+        return events
 
 
 class Sounds:
@@ -110,6 +115,15 @@ class PhoneTest(unittest.TestCase):
         self.assertEqual(self.calls.done, [("dial", frank)])
         self.assertEqual(self.sounds.digits, "")
         self.assertEqual(self.machine.mode, Mode.CALLING)
+
+    def test_events_from_the_phone_software(self):
+        self.phone.step(["l", "2"])
+        self.calls.events = [("answered",)]
+        self.phone.step()
+        self.assertEqual(self.machine.mode, Mode.ONGOING)
+        self.calls.events = [("remote_ended",)]
+        self.phone.step()
+        self.assertEqual(self.machine.mode, Mode.ENDED)
 
     def test_next_photo_only_on_the_photo_screen(self):
         self.phone.step(["next"])

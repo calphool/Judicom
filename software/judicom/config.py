@@ -48,6 +48,9 @@ BUTTONS = {
     "right": {"name": "Ann", "relationship": "daughter", "dial": "ann", "tones": "5550100187"},
 }
 
+# ---- the phone software ------------------------------------------------------------------------------------------------------
+BARESIP_CTRL = ("127.0.0.1", 4444)   # baresip's ctrl_tcp_listen (in ~/.baresip/config)
+
 # ---- the phone: timing ------------------------------------------------------------------------------------------------------
 LIFTED_SECONDS = 60.0         # handset up, no button pressed: after this long the yellow "please hang up" screen (dial tone stops)
 RING_OUT_SECONDS = 30.0       # calling someone who does not pick up: give up after this long -> "No answer."
