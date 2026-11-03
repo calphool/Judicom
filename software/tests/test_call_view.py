@@ -94,9 +94,10 @@ class Screens(unittest.TestCase):
                 self.drawn(mode, long)
 
     def test_unknown_caller_shows_the_number(self):
-        unknown = self.view.words(Mode.INCOMING, Party(dial="(555) 010-2345"))
-        named = self.view.words(Mode.INCOMING, Party("Sydney", "granddaughter"))
-        self.assertLess(unknown.get_height(), named.get_height())          # one line under "Incoming call from", not two
+        unknown = self.view.words(Mode.INCOMING, Party(dial="515-555-0199"))
+        hidden = self.view.words(Mode.INCOMING, Party())
+        self.assertGreater(unknown.get_height(), hidden.get_height())      # "unknown caller:" and the number, or just "unknown caller"
+        self.assertLessEqual(unknown.get_width(), W)
 
     def test_animated_modes(self):
         self.assertTrue(CallView.animated(Mode.LIFTED))

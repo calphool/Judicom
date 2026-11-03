@@ -31,9 +31,11 @@ class Numbers(unittest.TestCase):
         self.assertEqual(normalize(None), "")
 
     def test_pretty(self):
-        self.assertEqual(pretty("+16415550142"), "(641) 555-0142")
-        self.assertEqual(pretty("sip:6415550142@pbx"), "(641) 555-0142")
+        self.assertEqual(pretty("+16415550142"), "641-555-0142")
+        self.assertEqual(pretty("sip:6415550142@pbx"), "641-555-0142")
         self.assertEqual(pretty("100"), "100")
+        self.assertEqual(pretty("sip:101@100.64.0.1"), "101")              # another phone on the PBX (an extension)
+        self.assertEqual(pretty("sip:anonymous@anonymous.invalid"), "")    # a caller who hides the number
 
 
 class Parsing(unittest.TestCase):
@@ -96,7 +98,8 @@ class File(unittest.TestCase):
         c = Contacts(self.path, self.logged.append)
         self.assertEqual(c.lookup("sip:+15155550187@pbx").label, "Amy (daughter)")
         unknown = c.lookup("+15155550199")
-        self.assertEqual((unknown.name, unknown.label), ("", "(515) 555-0199"))
+        self.assertEqual((unknown.name, unknown.label), ("", "515-555-0199"))
+        self.assertEqual(c.lookup("sip:101@pbx").label, "101")
         self.assertIn("3 people", self.logged[-1])
 
     def test_missing_file_uses_the_demo_buttons(self):
