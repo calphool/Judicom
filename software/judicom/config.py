@@ -47,3 +47,14 @@ LIFTED_SECONDS = 60.0         # handset up, no button pressed: after this long t
 RING_OUT_SECONDS = 30.0       # calling someone who does not pick up: give up after this long -> "No answer."
 NO_ANSWER_SECONDS = 10.0      # the "No answer." screen
 CALL_ENDED_SECONDS = 10.0     # the "Call just ended with ..." screen
+
+# ---- the call screens -------------------------------------------------------------------------------------------------------
+BUTTON_X = {"left": SCREEN_W // 2 - 129, "right": SCREEN_W // 2 + 129}   # screen x right above each button (37 mm apart; 600 px = 86 mm)
+AMBER, GREEN, ROSE = (255, 196, 64), (112, 214, 144), (240, 150, 150)
+YELLOW, DARK = (255, 214, 10), (30, 30, 30)    # the "please hang up" screen
+
+# ---- sounds -----------------------------------------------------------------------------------------------------------------
+# The dial tone goes to the handset (the USB sound device, found by itself); the ringer to the Pi's headphone jack -> LM386 -> speaker.
+RINGER_CARD = "Headphones"    # ALSA card id of the 3.5 mm jack (see `aplay -l`)
+DIAL_TONE_LEVEL = 0.12        # each of the two dial tone notes, as a fraction of full scale
+RING_LEVEL = 0.6              # the ringer (kept below full scale so the amplifier is not driven hard)

@@ -50,4 +50,6 @@ class Display:
         pygame.display.flip()
 
     def close(self):
+        from . import draw
+        draw.reset()
         pygame.quit()

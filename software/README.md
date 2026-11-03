@@ -2,6 +2,17 @@
 
 Run these from this folder (`software/`).  Needs `sudo apt install python3-pygame python3-pil` for anything that draws.
 
+## Step 4: the whole phone (photos + call screens + dial tone + ringer)
+
+    python3 -m judicom.main                   # on the Judicom: photos, and the phone screens when the handset is lifted or a call comes in
+    python3 -m judicom.main --demo --window   # on a PC: l = lift / hang up, 1 / 2 = buttons
+    python3 -m judicom.main --snapshots DIR   # a PNG of every phone screen, to look at (no screen needed)
+
+The phone software (baresip) is not connected yet: "Calling..." turns into "No answer." after 30 s.  Keys pretend to be it:
+**y** = they answer, **f** = the call fails, **e** = they hang up, **i** = an incoming call.  **space** = next photo, **q** = quit.
+The dial tone plays on the USB sound device (the handset), the ringer on the `Headphones` card (the jack -> LM386 -> speaker); a missing
+card is reported at start and stays silent.  `--no-sound` turns both off, `--speed 10` runs the phone's timers faster.
+
 ## Step 3: the hook switch, the buttons, and what the phone does
 
     python3 -m judicom.inputs                 # wiring check: prints "lifted", "hung_up", "button left" ... from the real switches
@@ -41,6 +52,9 @@ top of `judicom/photos.py`.
     judicom/display.py      opens the screen; turns the upright picture 90 degrees onto the panel
     judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
-    judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   the program above
+    judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
+    judicom/sound.py        dial tone and ringer, looped through aplay                        (no pygame)
+    judicom/main.py         the program: switches + keys -> machine -> screens, sounds, phone software
+    judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only (step 2)
 
 Suggested place in the repo: `software/`.

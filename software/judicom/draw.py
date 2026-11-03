@@ -8,6 +8,14 @@ _fonts = {}
 _texts = {}
 
 
+def reset():
+    """Forget the cached fonts and texts.  Must be called when pygame is shut down: a font kept from before pygame.quit() crashes
+    the program (segmentation fault) if pygame is started again and the font is used."""
+    _font_paths.clear()
+    _fonts.clear()
+    _texts.clear()
+
+
 def _find_fonts():
     if not _font_paths:
         pygame.font.init()
