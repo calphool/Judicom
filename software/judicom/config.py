@@ -37,9 +37,11 @@ BUTTON_SETTLE = 0.05          # a button press counts after this long (contact b
 
 # ---- the phone: who the buttons call ----------------------------------------------------------------------------------------
 # "dial" is what is sent to the PBX (an extension or a number).
+# "tones" are the touch-tone digits played in the handset when the button is pressed, so it sounds like a phone dialing.  Leave it out
+# and the digits of "dial" are used (if it has any); "" = no dialing sound.  The same digits every time: the same little tune per person.
 BUTTONS = {
-    "left": {"name": "Frank", "relationship": "husband", "dial": "frank"},
-    "right": {"name": "Ann", "relationship": "daughter", "dial": "ann"},
+    "left": {"name": "Frank", "relationship": "husband", "dial": "frank", "tones": "5550100142"},
+    "right": {"name": "Ann", "relationship": "daughter", "dial": "ann", "tones": "5550100187"},
 }
 
 # ---- the phone: timing ------------------------------------------------------------------------------------------------------
@@ -47,6 +49,7 @@ LIFTED_SECONDS = 60.0         # handset up, no button pressed: after this long t
 RING_OUT_SECONDS = 30.0       # calling someone who does not pick up: give up after this long -> "No answer."
 NO_ANSWER_SECONDS = 10.0      # the "No answer." screen
 CALL_ENDED_SECONDS = 10.0     # the "Call just ended with ..." screen
+DIGIT_ON, DIGIT_OFF = 0.08, 0.06   # each touch-tone digit sounds this long, with this much quiet after it (about a fast dialer's pace)
 
 # ---- the call screens -------------------------------------------------------------------------------------------------------
 BUTTON_X = {"left": SCREEN_W // 2 - 129, "right": SCREEN_W // 2 + 129}   # screen x right above each button (37 mm apart; 600 px = 86 mm)
@@ -57,4 +60,5 @@ YELLOW, DARK = (255, 214, 10), (30, 30, 30)    # the "please hang up" screen
 # The dial tone goes to the handset (the USB sound device, found by itself); the ringer to the Pi's headphone jack -> LM386 -> speaker.
 RINGER_CARD = "Headphones"    # ALSA card id of the 3.5 mm jack (see `aplay -l`)
 DIAL_TONE_LEVEL = 0.12        # each of the two dial tone notes, as a fraction of full scale
+DIGIT_LEVEL = 0.15            # each of the two notes of a touch-tone digit
 RING_LEVEL = 0.6              # the ringer (kept below full scale so the amplifier is not driven hard)

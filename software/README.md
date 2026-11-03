@@ -12,6 +12,8 @@ The phone software (baresip) is not connected yet: "Calling..." turns into "No a
 **y** = they answer, **f** = the call fails, **e** = they hang up, **i** = an incoming call.  **space** = next photo, **q** = quit.
 The dial tone plays on the USB sound device (the handset), the ringer on the `Headphones` card (the jack -> LM386 -> speaker); a missing
 card is reported at start and stays silent.  `--no-sound` turns both off, `--speed 10` runs the phone's timers faster.
+Pressing a button plays touch-tone digits in the handset first (about 2 s, the screen already says "Calling ..."), then the call goes
+out.  Which digits: `"tones"` for each button in `judicom/config.py` (or the digits of `"dial"`; `"tones": ""` turns it off).
 
 ## Step 3: the hook switch, the buttons, and what the phone does
 

@@ -29,9 +29,11 @@ class Calls:
 class Sounds:
     def __init__(self):
         self.state = (False, False)
+        self.digits = ""
 
-    def update(self, dial_tone, ringing):
+    def update(self, dial_tone, ringing, digits=""):
         self.state = (dial_tone, ringing)
+        self.digits = digits
 
 
 class Photos:
@@ -94,6 +96,20 @@ class PhoneTest(unittest.TestCase):
         self.phone.step(["l"])
         self.assertEqual(self.calls.done, [("answer",)])
         self.assertEqual(self.sounds.state, (False, False))
+
+    def test_dialing_tones_then_the_call_goes_out(self):
+        frank = Party("Frank", "husband", "frank", "5550100142")
+        self.machine.buttons["left"] = frank
+        self.phone.step(["l", "1"])
+        self.assertEqual(self.machine.mode, Mode.DIALING)
+        self.assertEqual(self.sounds.digits, "5550100142")
+        self.assertEqual(self.sounds.state, (False, False))     # the dial tone stopped for the digits
+        self.assertEqual(self.calls.done, [])                   # nothing goes to the phone software while the digits play
+        self.clock.t += 3
+        self.phone.step()
+        self.assertEqual(self.calls.done, [("dial", frank)])
+        self.assertEqual(self.sounds.digits, "")
+        self.assertEqual(self.machine.mode, Mode.CALLING)
 
     def test_next_photo_only_on_the_photo_screen(self):
         self.phone.step(["next"])

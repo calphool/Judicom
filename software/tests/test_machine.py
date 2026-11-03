@@ -202,6 +202,82 @@ class Incoming(Base):
         self.assertEqual(self.m.party.label, "+15550000000")
 
 
+class Dialing(Base):
+    TONES = Party("Frank", "husband", "frank", "5550100142")
+
+    def setUp(self):
+        super().setUp()
+        self.m = Machine(buttons={"left": self.TONES, "right": ANN}, ring_out_seconds=30,
+                         dialing_seconds=lambda tones: 2.0 if tones else 0.0, clock=self.clock)
+
+    def test_digits_first_then_the_call(self):
+        self.go("lifted")
+        self.assertEqual(self.go(("button", "left")), [])         # nothing to the phone software yet
+        self.assertMode(Mode.DIALING)
+        self.assertEqual(self.m.dialing_tones, "5550100142")
+        self.assertFalse(self.m.dial_tone)
+        self.assertEqual(self.m.party, self.TONES)
+        self.assertEqual(self.wait(1.9), [])
+        self.assertEqual(self.wait(0.2), [("dial", self.TONES)])
+        self.assertMode(Mode.CALLING)
+        self.assertEqual(self.m.dialing_tones, "")
+
+    def test_ring_out_counts_from_when_the_call_goes_out(self):
+        self.go("lifted", ("button", "left"))
+        self.wait(2.1)
+        self.assertEqual(self.wait(29.8), [])
+        self.assertEqual(self.wait(0.2), [("hangup",)])
+        self.assertMode(Mode.NO_ANSWER)
+
+    def test_hang_up_while_dialing_sends_nothing(self):
+        self.go("lifted", ("button", "left"))
+        self.assertEqual(self.go("hung_up"), [])
+        self.assertMode(Mode.IDLE)
+        self.assertEqual(self.wait(5), [])                        # and the call never goes out
+        self.assertEqual(self.m.dialing_tones, "")
+
+    def test_no_tones_goes_straight_to_calling(self):
+        self.go("lifted")
+        self.assertEqual(self.go(("button", "right")), [("dial", ANN)])
+        self.assertMode(Mode.CALLING)
+
+    def test_other_button_while_dialing_is_ignored(self):
+        self.go("lifted", ("button", "left"))
+        self.assertEqual(self.go(("button", "right")), [])
+        self.assertEqual(self.m.party, self.TONES)
+        self.assertEqual(self.wait(2.1), [("dial", self.TONES)])
+
+    def test_incoming_while_dialing_is_busy(self):
+        self.go("lifted", ("button", "left"))
+        self.assertEqual(self.go(("incoming", HANNAH)), [("reject",)])
+        self.assertMode(Mode.DIALING)
+
+    def test_real_dialing_time_is_used_by_default(self):
+        from judicom.sound import dialing_seconds
+        m = Machine(buttons={"left": self.TONES}, clock=self.clock)
+        m.handle("lifted")
+        m.handle("button", "left")
+        self.clock.t += dialing_seconds("5550100142") - 0.05
+        self.assertEqual(m.tick(), [])
+        self.clock.t += 0.1
+        self.assertEqual(m.tick(), [("dial", self.TONES)])
+
+
+class ButtonsFromConfig(unittest.TestCase):
+    def test_tones(self):
+        from judicom.machine import buttons_from_config
+        b = buttons_from_config({"a": {"name": "A", "dial": "+1 (555) 010-0142"},              # the number's own digits
+                                 "b": {"name": "B", "dial": "ann"},                            # a name: no digits, no sound
+                                 "c": {"name": "C", "dial": "100", "tones": "555-0100-187"},   # chosen tones, cleaned
+                                 "d": {"name": "D", "dial": "5550100142", "tones": ""}})       # sound turned off
+        self.assertEqual({k: p.tones for k, p in b.items()}, {"a": "15550100142", "b": "", "c": "5550100187", "d": ""})
+
+    def test_the_real_config(self):
+        from judicom.machine import buttons_from_config
+        for party in buttons_from_config().values():
+            self.assertTrue(party.name and party.dial)
+
+
 class Labels(unittest.TestCase):
     def test_labels(self):
         self.assertEqual(ANN.label, "Ann (daughter)")
