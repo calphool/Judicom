@@ -1,0 +1,10 @@
+# Judicom boot splash: one picture, centred, nothing else (no progress bar, no messages).
+# splash.png is already turned 90 degrees so that it looks upright on the portrait-mounted panel.
+Window.SetBackgroundTopColor(0.141, 0.259, 0.290);
+Window.SetBackgroundBottomColor(0.141, 0.259, 0.290);
+
+splash = Image("splash.png");
+sprite = Sprite(splash);
+sprite.SetX(Window.GetX() + (Window.GetWidth()  - splash.GetWidth())  / 2);
+sprite.SetY(Window.GetY() + (Window.GetHeight() - splash.GetHeight()) / 2);
+sprite.SetZ(10);
