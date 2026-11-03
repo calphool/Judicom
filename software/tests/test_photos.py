@@ -144,6 +144,13 @@ class Captions(Folder):
         c = parse_caption("﻿# who is in it\n\npeople: Ann\n  \n# end\n")
         self.assertEqual((c.people, c.relationship, c.taken), ("Ann", "", ""))
 
+    def test_label_with_nothing_after_it_is_not_shown_as_text(self):
+        c = parse_caption("people: Ann\nrelationship:\ntaken: 2016\n")
+        self.assertEqual((c.people, c.relationship, c.taken), ("Ann", "", "2016"))
+        c = parse_caption("people:\nrelationship: Your daughter\n")
+        self.assertEqual((c.people, c.relationship), ("", "Your daughter"))
+        self.assertFalse(parse_caption("people:\nrelationship:\ntaken:\n"))
+
     def test_empty_means_no_caption(self):
         self.assertFalse(parse_caption(""))
         self.assertFalse(parse_caption("# just a comment\n"))
