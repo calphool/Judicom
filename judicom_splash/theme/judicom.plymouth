@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Judicom
+Description=Judicom startup picture
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/judicom
+ScriptFile=/usr/share/plymouth/themes/judicom/judicom.script
