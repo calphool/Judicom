@@ -143,9 +143,12 @@ def parse_caption(text: str) -> Caption:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        m = re.match(r"^([A-Za-z ]+?)\s*[:=]\s*(.+)$", line)
+        m = re.match(r"^([A-Za-z ]+?)\s*[:=]\s*(.*)$", line)
         if m and m.group(1).strip().lower() in META_KEYS:
-            fields[META_KEYS[m.group(1).strip().lower()]] = m.group(2).strip()
+            if m.group(2).strip():                 # "relationship:" with nothing after it means "no relationship", not a caption line
+                fields[META_KEYS[m.group(1).strip().lower()]] = m.group(2).strip()
+            else:
+                fields.setdefault(META_KEYS[m.group(1).strip().lower()], "")
         else:
             loose.append(line)
     for key in META_ORDER:                   # lines without a label fill the gaps, in order
