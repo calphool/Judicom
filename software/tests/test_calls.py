@@ -173,6 +173,73 @@ class Incoming(Base):
         self.assertTrue(any("call_max_calls 1" in m for m in self.logged))
 
 
+# Recorded from baresip 1.1.0 on the Judicom (2026-11-04): python3 -m judicom.calls --dial 100, and --answer with an originate.
+REAL_DIAL_100 = [
+    '{"event":true,"type":"CALL_LOCAL_SDP","class":"other","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","remoteaudiodir":"sendrecv","param":"offer"}',
+    '{"response":true,"ok":true,"data":"call id: 0f5f9210ca63c157\\n","token":"1"}',
+    '{"event":true,"type":"CALL_ANSWERED","class":"call","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","id":"0f5f9210ca63c157","remoteaudiodir":"sendrecv",'
+    '"param":"sip:100@100.64.0.1;transport=udp"}',
+    '{"event":true,"type":"CALL_REMOTE_SDP","class":"other","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","id":"0f5f9210ca63c157","remoteaudiodir":"sendrecv","param":"answer"}',
+    '{"event":true,"type":"CALL_ESTABLISHED","class":"call","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","id":"0f5f9210ca63c157","remoteaudiodir":"sendrecv",'
+    '"param":"sip:100@100.64.0.1;transport=udp"}',
+    '{"event":true,"type":"CALL_RTPESTAB","class":"other","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","id":"0f5f9210ca63c157","remoteaudiodir":"sendrecv","param":"audio"}',
+    '{"event":true,"type":"CALL_RTCP","class":"call","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","id":"0f5f9210ca63c157","remoteaudiodir":"sendrecv","param":"audio",'
+    '"rtcp_stats":{"tx":{"sent":251,"lost":0,"jit":125},"rx":{"sent":250,"lost":0,"jit":125},"rtt":3647}}',
+    '{"event":true,"type":"CALL_CLOSED","class":"call","accountaor":"sip:judicom@100.64.0.1:5060","direction":"outgoing",'
+    '"peeruri":"sip:100@100.64.0.1;transport=udp","id":"0f5f9210ca63c157","remoteaudiodir":"sendrecv",'
+    '"param":"Connection reset by peer"}',
+]
+_IN = ('"accountaor":"sip:judicom@100.64.0.1:5060","direction":"incoming","peeruri":"sip:anonymous@anonymous.invalid",'
+       '"peerdisplayname":"Anonymous","id":"a4317d9d-c346-49b0-a431-35d22ab6125f","remoteaudiodir":"sendrecv"')
+REAL_INCOMING = [
+    '{"event":true,"type":"REGISTER_OK","class":"register","accountaor":"sip:judicom@100.64.0.1:5060","param":"200 OK"}',
+    '{"event":true,"type":"CALL_INCOMING","class":"call",' + _IN + ',"param":"sip:anonymous@anonymous.invalid"}',
+    "ANSWER",
+    '{"event":true,"type":"CALL_REMOTE_SDP","class":"other",' + _IN + ',"param":"offer"}',
+    '{"event":true,"type":"CALL_LOCAL_SDP","class":"other",' + _IN + ',"param":"answer"}',
+    '{"response":true,"ok":true,"data":"","token":"1"}',
+    '{"event":true,"type":"CALL_ESTABLISHED","class":"call",' + _IN + ',"param":"sip:anonymous@anonymous.invalid"}',
+    '{"event":true,"type":"CALL_RTPESTAB","class":"other",' + _IN + ',"param":"audio"}',
+    '{"event":true,"type":"CALL_CLOSED","class":"call",' + _IN + ',"param":"Connection reset by peer"}',
+]
+
+
+class RealBaresip(Base):
+    """The exact messages baresip 1.1.0 sent on the Judicom."""
+
+    def play(self, messages):
+        events = []
+        for m in messages:
+            if m == "ANSWER":
+                events += self.poll()
+                self.calls.do(("answer",))
+                continue
+            self.baresip.sendall(netstring(m.encode()))
+            events += self.poll()
+        return events
+
+    def test_dial_100(self):
+        self.calls.do(("dial", Party(dial="100")))
+        self.assertEqual(self.play(REAL_DIAL_100), [("answered",), ("remote_ended",)])
+        self.assertIsNone(self.calls.call_id)
+
+    def test_incoming_from_an_originate(self):
+        self.poll()
+        self.assertEqual(self.play(REAL_INCOMING), [("incoming", "sip:anonymous@anonymous.invalid"), ("remote_ended",)])
+        self.assertTrue(self.calls.registered)
+
+    def test_the_anonymous_caller_shows_as_unknown(self):
+        from judicom.contacts import Contacts
+        party = Contacts("/nonexistent").lookup("sip:anonymous@anonymous.invalid")
+        self.assertEqual((party.name, party.dial), ("", ""))             # "Incoming call from unknown caller"
+
+
 class Connection(Base):
     def test_not_running_dial_fails_at_once_and_says_so_once(self):
         self.up = False
