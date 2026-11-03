@@ -24,3 +24,26 @@ MIN_SHRINK = 0.82             # to keep clear of the caption a photo may be made
 # ---- colours ----------------------------------------------------------------------------------------------------------------
 BG = (36, 66, 74)             # the teal of the boot splash
 INK, SOFT = (246, 246, 240), (182, 202, 206)
+
+# ---- the phone: switches ----------------------------------------------------------------------------------------------------
+# GPIO numbers (BCM).  Every switch connects its pin to ground; the Pi's internal pull-ups are used.  Same pins as tests/gpio_test.py.
+HOOK_NC_PINS = (17, 27)       # the hook switch's two normally-closed contacts
+HOOK_NO_PINS = (22,)          # ... and its normally-open contact.  The three vote, so one bad contact cannot fake a lift or a hang-up.
+HOOK_PRESSED_ON_HOOK = True   # True: the handset resting in the cradle presses the switch.  False if it is the other way round.
+BUTTON_PINS = {"left": 23, "right": 24}
+LIFT_SETTLE = 0.10            # the handset counts as lifted after it has been up this long (seconds)
+HANG_UP_SETTLE = 0.50         # ... and as hung up after it has been down this long, so a jostle in the cradle does not end a call
+BUTTON_SETTLE = 0.05          # a button press counts after this long (contact bounce)
+
+# ---- the phone: who the buttons call ----------------------------------------------------------------------------------------
+# "dial" is what is sent to the PBX (an extension or a number).
+BUTTONS = {
+    "left": {"name": "Frank", "relationship": "husband", "dial": "frank"},
+    "right": {"name": "Ann", "relationship": "daughter", "dial": "ann"},
+}
+
+# ---- the phone: timing ------------------------------------------------------------------------------------------------------
+LIFTED_SECONDS = 60.0         # handset up, no button pressed: after this long the yellow "please hang up" screen (dial tone stops)
+RING_OUT_SECONDS = 30.0       # calling someone who does not pick up: give up after this long -> "No answer."
+NO_ANSWER_SECONDS = 10.0      # the "No answer." screen
+CALL_ENDED_SECONDS = 10.0     # the "Call just ended with ..." screen

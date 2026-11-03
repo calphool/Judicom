@@ -2,6 +2,15 @@
 
 Run these from this folder (`software/`).  Needs `sudo apt install python3-pygame python3-pil` for anything that draws.
 
+## Step 3: the hook switch, the buttons, and what the phone does
+
+    python3 -m judicom.inputs                 # wiring check: prints "lifted", "hung_up", "button left" ... from the real switches
+    python3 -m judicom.machine                # the phone's state machine driven by the real switches, printed (no screen, no calls yet)
+    python3 -m judicom.machine --demo --speed 10    # on a PC: l = lift / hang up, 1 / 2 = buttons; y / f / e / i = pretend call events
+
+Pins, which way round the hook switch works, settle times, who each button calls, and the timeouts are in `judicom/config.py`.
+The modes and how they change are described at the top of `judicom/machine.py`.  Needs `sudo apt install python3-gpiozero python3-lgpio` on the Judicom.
+
 ## Step 2: the photo screen
 
     python3 -m judicom.photo_show             # full screen on the Judicom: pictures from /home/joe/photos, 15 s each, random order
@@ -30,6 +39,8 @@ top of `judicom/photos.py`.
     judicom/layout.py       where the photo goes so the caption covers as little of it as possible  (no pygame)
     judicom/photo_view.py   the photo screen: fitting, caption band, cross-fade               (pygame)
     judicom/display.py      opens the screen; turns the upright picture 90 degrees onto the panel
+    judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
+    judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
     judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   the program above
 
 Suggested place in the repo: `software/`.
