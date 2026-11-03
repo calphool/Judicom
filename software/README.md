@@ -27,6 +27,7 @@ top of `judicom/photos.py`.
 
     judicom/config.py       settings: photo folder, seconds per picture, colours
     judicom/photos.py       which picture comes next (shuffled rounds), caption files          (no pygame; runs anywhere)
+    judicom/layout.py       where the photo goes so the caption covers as little of it as possible  (no pygame)
     judicom/photo_view.py   the photo screen: fitting, caption band, cross-fade               (pygame)
     judicom/display.py      opens the screen; turns the upright picture 90 degrees onto the panel
     judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   the program above
