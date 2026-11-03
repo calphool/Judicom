@@ -53,10 +53,13 @@ class Phone:
         """The pretend phone-software event for a key, or None."""
         if key in SIMULATED:
             return SIMULATED[key]
-        if key == "i":
+        if key == "i":                                  # the right button's person calling
             right = self.machine.buttons.get("right")
-            has_number = right is not None and any(ch.isdigit() for ch in right.dial)
-            return ("incoming", right.dial if has_number else UNKNOWN_NUMBER)
+            if right is None:
+                return ("incoming", UNKNOWN_NUMBER)
+            if any(ch.isdigit() for ch in right.dial):
+                return ("incoming", right.dial)         # by number, the way the phone software will: tests the name lookup too
+            return ("incoming", right)                  # the demo people in config.py have no numbers: the person as is
         if key == "u":
             return ("incoming", UNKNOWN_NUMBER)
         return None
