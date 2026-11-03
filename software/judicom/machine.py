@@ -5,13 +5,15 @@ No pygame, no GPIO, no SIP: events go in, actions come out, so all of it can be 
     actions = machine.handle("lifted")              # from inputs.py: lifted, hung_up, button (with "left" / "right")
     actions = machine.handle("incoming", party)     # from the call software: incoming (with a Party), answered, call_failed, remote_ended
     actions = machine.tick()                        # call often: the timed changes
-    machine.mode, machine.party, machine.dial_tone, machine.ringing
+    machine.mode, machine.party, machine.dial_tone, machine.ringing, machine.dialing_tones
 
 Actions are tuples for the call software:  ("dial", party)  ("answer",)  ("hangup",)  ("reject",)
 
 THE MODES (what the screen shows)
   IDLE         family photos (later also the info screen and the night clock)
   LIFTED       handset up: arrows down to the two buttons, dial tone (for LIFTED_SECONDS, then PLEASE_HANG_UP)
+  DIALING      a button was pressed: its touch-tones play in the handset (screen: "Calling ...") -> CALLING when they are done.
+               Only then is the number given to the phone software.  A button with no tones goes straight to CALLING.
   CALLING      "Calling Amy (daughter)..."          -> ONGOING when answered; NO_ANSWER after RING_OUT_SECONDS or if the call fails
   NO_ANSWER    "No answer."  for NO_ANSWER_SECONDS  -> LIFTED if the handset is still up, else IDLE
   INCOMING     the ringer and "Incoming call from ..." -> ONGOING when the handset is lifted; IDLE if the caller gives up
@@ -27,11 +29,13 @@ import time
 from dataclasses import dataclass
 
 from . import config
+from .sound import dialable, dialing_seconds
 
 
 class Mode(enum.Enum):
     IDLE = "idle"
     LIFTED = "lifted"
+    DIALING = "dialing"
     CALLING = "calling"
     NO_ANSWER = "no answer"
     INCOMING = "incoming"
@@ -42,10 +46,12 @@ class Mode(enum.Enum):
 
 @dataclass(frozen=True)
 class Party:
-    """Someone on the other end.  name / relationship may be empty for an unknown caller (then the number is shown)."""
+    """Someone on the other end.  name / relationship may be empty for an unknown caller (then the number is shown).
+    tones: the touch-tone digits heard in the handset when calling them ("" = none)."""
     name: str = ""
     relationship: str = ""
     dial: str = ""
+    tones: str = ""
 
     @property
     def label(self):
@@ -56,14 +62,16 @@ class Party:
 
 
 def buttons_from_config(buttons=None):
-    return {key: Party(b.get("name", ""), b.get("relationship", ""), b.get("dial", ""))
+    """The two buttons' people.  Without "tones" the digits of "dial" are played (none if it has no digits)."""
+    return {key: Party(b.get("name", ""), b.get("relationship", ""), b.get("dial", ""), dialable(b.get("tones", b.get("dial", ""))))
             for key, b in (config.BUTTONS if buttons is None else buttons).items()}
 
 
 class Machine:
     def __init__(self, buttons=None, lifted_seconds=config.LIFTED_SECONDS, ring_out_seconds=config.RING_OUT_SECONDS,
                  no_answer_seconds=config.NO_ANSWER_SECONDS, call_ended_seconds=config.CALL_ENDED_SECONDS,
-                 clock=time.monotonic, log=None):
+                 dialing_seconds=dialing_seconds, clock=time.monotonic, log=None):
+        self.dialing_seconds = dialing_seconds          # tones -> how long dialing them takes
         self.buttons = buttons if buttons is not None else buttons_from_config()
         self.timeouts = {Mode.LIFTED: lifted_seconds, Mode.CALLING: ring_out_seconds,
                          Mode.NO_ANSWER: no_answer_seconds, Mode.ENDED: call_ended_seconds}
@@ -83,6 +91,11 @@ class Machine:
     def ringing(self):
         return self.mode == Mode.INCOMING
 
+    @property
+    def dialing_tones(self):
+        """The touch-tones to play now ("" when not dialing)."""
+        return self.party.tones if self.mode == Mode.DIALING else ""
+
     def seconds_in_mode(self):
         return self.clock() - self.mode_since
 
@@ -97,6 +110,11 @@ class Machine:
 
     def tick(self):
         """The timed changes; returns actions like handle()."""
+        if self.mode == Mode.DIALING:
+            if self.seconds_in_mode() < self.dialing_seconds(self.party.tones):
+                return []
+            self._go(Mode.CALLING)
+            return [("dial", self.party)]
         limit = self.timeouts.get(self.mode)
         if limit is None or self.seconds_in_mode() < limit:
             return []
@@ -123,6 +141,9 @@ class Machine:
 
     def _on_hung_up(self, _):
         self.off_hook = False
+        if self.mode == Mode.DIALING:
+            self._go(Mode.IDLE)                         # nothing was sent to the phone software yet: nothing to hang up
+            return None
         if self.mode == Mode.CALLING:
             self._go(Mode.IDLE)
             return [("hangup",)]
@@ -140,6 +161,9 @@ class Machine:
             return None
         if self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP) and self.off_hook:
             self.party = party
+            if self.dialing_seconds(party.tones) > 0:
+                self._go(Mode.DIALING)                  # the dial action comes from tick() once the tones are done
+                return None
             self._go(Mode.CALLING)
             return [("dial", party)]
         self.log("      (%s button ignored: %s)" % (key, self.mode.value))

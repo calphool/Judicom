@@ -5,6 +5,7 @@
     view.animated(machine.mode)              # True while something moves: draw every frame; otherwise only when machine.version changes
 
   LIFTED          "Who would you like to call?" and an arrow down to each button, with the name above it (the arrows bob gently)
+  DIALING         the same as CALLING (the touch-tones play meanwhile; the screen does not change when the call goes out)
   CALLING         the handset on a white panel with rings spreading out, "Calling Amy (daughter)..."
   ONGOING         sound waves from the handset, "Speaking with Amy (daughter)"
   INCOMING        the handset shaking, rings spreading, "Incoming call from / Sydney / granddaughter", "Pick up the handset to answer"
@@ -23,8 +24,8 @@ from .config import SCREEN_W as W
 from .machine import Mode
 
 PANEL = (232, 235, 238)
-ACCENT = {Mode.CALLING: AMBER, Mode.ONGOING: GREEN, Mode.ENDED: ROSE, Mode.INCOMING: AMBER, Mode.NO_ANSWER: ROSE}
-ANIMATED = (Mode.LIFTED, Mode.CALLING, Mode.ONGOING, Mode.INCOMING)
+ACCENT = {Mode.DIALING: AMBER, Mode.CALLING: AMBER, Mode.ONGOING: GREEN, Mode.ENDED: ROSE, Mode.INCOMING: AMBER, Mode.NO_ANSWER: ROSE}
+ANIMATED = (Mode.LIFTED, Mode.DIALING, Mode.CALLING, Mode.ONGOING, Mode.INCOMING)
 
 
 def mix(a, b, f):
@@ -145,7 +146,7 @@ class CallView:
         group = 290 + 56 + words.get_height()                                 # handset panel + gap + words, centred as one block
         y0 = max(24, (H - group) // 2 - 30)
         panel = pygame.Rect(40, y0, W - 80, 290)
-        if mode in (Mode.CALLING, Mode.INCOMING):                             # rings spreading out from the panel
+        if mode in (Mode.DIALING, Mode.CALLING, Mode.INCOMING):               # rings spreading out from the panel
             for k in range(3):
                 phase = (t * 0.7 + k / 3.0) % 1.0
                 grow = int(phase * 46)
@@ -165,6 +166,8 @@ class CallView:
 
     def words(self, mode, party):
         """The words under the handset picture, as a transparent surface (kept until the mode or the party changes)."""
+        if mode == Mode.DIALING:
+            mode = Mode.CALLING                                               # same words: nothing jumps when the call goes out
         key = (mode, party)
         if key != self._words_key:
             tmp = pygame.Surface((W, 560), pygame.SRCALPHA)

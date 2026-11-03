@@ -53,7 +53,7 @@ class Phone:
                 self._handle(event)
         for action in self.machine.tick():
             self.calls.do(action)
-        self.sounds.update(self.machine.dial_tone, self.machine.ringing)
+        self.sounds.update(self.machine.dial_tone, self.machine.ringing, self.machine.dialing_tones)
         changed = self.machine.version != self._version
         if changed:
             self._version = self.machine.version

@@ -1,7 +1,8 @@
-"""The dial tone (in the handset) and the ringer (the speaker in the base).  Both are sounds that loop until they are switched off.
+"""The dial tone and the dialing digits (in the handset), and the ringer (the speaker in the base).  The dial tone and the ringer loop
+until they are switched off; the digits play once.
 
     sounds = Sounds(log)                       # finds the two sound cards; a missing card is reported once and stays quiet
-    sounds.update(dial_tone=True, ringing=False)   # call every frame with what the machine wants; only changes do anything
+    sounds.update(dial_tone=True, ringing=False, digits="")   # every frame, with what the machine wants; only changes do anything
     sounds.close()
 
 Playing is done by aplay (alsa-utils), fed from a thread with the same piece of sound over and over.  The dial tone must be stopped -
@@ -25,6 +26,14 @@ RING_HZ = (880.0, 1100.0)        # the ringer warbles between these two notes ..
 RING_WARBLE_HZ = 20.0            # ... this many times a second ("brrring")
 RING_ON, RING_OFF = 2.0, 4.0     # seconds of ringing, then of silence (the North American cadence)
 CHUNK = 3200                     # bytes written at a time (0.1 s; under the 4096-byte pipe limit, so never a short write)
+LEAD_SECONDS = 0.3               # silence written before any sound: USB adapters swallow the very start
+DIALING_TAIL = 0.4               # after the last digit: aplay's buffer drains and the card is let go before the call opens it
+
+# Touch-tone (DTMF): each key is one low note (its row) and one high note (its column) together.
+DTMF_ROWS, DTMF_COLS = (697.0, 770.0, 852.0, 941.0), (1209.0, 1336.0, 1477.0, 1633.0)
+DTMF_KEYS = ("123A", "456B", "789C", "*0#D")
+DTMF = {key: (DTMF_ROWS[r], DTMF_COLS[c]) for r, row in enumerate(DTMF_KEYS) for c, key in enumerate(row)}
+PHONE_KEYS = "0123456789*#"      # the keys of an ordinary phone (A-D exist in the standard but not on a phone: never played)
 
 
 def _to_bytes(samples):
@@ -53,6 +62,30 @@ def ring_pcm(level=config.RING_LEVEL, rate=RATE):
     return _to_bytes(out)
 
 
+def dialable(digits):
+    """Only the keys of an ordinary phone: '+1 (555) 010-0142' -> '15550100142', 'clark' -> ''."""
+    return "".join(ch for ch in (digits or "") if ch in PHONE_KEYS)
+
+
+def digits_pcm(digits, level=config.DIGIT_LEVEL, on=config.DIGIT_ON, off=config.DIGIT_OFF, rate=RATE):
+    """The touch-tones of `digits`, each `on` seconds long (faded in and out: no clicks) with `off` seconds of quiet after it."""
+    n_on, n_off, fade = int(on * rate), int(off * rate), int(0.005 * rate)
+    out = []
+    for key in dialable(digits):
+        lo, hi = DTMF[key]
+        for i in range(n_on):
+            gain = min(1.0, i / fade, (n_on - i) / fade)
+            out.append(int(32767 * level * gain * (math.sin(2 * math.pi * lo * i / rate) + math.sin(2 * math.pi * hi * i / rate))))
+        out.extend([0] * n_off)
+    return _to_bytes(out)
+
+
+def dialing_seconds(digits, on=config.DIGIT_ON, off=config.DIGIT_OFF):
+    """How long the dialing sound takes from start to the card being free again; 0 when there is nothing to dial."""
+    n = len(dialable(digits))
+    return LEAD_SECONDS + n * (on + off) + DIALING_TAIL if n else 0.0
+
+
 def find_usb_card(proc_dir="/proc/asound"):
     """The ALSA card id of the first USB sound card that can play (the handset), or None."""
     try:
@@ -71,11 +104,11 @@ def card_exists(card_id, proc_dir="/proc/asound"):
 
 
 class Loop:
-    """A piece of sound played over and over on one card until stop()."""
+    """A piece of sound played over and over on one card until stop().  repeat=False: played once, then aplay ends by itself."""
 
-    def __init__(self, card_id, pcm, name, log):
+    def __init__(self, card_id, pcm, name, log, repeat=True):
         self.device = "plughw:CARD=%s,DEV=0" % card_id
-        self.pcm, self.name, self.log = pcm, name, log
+        self.pcm, self.name, self.log, self.repeat = pcm, name, log, repeat
         self._proc = self._thread = self._stop = self._err = None
 
     @property
@@ -100,12 +133,15 @@ class Loop:
 
         def feed():
             try:
-                proc.stdin.write(bytes(int(0.3 * RATE) * 2))              # a moment of silence first: USB adapters swallow the very start
+                proc.stdin.write(bytes(int(LEAD_SECONDS * RATE) * 2))     # a moment of silence first: USB adapters swallow the very start
                 while not stop.is_set():
                     for off in range(0, len(self.pcm), CHUNK):
                         if stop.is_set():
                             return
                         proc.stdin.write(self.pcm[off:off + CHUNK])
+                    if not self.repeat:
+                        proc.stdin.close()                                # aplay plays what it has, then ends and lets the card go
+                        return
             except (BrokenPipeError, OSError, ValueError):
                 if not stop.is_set():
                     try:
@@ -148,7 +184,8 @@ class Silent:
 class Sounds:
     def __init__(self, log=None, enabled=True, handset_card=None, ringer_card=None, make_loop=Loop):
         self.log = log or (lambda msg: None)
-        self.dial = self.ring = Silent()
+        self.make_loop = make_loop
+        self.dial = self.ring = self.digits = Silent()
         self.handset_card = self.ringer_card = None
         if enabled:
             self.handset_card = handset_card or find_usb_card()
@@ -157,22 +194,39 @@ class Sounds:
                 self.dial = make_loop(self.handset_card, dial_tone_pcm(), "dial tone", self.log)
             if self.ringer_card:
                 self.ring = make_loop(self.ringer_card, ring_pcm(), "ringer", self.log)
-        self._want = (False, False)
+        self._want = (False, False, "")
 
     def describe(self):
         return "dial tone: %s.  ringer: %s." % (
             "sound card '%s'" % self.handset_card if self.handset_card else "no USB sound device (silent)",
             "sound card '%s'" % self.ringer_card if self.ringer_card else "no '%s' card (silent)" % config.RINGER_CARD)
 
-    def update(self, dial_tone, ringing):
-        want = (bool(dial_tone), bool(ringing))
+    def update(self, dial_tone, ringing, digits=""):
+        """digits: the touch-tones to play once (while the machine is dialing), or "" for none."""
+        want = (bool(dial_tone), bool(ringing), dialable(digits))
         if want == self._want:
             return
+        digits_changed = want[2] != self._want[2]
         self._want = want
-        for loop, on in ((self.dial, want[0]), (self.ring, want[1])):
-            loop.start() if on else loop.stop()
-        self.log("      dial tone %s, ringer %s" % ("ON" if want[0] else "off", "ON" if want[1] else "off"))
+        if not want[0]:                                 # first everything that stops: the dial tone must let the card go
+            self.dial.stop()                            # before the dialing sound opens it
+        if not want[1]:
+            self.ring.stop()
+        if digits_changed:
+            self.digits.stop()
+            self.digits = Silent()
+            if want[2] and self.handset_card:
+                self.digits = self.make_loop(self.handset_card, digits_pcm(want[2]), "dialing", self.log, repeat=False)
+        if want[0]:
+            self.dial.start()
+        if want[1]:
+            self.ring.start()
+        if digits_changed and want[2]:
+            self.digits.start()
+        self.log("      dial tone %s, ringer %s%s" % ("ON" if want[0] else "off", "ON" if want[1] else "off",
+                                                    ", dialing %s" % want[2] if want[2] else ""))
 
     def close(self):
         self.dial.stop()
         self.ring.stop()
+        self.digits.stop()
