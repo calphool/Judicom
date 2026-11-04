@@ -2,6 +2,7 @@
 
 import imaplib
 import email
+import html
 import os
 import re
 import hashlib
@@ -15,6 +16,67 @@ ALLOWED_EXTENSIONS = {
     ".heic", ".heif", ".tif", ".tiff",
     ".bmp", ".mp4", ".mov"
 }
+
+# Pictures (not videos) that may get a caption (.meta) file for the Judicom's photo show.
+CAPTION_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".tif", ".tiff", ".bmp"}
+
+# The words in an email's text that become the caption: the same ones the Judicom's photos.py understands.
+CAPTION_KEYS = {
+    "people": "people", "names": "people", "name": "people", "who": "people",
+    "relationship": "relationship", "relationships": "relationship", "relation": "relationship",
+    "taken": "taken", "date": "taken", "when": "taken", "photographed": "taken",
+}
+CAPTION_LINE = re.compile(r"^\s*(%s)\s*[:=]\s*(.+?)\s*$" % "|".join(CAPTION_KEYS), re.IGNORECASE)
+# Where the sender's own words end: a quoted reply, a forwarded message, or a signature.
+END_OF_OWN_TEXT = re.compile(r"^\s*(>|-- ?$|-{5,}|_{5,}|on .+ wrote:\s*$|from:\s)", re.IGNORECASE)
+
+
+def email_text(msg):
+    """The text of an email (its plain-text part, or its HTML part turned into text), without the attachments."""
+    plain, rich = [], []
+    for part in msg.walk():
+        if part.get_content_maintype() != "text" or part.get_content_disposition() == "attachment":
+            continue
+        payload = part.get_payload(decode=True)
+        if not payload:
+            continue
+        text = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        (plain if part.get_content_subtype() == "plain" else rich).append(text)
+    if plain:
+        return "\n".join(plain)
+    text = "\n".join(rich)
+    text = re.sub(r"(?is)<(script|style).*?</\1>", "", text)
+    text = re.sub(r"(?i)<\s*(br|/p|/div|/li|/tr|/h\d)\b[^>]*>", "\n", text)
+    return html.unescape(re.sub(r"<[^>]+>", "", text))
+
+
+def parse_caption(text):
+    """{'people': ..., 'relationship': ..., 'taken': ...} from lines like "people: Amy and Joe" in the sender's own text
+    (not in a quoted reply, a forwarded message or a signature).  The first line for each counts.  {} if there are none."""
+    caption = {}
+    for line in (text or "").splitlines():
+        if END_OF_OWN_TEXT.match(line):
+            break
+        m = CAPTION_LINE.match(line)
+        if m:
+            key = CAPTION_KEYS[m.group(1).lower()]
+            value = " ".join(m.group(2).split())[:200]
+            if value and key not in caption:
+                caption[key] = value
+    return caption
+
+
+def write_meta(picture, caption):
+    """Write picture's .meta caption file (IMG_1234.jpg -> IMG_1234.meta) for the Judicom.  Never replaces an existing one."""
+    meta = picture.with_suffix(".meta")
+    if meta.exists():
+        print(f"Caption file already there, not replaced: {meta}")
+        return None
+    lines = [f"{key}: {caption[key]}" for key in ("people", "relationship", "taken") if key in caption]
+    meta.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Saved caption: {meta}")
+    return meta
+
 
 def refresh_jellyfin(url, api_key, library_id=None):
     try:
@@ -132,6 +194,8 @@ def main():
 
     fallback_name = env.get("FALLBACK_FOLDER", "Misc")
     threshold = int(env.get("MATCH_THRESHOLD", "70"))
+    # Folders whose pictures get a caption (.meta) file from the email's text (the Judicom's photo folder).
+    caption_folders = {f.strip().lower() for f in env.get("CAPTION_FOLDERS", "Judi").split(",") if f.strip()}
 
     print("Connecting to Gmail...")
 
@@ -170,6 +234,10 @@ def main():
         print(f"\nSubject: {subject}")
         print(f"Matched folder: {matched_name} (score={score})")
 
+        caption = parse_caption(email_text(msg)) if matched_name.lower() in caption_folders else {}
+        if caption:
+            print("Caption from the email: " + " | ".join(f"{k}: {v}" for k, v in caption.items()))
+
         saved_any = False
 
         for part in msg.walk():
@@ -205,6 +273,9 @@ def main():
                 f.write(payload)
 
             print(f"Saved: {target_path}")
+
+            if caption and ext in CAPTION_EXTENSIONS:
+                write_meta(target_path, caption)
 
             saved_any = True
 

@@ -79,6 +79,22 @@ there; the Judicom copies the folder every hour (section 3).  The Judicom's key 
 `restrict,command="/usr/bin/rrsync -ro /mnt/8tbdrive/Photos/Judi" ssh-ed25519 AAAA... judicom-photo-sync`
 (`rrsync` comes with rsync; `-ro`: nothing can be written or removed on the NAS through it).
 
+**How photos get there: the mail importer.**  Family members email pictures to the family uploads Gmail address.  Every 5 minutes
+the `jellyfin-mail-importer` timer (system unit, runs as `pi`) runs `/home/pi/jellyfin-mail-importer/import_photos.py`
+(copy: `deploy/nas/jellyfin-mail-importer/`; its Gmail app password and Jellyfin key are in `config.env` there, not in git).  It
+reads the unread emails, picks the photo folder whose name best matches the **subject** (fuzzy match; "For Judi" -> `Judi`;
+no good match -> the fallback folder), saves the picture and video attachments there, deletes the email and asks Jellyfin to rescan.
+For Judi's folder it also turns caption lines in the email's text into a `.meta` file next to each picture:
+
+    people: Amy and Joe
+    relationship: Your daughter and son-in-law
+    taken: 2025-12-24
+
+(Also accepted: names / who, relation, date / when; any capitals.  Only the sender's own text counts, not a quoted reply, a forwarded
+message or a signature.  `CAPTION_FOLDERS` in `config.env` lists the folders that get captions; default `Judi`.)  The Judicom shows
+.jpg, .png and .bmp only: an iPhone `.heic` is saved (and Jellyfin shows it) but not on the Judicom.
+Log: `journalctl -u jellyfin-mail-importer`.
+
 ### Applying a change (safe: no restart, no dropped registrations)
 
 Back up the file first (`cp -p x.conf x.conf.before-<what>-<date>`), edit, then:
