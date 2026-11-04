@@ -1,0 +1,10 @@
+# Adds VoIP.ms's address to the NAS firewall and to Asterisk if chicago4.voip.ms ever moves (voipms_address_check.py).
+# Started by voipms-address-check.timer.     journalctl -u voipms-address-check
+[Unit]
+Description=Check that VoIP.ms's address is allowed in the firewall and in Asterisk
+Wants=network-online.target
+After=network-online.target asterisk-firewall.service docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/sbin/voipms_address_check.py
