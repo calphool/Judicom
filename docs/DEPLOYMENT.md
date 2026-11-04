@@ -258,11 +258,12 @@ stalls while the card is frozen, which on 2026-11-04 left the Judicom frozen unt
 
 It stops the phone and the syncs, moves the system log to memory, and runs `backup_stream.sh` as root: it freezes the main
 partition (`fsfreeze`) and writes the start of the card and the boot partition (dd) plus the main partition's used blocks
-(`e2image -ra`; free space as zeros) to the NAS through zstd.  It unfreezes whenever it ends (done, error, Ctrl-C), a watchdog
+(free space as zeros) to the NAS through zstd.  It unfreezes whenever it ends (done, error, Ctrl-C), a watchdog
 inside it ends the copy after 15 minutes, and a separate guard unfreezes after 20 minutes even if it were killed.  It starts the
-phone again itself as soon as the card is unfrozen.  e2image reads the main partition through a read-only, direct-I/O loop device:
-given the mounted partition itself, e2image's "is it mounted?" check creates `/.ismount-test-file`, which waits forever on a
-frozen card.  The NAS keeps the upload as a hidden unfinished file until `commit`: only if its SHA-256 matches what the Judicom
+phone again itself as soon as the card is unfrozen.  The main partition is read by `copy_used_blocks.py`: the used blocks
+(from `dumpe2fs`, read-only) as they are, the free ones as zeros, i.e. the image `e2image -ra` makes (plus the backup
+superblocks).  Not e2image itself: its "is it mounted?" check creates `/.ismount-test-file`, which waits forever on a frozen root
+(found with strace on 2026-11-04; a loop device does not hide the mount, device-mapper refuses a mounted partition).  The NAS keeps the upload as a hidden unfinished file until `commit`: only if its SHA-256 matches what the Judicom
 sent and it unpacks does it get its real name (so a cut-off upload never looks like a backup).  While frozen nothing can start `sudo` (it writes a session record):
 if something ever does hang, wait for the guard (20 minutes) or unplug the Judicom (a frozen card is in a clean state).
 
