@@ -3,6 +3,7 @@
 #     12-25                     | Christmas            every year (month-day)
 #     4th Thursday of November  | Thanksgiving         every year, on a weekday of the month (1st 2nd 3rd 4th 5th or last)
 #     Easter                    | Easter               every year
+#     Sunday after 1st Monday of September | Grandparents' Day     the first such weekday after a day of the kind above
 #     2026-11-08 10:30          | Visit from Ann       once (year-month-day); a time is optional: 10:30, 14:00, 2 PM
 # Delete any holiday you don't want on Judi's screen.  Add birthdays and visits at the end.
 
@@ -26,6 +27,7 @@ Easter                   | Easter
 2nd Sunday of May        | Mother's Day
 06-14                    | Flag Day
 3rd Sunday of June       | Father's Day
+Sunday after 1st Monday of September | Grandparents' Day
 10-31                    | Halloween
 12-24                    | Christmas Eve
 12-31                    | New Year's Eve

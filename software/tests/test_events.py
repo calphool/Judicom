@@ -145,6 +145,21 @@ class Holidays(unittest.TestCase):
         self.assertEqual((up[0].title, up[0].when, up[0].countdown), ("Thanksgiving dinner", "November 26, 1:00 PM", "23 days to go"))
         self.assertEqual(up[1].date, datetime.date(2027, 3, 28))
 
+    def test_grandparents_day_the_sunday_after_labor_day(self):
+        e = parse("Sunday after 1st Monday of September | Grandparents' Day\n")[0]
+        known = {2024: 8, 2025: 7, 2026: 13, 2027: 12, 2030: 8}                  # (2025: Labor Day Sept 1, Sunday Sept 7)
+        for year, day in known.items():
+            with self.subTest(year=year):
+                self.assertEqual(e.date_in(year), datetime.date(year, 9, day))
+
+    def test_after_is_strictly_after(self):
+        e = parse("Monday after 1st Monday of September | Next Monday\n")[0]
+        self.assertEqual(e.date_in(2026), datetime.date(2026, 9, 14))            # a week after Labor Day, not the same day
+        self.assertEqual(parse("Monday after Easter | Easter Monday\n")[0].date_in(2026), datetime.date(2026, 4, 6))
+        self.assertEqual(parse("Friday after 4th Thursday of November | Black Friday\n")[0].date_in(2026),
+                         datetime.date(2026, 11, 27))
+        self.assertEqual(parse("Sunday after 12-25 | Sunday after Christmas\n")[0].date_in(2026), datetime.date(2026, 12, 27))
+
     def test_bad_rules_are_reported(self):
         logged = []
         self.assertEqual(parse("6th Monday of May | x\n4th Funday of November | y\nlast Monday of Smarch | z\n", logged.append), [])
@@ -155,5 +170,5 @@ class Holidays(unittest.TestCase):
         example = Path(__file__).resolve().parents[2] / "deploy" / "nas" / "judicom" / "events.example.txt"
         events = parse(example.read_text(), logged.append)
         self.assertEqual(logged, [])
-        self.assertGreaterEqual(len(events), 18)
+        self.assertGreaterEqual(len(events), 21)
         self.assertTrue(all(e.next_date(NOW.date()) for e in events))      # every one of them comes round
