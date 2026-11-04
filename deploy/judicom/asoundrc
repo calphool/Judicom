@@ -1,0 +1,37 @@
+# Judicom audio devices. Cards are referred to by NAME, so USB port / boot order doesn't matter.
+
+# Handset earpiece: USB adapter (playback)
+pcm.judicom_handset {
+    type plug
+    slave.pcm "hw:CARD=Device,DEV=0"
+}
+
+# Ringtone speaker: Pi 3.5 mm jack
+pcm.judicom_ring {
+    type plug
+    slave.pcm "hw:CARD=Headphones,DEV=0"
+}
+
+# Handset microphone: USB adapter (capture), left channel only
+pcm.judicom_mic {
+    type plug
+    slave.pcm {
+        type route
+        slave.pcm "hw:CARD=Device,DEV=0"
+        slave.channels 1
+        ttable.0.0 1
+    }
+}
+
+# Software gain on top of the mic (+/-20 dB). Appears as the "Judicom Mic Gain" control on card Device.
+pcm.judicom_mic_boost {
+    type softvol
+    slave.pcm "judicom_mic"
+    control {
+        name "Judicom Mic Gain"
+        card Device
+    }
+    min_dB -20.0
+    max_dB 20.0
+    resolution 101
+}

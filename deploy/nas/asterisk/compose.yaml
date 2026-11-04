@@ -1,0 +1,8 @@
+services:
+  asterisk:
+    image: andrius/asterisk:22
+    container_name: asterisk-test
+    restart: "unless-stopped"
+    volumes:
+      - ./config:/etc/asterisk
+    network_mode: host
