@@ -1,0 +1,7 @@
+table inet asterisk_test {
+    chain input {
+        type filter hook input priority -10; policy accept;
+
+        iifname "eth0" udp dport 5060 ip saddr != 208.100.60.6 drop
+    }
+}
