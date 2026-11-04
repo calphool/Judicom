@@ -102,3 +102,10 @@ WEATHER_EVERY = 30 * 60
 WEATHER_STALE = 3 * 60 * 60
 NIGHT_INK, NIGHT_SOFT = (104, 104, 104), (78, 78, 78)    # the night clock's dim greys
 CARD = (52, 90, 100)          # the info screen's lighter teal panels
+
+# ---- the verse screen ------------------------------------------------------------------------------------------------------
+# It takes turns with the info screen (every INFO_EVERY_PHOTOS photos, one or the other), for VERSE_SECONDS.  The verses: a copy
+# of /home/pi/judicom/verses.txt on the NAS (judicom.sync fetches it with the caller list); see judicom/verses.py.
+VERSE_SECONDS = 30.0
+VERSES_FILE = Path(os.environ.get("JUDICOM_VERSES", "/home/joe/verses.txt"))
+FONT_DIR = Path(__file__).resolve().parent / "fonts"

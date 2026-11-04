@@ -69,7 +69,8 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
 - The Judicom fetches the same file itself every 10 minutes (section 3), with its own key.  That key's line in
   `/home/pi/.ssh/authorized_keys` only lets it read this list and the events list (below):
   `restrict,command="/home/pi/judicom/serve_list.sh" ssh-ed25519 AAAA... judicom-contacts-sync`
-  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, or `events`, and refuses anything else).
+  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events` or `verses`, and refuses anything
+  else).
 
 ### Judi's events
 
@@ -106,6 +107,13 @@ saved as typed; the Judicom tidies them on the screen however they were written 
 "great-grandson" -> "Your great-grandson", "10/24/2026" -> "October 24, 2026"; rules at the top of `software/judicom/photos.py`).  The Judicom shows
 .jpg, .png and .bmp only: an iPhone `.heic` is saved (and Jellyfin shows it) but not on the Judicom.
 Log: `journalctl -u jellyfin-mail-importer`.
+
+### Judi's verses
+
+`/home/pi/judicom/verses.txt` on the NAS (start from `deploy/nas/judicom/verses.example.txt`: 50 comforting KJV verses, their
+words taken from a public-domain KJV text): `reference | words`, one per line, `[2]` where verse 2 begins inside a passage.  The
+Judicom fetches it with the caller list every 10 minutes and shows one verse, on a page that looks like an old Bible, every other
+time the info screen would come (so after every 10 photos), for 30 seconds; every verse once before any comes again.
 
 ### The offline alert
 
@@ -206,6 +214,7 @@ someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 
 | `~/.baresip/accounts` | `deploy/judicom/baresip/accounts.example` | the password is the one in `judicom.conf` on the NAS |
 | `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
 | `~/events.txt` | **fetched from the NAS** with the caller list | a copy of Judi's events list, for the info screen |
+| `~/verses.txt` | **fetched from the NAS** with the caller list | a copy of Judi's verse list, for the verse screen |
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
 | `~/photos/` | **copied from the NAS** by the `judicom-photo-sync` timer (2 min after boot, then every hour) | a copy of `/mnt/8tbdrive/Photos/Judi`: pictures removed there go here too.  Nothing is changed if the NAS can't be reached, its folder has no pictures (drive not mounted?), or more than half of the pictures would go (`python3 -m judicom.photo_sync --force` by hand if that is meant).  Fetch now: `sudo systemctl start judicom-photo-sync`; see first: `python3 -m judicom.photo_sync --dry-run`; log: `journalctl -u judicom-photo-sync` |
 | `~/.ssh/judicom_photos` | `ssh-keygen -t ed25519 -N "" -C judicom-photo-sync -f ~/.ssh/judicom_photos` | the key that copies the photos; its public half goes on the NAS (section 2) |

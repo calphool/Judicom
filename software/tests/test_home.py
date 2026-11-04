@@ -96,6 +96,50 @@ class Rotation(Base):
         self.assertEqual(self.home.mode, INFO)
 
 
+class Verses(Base):
+    class FakeVerses:
+        def __init__(self, n=2):
+            self.n, self.given = n, 0
+
+        def refresh(self):
+            return False
+
+        def next(self):
+            if not self.n:
+                return None
+            from judicom.verses import Verse
+            self.given += 1
+            return Verse("Psalm %d:1" % self.given, "words")
+
+    def make(self, n):
+        from judicom.home import VERSE
+        self.VERSE = VERSE
+        self.home = Home(self.photos, now=self.clock.now, clock=self.clock, every=5, info_seconds=30, awake_file=None,
+                         verses=self.FakeVerses(n), verse_seconds=30)
+        self.home.start()
+
+    def test_info_and_verse_take_turns(self):
+        self.make(2)
+        seen = [m for m in self.run_for(4 * 110) if m != PHOTOS]
+        self.assertEqual(seen[:4], [INFO, self.VERSE, INFO, self.VERSE])
+        self.assertEqual(self.home.verses.given, 2)
+
+    def test_no_verses_always_the_info_screen(self):
+        self.make(0)
+        seen = [m for m in self.run_for(4 * 110) if m != PHOTOS]
+        self.assertEqual(set(seen), {INFO})
+
+    def test_the_verse_page_is_drawn_once(self):
+        self.make(2)
+        self.home._special()
+        self.home._special()                                   # info, then a verse
+        self.assertEqual(self.home.mode, self.VERSE)
+        self.assertTrue(self.home.needs_redraw())
+        self.home._drawn = self.home._signature()
+        self.clock.t += 120
+        self.assertFalse(self.home.needs_redraw())             # a page shows no clock: nothing to redraw
+
+
 class Night(Base):
     def test_in_night(self):
         for hm, night in [((20, 59), False), ((21, 0), True), ((23, 30), True), ((0, 0), True), ((5, 59), True), ((6, 0), False)]:

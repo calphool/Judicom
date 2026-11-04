@@ -152,6 +152,21 @@ class Events(Folder):
         self.assertEqual(calls[0][-2:], ["pi@h", "events"])
 
 
+class Verses(Folder):
+    def test_writes_the_verses_with_a_copy_header(self):
+        path = self.dir / "verses.txt"
+        self.assertEqual(sync.sync_verses(lambda: "Psalm 56:3 | What time I am afraid, I will trust in thee.\n", path,
+                                          self.logged.append), 0)
+        self.assertTrue(path.read_text().startswith("# COPY of Judi's verse list"))
+        self.assertIn("verses updated: 1", self.logged[-1])
+
+    def test_the_caller_list_given_instead_is_refused(self):
+        path = self.dir / "verses.txt"
+        path.write_text("old\n")
+        self.assertEqual(sync.sync_verses(lambda: "contacts only, no bars here\n", path, self.logged.append), 1)
+        self.assertEqual(path.read_text(), "old\n")
+
+
 class NasSide(Folder):
     def setUp(self):
         super().setUp()
@@ -238,6 +253,7 @@ class ServeList(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "contacts.txt").write_text("C\n")
             (Path(d) / "events.txt").write_text("E\n")
+            (Path(d) / "verses.txt").write_text("V\n")
             local = Path(d) / "serve_list.sh"
             local.write_text(script.read_text().replace("/home/pi/judicom/", d + "/"))
             env = {"PATH": "/usr/bin:/bin", "SSH_ORIGINAL_COMMAND": request}
@@ -245,6 +261,7 @@ class ServeList(unittest.TestCase):
             return r.returncode, r.stdout, r.stderr
 
     def test_answers(self):
+        self.assertEqual(self.ask("verses")[:2], (0, "V\n"))
         self.assertEqual(self.ask("")[:2], (0, "C\n"))
         self.assertEqual(self.ask("contacts")[:2], (0, "C\n"))
         self.assertEqual(self.ask("events")[:2], (0, "E\n"))
