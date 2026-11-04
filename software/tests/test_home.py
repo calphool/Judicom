@@ -50,7 +50,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.clock = Clock()
         self.photos = FakePhotos(self.clock)
-        self.home = Home(self.photos, now=self.clock.now, clock=self.clock, every=5, info_seconds=30)
+        self.home = Home(self.photos, now=self.clock.now, clock=self.clock, every=5, info_seconds=30, awake_file=None)
 
     def run_for(self, seconds, step=0.5):
         modes = []
@@ -127,6 +127,51 @@ class Night(Base):
         self.home.start()
         self.home.start()                                  # main.py calls start() when a call ends
         self.assertEqual(self.home.mode, NIGHT)
+
+
+class StayAwake(Base):
+    def setUp(self):
+        super().setUp()
+        import os
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.awake = os.path.join(self._tmp.name, "judicom-awake")
+        self.logged = []
+        self.home = Home(self.photos, now=self.clock.now, clock=self.clock, every=5, info_seconds=30,
+                         awake_file=self.awake, awake_hours=2, log=self.logged.append)
+        self.clock.wall = datetime.datetime(2026, 11, 3, 23, 0)
+
+    def test_the_file_keeps_the_night_clock_away(self):
+        open(self.awake, "w").close()
+        self.home.start()
+        self.assertEqual(self.home.mode, PHOTOS)
+        self.run_for(76)
+        self.assertEqual(self.home.mode, INFO)                 # the info screen comes round at night too
+        self.assertTrue(any("paused" in m for m in self.logged))
+
+    def test_removing_it_brings_the_night_clock_back(self):
+        import os
+        open(self.awake, "w").close()
+        self.home.start()
+        os.unlink(self.awake)
+        self.run_for(1)
+        self.assertEqual(self.home.mode, NIGHT)
+        self.assertTrue(any("back" in m for m in self.logged))
+
+    def test_an_old_file_does_nothing(self):
+        import os
+        import time
+        open(self.awake, "w").close()
+        three_hours_ago = time.time() - 3 * 3600
+        os.utime(self.awake, (three_hours_ago, three_hours_ago))
+        self.home.start()
+        self.assertEqual(self.home.mode, NIGHT)
+
+    def test_no_file_in_the_daytime_changes_nothing(self):
+        self.clock.wall = datetime.datetime(2026, 11, 3, 14, 0)
+        self.home.start()
+        self.assertEqual(self.home.mode, PHOTOS)
 
 
 class Redraw(Base):

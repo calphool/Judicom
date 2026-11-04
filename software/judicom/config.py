@@ -87,6 +87,11 @@ INFO_SECONDS = 30.0           # ... for this long, then the photos again
 INFO_EVENTS = 3               # how many upcoming events it shows
 NIGHT_FROM = (21, 0)          # the night clock (a dark screen with only the time and date) from 9:00 pm ...
 NIGHT_TO = (6, 0)             # ... to 6:00 am.  Calls work as always; afterwards the night clock comes back.
+# To see the photos and the info screen at night (setting it up, showing it to someone): create this file
+# (touch /home/joe/judicom-awake).  The night clock stays away while it exists, but only for NIGHT_PAUSE_HOURS after it was made
+# or last touched, so a forgotten file does no harm.  Remove it to bring the night clock back at once.
+NIGHT_PAUSE_FILE = Path(os.environ.get("JUDICOM_AWAKE", "/home/joe/judicom-awake"))
+NIGHT_PAUSE_HOURS = 2.0
 # Judi's events: a copy of /home/pi/judicom/events.txt on the NAS (judicom.sync fetches it with the caller list).
 EVENTS_FILE = Path(os.environ.get("JUDICOM_EVENTS", "/home/joe/events.txt"))
 # The weather (Open-Meteo: free, no account), fetched every 30 minutes; not shown when it is more than 3 hours old.

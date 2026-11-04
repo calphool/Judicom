@@ -5,12 +5,14 @@
   PHOTOS  the family photos (photo_view.py).  After INFO_EVERY_PHOTOS of them have had their full time: ...
   INFO    the day, the date, the time, the weather and the next events with their countdowns (info_view.py), for INFO_SECONDS;
           then the photos again, starting with a fresh picture
-  NIGHT   from NIGHT_FROM to NIGHT_TO: a dark screen with only the time and the date
+  NIGHT   from NIGHT_FROM to NIGHT_TO: a dark screen with only the time and the date (not while the "stay awake" file
+          NIGHT_PAUSE_FILE exists and is younger than NIGHT_PAUSE_HOURS: touch /home/joe/judicom-awake)
 A call takes the screen whenever one comes (main.py); afterwards start() is called again and picks the right one of the three, so
 after a call at night the night clock comes back.  Wall-clock time comes from `now` (datetime.now) and timers from `clock`
 (time.monotonic); tests replace both.
 """
 import datetime
+import os
 import time
 
 from . import config
@@ -25,7 +27,10 @@ def in_night(now, start=config.NIGHT_FROM, end=config.NIGHT_TO):
 
 class Home:
     def __init__(self, photos, events=None, weather=None, now=datetime.datetime.now, clock=time.monotonic, log=None,
-                 every=config.INFO_EVERY_PHOTOS, info_seconds=config.INFO_SECONDS, night=(config.NIGHT_FROM, config.NIGHT_TO)):
+                 every=config.INFO_EVERY_PHOTOS, info_seconds=config.INFO_SECONDS, night=(config.NIGHT_FROM, config.NIGHT_TO),
+                 awake_file=config.NIGHT_PAUSE_FILE, awake_hours=config.NIGHT_PAUSE_HOURS):
+        self.awake_file, self.awake_hours = str(awake_file) if awake_file else None, awake_hours
+        self._awake_said = None
         self.photos, self.events, self.weather = photos, events, weather
         self.now, self.clock = now, clock
         self.log = log or (lambda msg: None)
@@ -37,16 +42,33 @@ class Home:
         self.version = 0
 
     # ---- the PhotoView interface
+    def is_night(self, now):
+        """Night by the clock, unless the "stay awake" file is there (and not older than awake_hours)."""
+        if not in_night(now, *self.night):
+            return False
+        awake = False
+        if self.awake_file:
+            try:
+                age = time.time() - os.stat(self.awake_file).st_mtime
+                awake = age < self.awake_hours * 3600
+            except OSError:
+                pass
+        if awake != self._awake_said:
+            if awake or self._awake_said is not None:
+                self.log("night clock %s" % ("paused (%s is there)" % self.awake_file if awake else "back"))
+            self._awake_said = awake
+        return not awake
+
     def start(self):
         """The screen is (again) ours: the night clock at night, else the photos from a fresh picture."""
-        if in_night(self.now(), *self.night):
+        if self.is_night(self.now()):
             self._go(NIGHT)
         else:
             self._photos()
 
     def tick(self):
         now = self.now()
-        night = in_night(now, *self.night)
+        night = self.is_night(now)
         if night and self.mode != NIGHT:
             self._go(NIGHT)
         elif not night and self.mode == NIGHT:
