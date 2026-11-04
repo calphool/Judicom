@@ -8,6 +8,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 UNITS="judicom-baresip.service judicom-phone.service"
 SYNC="judicom-contacts-sync.service judicom-contacts-sync.timer"     # fetches the caller list from the NAS every 10 minutes
+SYNC="$SYNC judicom-photo-sync.service judicom-photo-sync.timer"      # and the photos every hour
+TIMERS="judicom-contacts-sync.timer judicom-photo-sync.timer"
 for u in $UNITS $SYNC plymouth-retain-splash.conf; do
   [ -f "$u" ] || { echo "Missing $u - run this from the software/systemd folder." >&2; exit 1; }
 done
@@ -19,12 +21,13 @@ sudo mkdir -p /etc/systemd/system/plymouth-quit.service.d
 sudo cp plymouth-retain-splash.conf /etc/systemd/system/plymouth-quit.service.d/judicom-retain-splash.conf
 sudo systemctl daemon-reload
 sudo systemctl disable getty@tty1.service 2>/dev/null || true      # no login prompt on the Judicom's screen
-sudo systemctl enable $UNITS judicom-contacts-sync.timer
-sudo systemctl restart $UNITS judicom-contacts-sync.timer
+sudo systemctl enable $UNITS $TIMERS
+sudo systemctl restart $UNITS $TIMERS
 [ -f /home/joe/.ssh/judicom_sync ] || echo "Note: /home/joe/.ssh/judicom_sync is missing; the caller list cannot be fetched (see docs/DEPLOYMENT.md)."
+[ -f /home/joe/.ssh/judicom_photos ] || echo "Note: /home/joe/.ssh/judicom_photos is missing; the photos cannot be fetched (see docs/DEPLOYMENT.md)."
 sleep 3
 echo
 systemctl --no-pager --lines=0 status $UNITS || true
-systemctl --no-pager list-timers judicom-contacts-sync.timer || true
+systemctl --no-pager list-timers $TIMERS || true
 echo
 echo "Logs:  journalctl -u judicom-phone -f      journalctl -u judicom-baresip -f"

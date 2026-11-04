@@ -1,0 +1,16 @@
+# Copies the family photos from the NAS (/mnt/8tbdrive/Photos/Judi) into /home/joe/photos (python3 -m judicom.photo_sync).
+# Started by the timer of the same name; installed by install_services.sh.     journalctl -u judicom-photo-sync
+[Unit]
+Description=Judicom: fetch the family photos from the NAS
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+
+[Service]
+Type=oneshot
+User=joe
+Group=joe
+WorkingDirectory=/home/joe/Judicom/software
+ExecStart=/usr/bin/python3 -m judicom.photo_sync
+# A slow link must not hold the photo show up: only the copy waits (the photo show keeps showing what it has).
+Nice=10
+IOSchedulingClass=idle

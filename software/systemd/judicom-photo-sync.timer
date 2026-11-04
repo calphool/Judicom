@@ -1,0 +1,12 @@
+# Runs judicom-photo-sync two minutes after boot, then every hour.  Installed by install_services.sh.
+#   systemctl list-timers judicom-photo-sync           sudo systemctl start judicom-photo-sync   (fetch now)
+[Unit]
+Description=Judicom: fetch the family photos from the NAS every hour
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-# Where the family photos live (the twice-a-day NAS sync fills this folder).
+# Where the family photos live (judicom.photo_sync fills this folder from the NAS every hour).
 # For a test on another computer:  JUDICOM_PHOTOS=/some/folder python3 -m judicom.photos
 PHOTO_DIR = Path(os.environ.get("JUDICOM_PHOTOS", "/home/joe/photos"))
 
@@ -42,6 +42,9 @@ CONTACTS_FILE = Path(os.environ.get("JUDICOM_CONTACTS", "/home/joe/contacts.txt"
 # The master list is on the NAS; judicom.sync copies it here every 10 minutes (over Tailscale, with a key that can only read it).
 SYNC_HOST = "pi@100.64.0.1"
 SYNC_KEY = "/home/joe/.ssh/judicom_sync"
+# The photos come from /mnt/8tbdrive/Photos/Judi on the NAS (shared with Jellyfin); judicom.photo_sync copies them into PHOTO_DIR
+# every hour, with a key the NAS only lets read that folder.
+PHOTO_SYNC_KEY = "/home/joe/.ssh/judicom_photos"
 
 # Only used when there is no contacts file (a demo on a PC).  Made-up 555 numbers.
 # "dial" is what is sent to the PBX (an extension or a number).

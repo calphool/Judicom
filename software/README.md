@@ -58,6 +58,7 @@ The modes and how they change are described at the top of `judicom/machine.py`. 
 ## Step 2: the photo screen
 
     python3 -m judicom.photo_show             # full screen on the Judicom: pictures from /home/joe/photos, 15 s each, random order
+                                              # (the folder is a copy of the NAS's, see judicom/photo_sync.py)
     python3 -m judicom.photo_show --window    # small window on a PC
     python3 -m judicom.photo_show --flip      # if the picture is upside-down on the panel
     python3 -m judicom.photo_show --seconds 3 # quick look
@@ -88,6 +89,7 @@ top of `judicom/photos.py`.
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)
+    judicom/photo_sync.py   copies the photos from the NAS (/mnt/8tbdrive/Photos/Judi), every hour  (no pygame)
     judicom/sound.py        dial tone and ringer, looped through aplay                        (no pygame)
     judicom/main.py         the program: switches + keys -> machine -> screens, sounds, phone software
     judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only (step 2)

@@ -9,12 +9,14 @@ Judi's phone number (VoIP.ms DID) --SIP--> NAS: Asterisk in Docker --Tailscale--
                                            judicom-allowed.conf                     dials the buttons
                                                     ^ every 10 min                          ^ every 10 min
                                            NAS: ~/judicom/contacts.txt  <-- the ONE caller list (edit only this)
+                                           NAS: /mnt/8tbdrive/Photos/Judi  --every hour-->  Judicom: ~/photos
 ```
 
 | Part | Where it runs | Kept in git | Kept only on the device |
 |---|---|---|---|
 | VoIP.ms account, DID, caller ID | voip.ms web portal | the settings, below | everything |
 | Judi's caller list (master) | NAS: `/home/pi/judicom/contacts.txt` | `deploy/nas/judicom/` (the script) | the list itself |
+| Family photos (master) | NAS: `/mnt/8tbdrive/Photos/Judi` (shared with Jellyfin) | | the photos and `.meta` captions |
 | Asterisk (PBX) | NAS `naspi`, Docker container `asterisk-test` | `deploy/nas/asterisk/` | passwords, the two messages |
 | baresip (phone line) | Judicom, service `judicom-baresip` | `deploy/judicom/` | `~/.baresip/accounts` (password) |
 | The phone program | Judicom, service `judicom-phone` | `software/` | `~/contacts.txt`, `~/photos/` |
@@ -68,6 +70,15 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
   `/home/pi/.ssh/authorized_keys` only lets it read this file:
   `restrict,command="cat /home/pi/judicom/contacts.txt" ssh-ed25519 AAAA... judicom-contacts-sync`
 
+### Judi's photos
+
+`/mnt/8tbdrive/Photos/Judi` (on the 8 TB drive, shared with Jellyfin; owner `pi`, group `media`) is the master photo folder: each
+picture with its `.meta` caption file (format: top of `software/judicom/photos.py`), no subfolders.  Add, change or remove pictures
+there; the Judicom copies the folder every hour (section 3).  The Judicom's key can only **read** it: its line in
+`/home/pi/.ssh/authorized_keys` is
+`restrict,command="/usr/bin/rrsync -ro /mnt/8tbdrive/Photos/Judi" ssh-ed25519 AAAA... judicom-photo-sync`
+(`rrsync` comes with rsync; `-ro`: nothing can be written or removed on the NAS through it).
+
 ### Applying a change (safe: no restart, no dropped registrations)
 
 Back up the file first (`cp -p x.conf x.conf.before-<what>-<date>`), edit, then:
@@ -116,9 +127,10 @@ installed and logged in (address `100.64.0.2`).
 | `~/.baresip/accounts` | `deploy/judicom/baresip/accounts.example` | the password is the one in `judicom.conf` on the NAS |
 | `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
-| `~/photos/` | the NAS (twice-a-day sync, still to be set up) | |
+| `~/photos/` | **copied from the NAS** by the `judicom-photo-sync` timer (2 min after boot, then every hour) | a copy of `/mnt/8tbdrive/Photos/Judi`: pictures removed there go here too.  Nothing is changed if the NAS can't be reached, its folder has no pictures (drive not mounted?), or more than half of the pictures would go (`python3 -m judicom.photo_sync --force` by hand if that is meant).  Fetch now: `sudo systemctl start judicom-photo-sync`; see first: `python3 -m judicom.photo_sync --dry-run`; log: `journalctl -u judicom-photo-sync` |
+| `~/.ssh/judicom_photos` | `ssh-keygen -t ed25519 -N "" -C judicom-photo-sync -f ~/.ssh/judicom_photos` | the key that copies the photos; its public half goes on the NAS (section 2) |
 | boot picture | `judicom_splash/install_splash.sh` | |
-| services | `bash ~/Judicom/software/systemd/install_services.sh` | `judicom-baresip`, `judicom-phone` and the `judicom-contacts-sync` timer; also keeps the boot picture up until the first photo and turns off the login prompt on the screen |
+| services | `bash ~/Judicom/software/systemd/install_services.sh` | `judicom-baresip`, `judicom-phone`, and the `judicom-contacts-sync` and `judicom-photo-sync` timers; also keeps the boot picture up until the first photo and turns off the login prompt on the screen |
 
 baresip's controlling connection takes **one client at a time**: while `judicom-phone` runs, do not use
 `python3 -m judicom.calls` (it knocks the phone off the line).  Stop the service first.
@@ -160,5 +172,6 @@ Removing someone works the same way.  To change who the buttons call, move `left
 
 - NAS: `/home/pi/judicom/contacts.txt` (Judi's caller list), `voipms.conf`, `judicom.conf` (passwords), the two message WAVs (they
   speak the contact number)
-- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` (can be made again), `~/photos/`
+- NAS: `/mnt/8tbdrive/Photos/Judi` (Judi's photos; the Judicom only has a copy)
+- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` and `~/.ssh/judicom_photos` (can be made again)
 - VoIP.ms portal settings (section 1)
