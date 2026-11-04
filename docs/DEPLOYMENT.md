@@ -107,6 +107,17 @@ saved as typed; the Judicom tidies them on the screen however they were written 
 .jpg, .png and .bmp only: an iPhone `.heic` is saved (and Jellyfin shows it) but not on the Judicom.
 Log: `journalctl -u jellyfin-mail-importer`.
 
+### The offline alert
+
+`/home/pi/judicom/watch_judicom.py` (from `deploy/nas/judicom/`; `pi`'s crontab, every 5 minutes) checks that the Judicom is
+registered with Asterisk, and that Asterisk answers.  It emails when the Judicom has been offline for 30 minutes, then once a day
+at about 9 am while it stays offline, and once when it is back (with how long it was gone).  Short blips send nothing.
+- Settings: `/home/pi/judicom/watch.env` (not in git): `ALERT_TO=` (who gets it), `DELAY_MINUTES=30`, `REMINDER_HOUR=9`
+  (empty: no daily reminders).
+- Sent through the mail importer's Gmail account (its `config.env`; read, not copied).
+- `python3 ~/judicom/watch_judicom.py --status` (what it sees now), `--test` (send a test email); log `~/judicom/watch.log`.
+- It cannot tell when only the phone program on the Judicom has crashed while baresip still runs (systemd restarts it anyway).
+
 ### Applying a change (safe: no restart, no dropped registrations)
 
 Back up the file first (`cp -p x.conf x.conf.before-<what>-<date>`), edit, then:
