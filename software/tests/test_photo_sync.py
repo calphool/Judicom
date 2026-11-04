@@ -119,6 +119,28 @@ class Real(unittest.TestCase):
         self.sync()
         self.assertEqual(self.names(), ["a.jpg", "b.jpg"])              # --delay-updates' temporary folder is gone
 
+    def test_videos_and_other_formats_stay_on_the_nas(self):
+        self.add("a.jpg", "a.meta", "B.JPEG", "c.PNG", "clip.mp4", "movie.MOV", "phone.heic", "anim.gif", "notes.txt")
+        self.assertEqual(self.sync(), 0)
+        self.assertEqual(self.names(), ["B.JPEG", "a.jpg", "a.meta", "c.PNG"])
+        self.assertIn("3 picture(s)", self.logged[-1])
+
+    def test_a_video_already_here_is_removed(self):
+        self.add("a.jpg", "b.jpg")
+        self.here.mkdir()
+        (self.here / "old_clip.mp4").write_bytes(b"x" * 1000)       # copied before videos were left out
+        self.assertEqual(self.sync(), 0)
+        self.assertEqual(self.names(), ["a.jpg", "b.jpg"])
+
+    def test_a_folder_of_only_videos_counts_as_empty(self):
+        self.add("a.jpg")
+        self.sync()
+        for f in self.nas.iterdir():
+            f.unlink()
+        self.add("clip.mp4")
+        self.assertEqual(self.sync(), 1)                              # "no pictures": nothing removed here
+        self.assertEqual(self.names(), ["a.jpg"])
+
     def test_the_key_cannot_write_to_the_nas(self):
         (self.here).mkdir()
         (self.here / "upload.jpg").write_bytes(b"x")
@@ -131,6 +153,8 @@ class Real(unittest.TestCase):
 
 class Planning(unittest.TestCase):
     def test_pictures(self):
+        self.assertTrue(photo_sync.wanted("x.meta") and photo_sync.wanted("Y.JPG") and not photo_sync.wanted("v.mp4"))
+        self.assertFalse(photo_sync.wanted(".a.jpg"))
         self.assertTrue(photo_sync.is_picture("A.JPG"))
         self.assertFalse(photo_sync.is_picture("a.meta"))
         self.assertFalse(photo_sync.is_picture(".a.jpg"))
