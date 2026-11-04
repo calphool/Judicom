@@ -75,7 +75,9 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
 
 `/home/pi/judicom/events.txt` on the NAS (start from `deploy/nas/judicom/events.example.txt`): birthdays, holidays and visits for
 the Judicom's info screen, which shows the next three with a countdown ("Christmas, December 25 (52 days to go)").  One per line:
-`12-25 | Christmas` (every year) or `2026-11-08 10:30 | Visit from Amy` (once; the time is optional).  The Judicom fetches it with
+`12-25 | Christmas` (every year), `4th Thursday of November | Thanksgiving` / `last Monday of May | Memorial Day` /
+`Easter | Easter` (every year, moving), or `2026-11-08 10:30 | Visit from Amy` (once; the time is optional).  It starts with the US
+federal holidays and the common family ones (Easter, Mother's Day, Father's Day, Halloween, ...): delete any that are not wanted.  The Judicom fetches it with
 the caller list every 10 minutes; format details at the top of `software/judicom/events.py`.
 
 ### Judi's photos
