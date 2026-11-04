@@ -39,6 +39,10 @@ BUTTON_SETTLE = 0.05          # a button press counts after this long (contact b
 # The real people are in the contacts file on the Judicom (not in git: the repository is public).  See contacts.example.txt.
 CONTACTS_FILE = Path(os.environ.get("JUDICOM_CONTACTS", "/home/joe/contacts.txt"))
 
+# The master list is on the NAS; judicom.sync copies it here every 10 minutes (over Tailscale, with a key that can only read it).
+SYNC_HOST = "pi@100.64.0.1"
+SYNC_KEY = "/home/joe/.ssh/judicom_sync"
+
 # Only used when there is no contacts file (a demo on a PC).  Made-up 555 numbers.
 # "dial" is what is sent to the PBX (an extension or a number).
 # "tones" are the touch-tone digits played in the handset when the button is pressed, so it sounds like a phone dialing.  Leave it out

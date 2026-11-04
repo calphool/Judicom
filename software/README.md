@@ -28,6 +28,10 @@ Who the two buttons call and the names shown for incoming calls are in `/home/jo
 The file is not kept in git (the repository is public, and these are family phone numbers; `.gitignore` keeps `contacts.txt` out).
 The phone reads it again by itself within a few seconds of a change.  Whether a caller gets through at all is up to the PBX.
 
+On the Judicom this file is a **copy**: the master is `/home/pi/judicom/contacts.txt` on the NAS (the PBX screens callers with the
+same list), and `python3 -m judicom.sync`, run by the `judicom-contacts-sync` timer every 10 minutes, fetches it.  Edit the list on
+the NAS; see docs/DEPLOYMENT.md.
+
 ## Step 4: the whole phone (photos + call screens + dial tone + ringer)
 
     python3 -m judicom.main                   # on the Judicom: photos, and the phone screens when the handset is lifted or a call comes in
@@ -83,6 +87,7 @@ top of `judicom/photos.py`.
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
+    judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)
     judicom/sound.py        dial tone and ringer, looped through aplay                        (no pygame)
     judicom/main.py         the program: switches + keys -> machine -> screens, sounds, phone software
     judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only (step 2)
