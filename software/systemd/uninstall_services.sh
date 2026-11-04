@@ -1,7 +1,8 @@
 #!/bin/bash
 # Stops judicom-phone and judicom-baresip and removes them (the Judicom then no longer starts by itself).
 set -euo pipefail
-UNITS="judicom-contacts-sync.timer judicom-contacts-sync.service judicom-phone.service judicom-baresip.service"
+UNITS="judicom-photo-sync.timer judicom-photo-sync.service judicom-contacts-sync.timer judicom-contacts-sync.service"
+UNITS="$UNITS judicom-phone.service judicom-baresip.service"
 sudo systemctl disable --now $UNITS || true
 for u in $UNITS; do sudo rm -f "/etc/systemd/system/$u"; done
 sudo rm -f /etc/systemd/system/plymouth-quit.service.d/judicom-retain-splash.conf
