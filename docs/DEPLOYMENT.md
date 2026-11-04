@@ -247,6 +247,26 @@ restart works; its log also shows `module stdio.so: Operation not permitted` (no
 On the home network: `ssh joe@judicom.local`.  Anywhere else, through Tailscale: `ssh joe@100.64.0.2` from a device on Tailscale,
 or through the NAS: `ssh -J pi@naspi.local joe@100.64.0.2`.
 
+## Backup of the SD card
+
+The whole card, as an image, while the Judicom runs: on the Judicom, `bash ~/Judicom/deploy/judicom/backup_judicom.sh`.  The phone
+is off for a few minutes (callers hear "can't come to the phone"; more than 30 minutes would also send the offline email).  It
+stops the phone and the syncs, moves the system log to memory, freezes the main partition (`fsfreeze`; unfrozen whatever happens,
+and by a safety timer after 45 minutes), and sends the start of the card and the boot partition as they are plus the main
+partition's used blocks (`e2image`; free space as zeros) to the NAS, then starts everything again and checks the copy's SHA-256.
+At home it uses the home network, elsewhere Tailscale.
+
+- On the NAS: `/mnt/2tbdrive/judicom-backups/judicom-<date-time>.img.zst` (+ `.sha256`), the newest 5 kept.  The Judicom's key
+  `~/.ssh/judicom_backup` may only store and check backups: `restrict,command="/home/pi/judicom/receive_backup.sh" ...`
+  (`deploy/nas/judicom/receive_backup.sh`).
+- **Putting a backup on a new card** (as large as the old one, or larger): copy the `.img.zst` to a computer, then either
+  Raspberry Pi Imager -> "Use custom" -> the file, or
+  `zstd -dc judicom-....img.zst | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync` (sdX: the new card; check with lsblk!).
+  The card is then the Judicom as it was at the backup, with the same Tailscale identity, keys and Wi-Fi networks.
+- Make one after big changes, and keep a spare card with a recent backup on it.
+- If the Judicom's card is ever changed for a different size, check `backup_judicom.sh`: it expects the main partition to reach
+  the end of the card.
+
 ## 4. Adding someone who may call Judi
 
 Add a line `<number> | <name> | <relationship>` to `/home/pi/judicom/contacts.txt` on the NAS.  Within 10 minutes they can ring
