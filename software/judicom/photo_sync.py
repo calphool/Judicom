@@ -1,7 +1,8 @@
 """Bring the family photos from the NAS to the Judicom.   python3 -m judicom.photo_sync      (--dry-run: say what it would do)
 
 The master folder is /mnt/8tbdrive/Photos/Judi on the NAS (shared with Jellyfin): add, change or remove pictures and their .meta
-caption files there.  This makes ~/photos on the Judicom the same, with rsync over Tailscale; the photo show picks the changes up by
+caption files there.  Only the pictures the Judicom can show (.jpg .jpeg .png .bmp) and the .meta files come over: videos and other
+formats the mail importer saves there stay on the NAS, so they cannot fill the Judicom's card.  This makes ~/photos on the Judicom the same, with rsync over Tailscale; the photo show picks the changes up by
 itself.  Run by the judicom-photo-sync timer (at boot, then every hour); run it by hand for an instant update.
 
 It uses its own key (~/.ssh/judicom_photos), which the NAS only lets READ that one folder: on the NAS's side the key's line in
@@ -32,6 +33,19 @@ def reason(stderr, code):
         if l.startswith("ssh:") or "Permission denied" in l or "Host key verification failed" in l or "rrsync error" in l:
             return l
     return lines[-1] if lines else "rsync exit status %d" % code
+
+
+def wanted(name):
+    """What the Judicom keeps from the NAS folder: the pictures it can show and their .meta captions.  Videos and other formats
+    (.mp4, .mov, .heic, .gif ...) that the mail importer also saves there stay on the NAS (Jellyfin shows them)."""
+    return not name.startswith(".") and (is_picture(name) or name.lower().endswith(".meta"))
+
+
+def rsync_filter():
+    """rsync rules for wanted(): each extension in any capitals, everything else excluded."""
+    def any_case(ext):
+        return "".join("[%s%s]" % (c.lower(), c.upper()) if c.isalpha() else c for c in ext)
+    return ["--include=*" + any_case(e) for e in list(config.PHOTO_EXTS) + [".meta"]] + ["--exclude=*"]
 
 
 def is_picture(name):
@@ -82,8 +96,9 @@ def copy(local_folder, host=None, key=None, run=subprocess.run):
     """rsync the NAS folder into local_folder; returns the list of rsync's changes ('>f+++++++++ name', '*deleting name', ...)."""
     host = host or config.SYNC_HOST
     os.makedirs(local_folder, exist_ok=True)
-    cmd = ["rsync", "-rt", "--delete", "--delay-updates", "--chmod=D755,F644", "--itemize-changes",
-           "-e", ssh_command(key), "%s:./" % host, local_folder.rstrip("/") + "/"]
+    # only wanted() files come over; --delete-excluded also removes anything else that is here (a video copied before 2026-11-04)
+    cmd = ["rsync", "-rt", "--delete", "--delete-excluded", "--delay-updates", "--chmod=D755,F644", "--itemize-changes"] \
+        + rsync_filter() + ["-e", ssh_command(key), "%s:./" % host, local_folder.rstrip("/") + "/"]
     try:
         result = run(cmd, capture_output=True, text=True, timeout=1800)
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -97,7 +112,7 @@ def sync(local_folder=None, lister=remote_files, copier=copy, dry_run=False, for
     """0: done (changed or not), 1: nothing changed (the reason is logged)."""
     local_folder = str(config.PHOTO_DIR if local_folder is None else local_folder)
     try:
-        remote = lister()
+        remote = [n for n in lister() if wanted(n)]                   # videos etc. on the NAS do not count here
         to_remove, local_pictures, remote_pictures = plan(remote, local_folder)
         if not force:
             check(to_remove, local_pictures, remote_pictures)
