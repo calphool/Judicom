@@ -233,6 +233,12 @@ first setup, or when the Wi-Fi there fails.  Add the nursing home's network whil
     sudo nmcli dev wifi connect "NETWORK" password "PASSWORD"
     sudo nmcli connection modify JOE5G connection.autoconnect-priority 100     # (already done)
 
+### The system log
+
+Raspberry Pi OS keeps it in memory only, so a restart would erase what happened before it.  `install_services.sh` installs
+`software/systemd/journald-judicom.conf` as `/etc/systemd/journald.conf.d/90-judicom.conf`: kept on the card, a new file every
+hour, nothing older than a day, at most 50 MB (and always 1 GB free).  The boot before the current one: `journalctl -b -1`.
+
 ### Checks
 
     systemctl is-active judicom-baresip judicom-phone
