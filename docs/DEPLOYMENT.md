@@ -143,7 +143,7 @@ untouched default; the rule has its own service instead:
 
 | File on the NAS | Copy | What it does |
 |---|---|---|
-| `/etc/asterisk-firewall.nft` | `deploy/nas/firewall/` | table `inet asterisk_test`: on the home network (`eth0`), SIP (UDP 5060) from anyone but VoIP.ms's Chicago server `208.100.60.6` is **dropped** |
+| `/etc/asterisk-firewall.nft` | `deploy/nas/firewall/` (as it was before the set) | table `inet asterisk_test`: on the home network (`eth0`), SIP (UDP 5060) from anyone not in the set `voipms` (VoIP.ms's Chicago server) is **dropped**.  Written by `voipms_address_check.py` |
 | `/etc/systemd/system/asterisk-firewall.service` | `deploy/nas/firewall/` | loads that file at boot (before Docker), only if the table is not there already; enabled |
 
 What gets through to Asterisk:
@@ -153,12 +153,13 @@ What gets through to Asterisk:
 - Nobody else's SIP on the home network.  (The rule is IPv4 only; Asterisk listens on IPv4 only, so that is enough.)  The RTP
   (voice) ports are not filtered.
 
-**If VoIP.ms ever changes the server's address, incoming calls stop** (the new address is dropped) while outgoing calls may still
-work.  Check: `getent ahostsv4 chicago4.voip.ms` must give `208.100.60.6` (it did on 2026-11-03).  If not, change the address in
-both `/etc/asterisk-firewall.nft` and the `match=` line of `voipms-identify` in `voipms.conf`, then:
-
-    sudo nft delete table inet asterisk_test && sudo nft -f /etc/asterisk-firewall.nft     # the new rule, now
-    docker exec asterisk-test asterisk -rx "module reload res_pjsip.so"                    # the new address in Asterisk
+**VoIP.ms changing the server's address is handled by itself**: `voipms-address-check.timer` (root, hourly; installed with
+`deploy/nas/firewall/install_address_check.sh`) runs `/usr/local/sbin/voipms_address_check.py`, which looks up `chicago4.voip.ms`
+and ADDS any new address (never removes) to the firewall's `voipms` set (live, and in `/etc/asterisk-firewall.nft` for the next
+boot) and to the `match=` line of `voipms-identify` in `voipms.conf` (then a pjsip reload).  A lookup that fails, or gives a
+private address or too many, changes nothing and writes a WARNING.  See what it did: `journalctl -u voipms-address-check`;
+what it would do: `sudo python3 /usr/local/sbin/voipms_address_check.py --dry-run`.  (On 2026-11-03 the address was
+`208.100.60.6`.)
 
 See the live rules: `sudo nft list table inet asterisk_test` (all of them: `sudo nft list ruleset`).
 

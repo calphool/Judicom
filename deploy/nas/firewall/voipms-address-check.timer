@@ -1,0 +1,11 @@
+# Runs voipms-address-check five minutes after boot, then every hour.
+[Unit]
+Description=Check VoIP.ms's address every hour
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
