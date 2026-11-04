@@ -10,7 +10,7 @@ UNITS="judicom-baresip.service judicom-phone.service"
 SYNC="judicom-contacts-sync.service judicom-contacts-sync.timer"     # fetches the caller list from the NAS every 10 minutes
 SYNC="$SYNC judicom-photo-sync.service judicom-photo-sync.timer"      # and the photos every hour
 TIMERS="judicom-contacts-sync.timer judicom-photo-sync.timer"
-for u in $UNITS $SYNC plymouth-retain-splash.conf; do
+for u in $UNITS $SYNC plymouth-retain-splash.conf journald-judicom.conf; do
   [ -f "$u" ] || { echo "Missing $u - run this from the software/systemd folder." >&2; exit 1; }
 done
 [ -f /home/joe/.baresip/accounts ] || echo "Note: /home/joe/.baresip/accounts is missing; judicom-baresip will not register."
@@ -19,6 +19,10 @@ done
 sudo cp $UNITS $SYNC /etc/systemd/system/
 sudo mkdir -p /etc/systemd/system/plymouth-quit.service.d
 sudo cp plymouth-retain-splash.conf /etc/systemd/system/plymouth-quit.service.d/judicom-retain-splash.conf
+sudo mkdir -p /etc/systemd/journald.conf.d                       # the system log: kept on the card for a day (see the file)
+sudo cp journald-judicom.conf /etc/systemd/journald.conf.d/90-judicom.conf
+sudo systemctl restart systemd-journald
+sudo journalctl --flush
 sudo systemctl daemon-reload
 sudo systemctl disable getty@tty1.service 2>/dev/null || true      # no login prompt on the Judicom's screen
 sudo systemctl enable $UNITS $TIMERS
@@ -30,4 +34,5 @@ echo
 systemctl --no-pager --lines=0 status $UNITS || true
 systemctl --no-pager list-timers $TIMERS || true
 echo
-echo "Logs:  journalctl -u judicom-phone -f      journalctl -u judicom-baresip -f"
+echo "Logs:  journalctl -u judicom-phone -f      journalctl -u judicom-baresip -f      (the boot before: journalctl -b -1)"
+journalctl --disk-usage
