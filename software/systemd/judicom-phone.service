@@ -1,0 +1,21 @@
+# The Judicom itself: photos, the phone screens, the hook switch and buttons, dial tone and ringer.  Installed by install_services.sh.
+#   sudo systemctl status judicom-phone          journalctl -u judicom-phone -f
+# To run it by hand (python3 -m judicom.main), stop this first:  sudo systemctl stop judicom-phone
+[Unit]
+Description=Judicom phone (photos, screens, buttons)
+Wants=judicom-baresip.service
+# After the boot splash has let go of the screen.
+After=judicom-baresip.service plymouth-quit-wait.service systemd-user-sessions.service
+
+[Service]
+User=joe
+Group=joe
+SupplementaryGroups=video render input gpio audio
+WorkingDirectory=/home/joe/Judicom/software
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -m judicom.main
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

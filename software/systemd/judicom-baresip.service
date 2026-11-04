@@ -1,0 +1,22 @@
+# The Judicom's phone line: baresip, registered with the PBX over Tailscale.  Installed by install_services.sh.
+#   sudo systemctl status judicom-baresip        journalctl -u judicom-baresip -f
+# To use baresip by hand (its keyboard commands), stop this first:  sudo systemctl stop judicom-baresip
+[Unit]
+Description=Judicom phone line (baresip)
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service sound.target
+
+[Service]
+User=joe
+Group=joe
+SupplementaryGroups=audio
+WorkingDirectory=/home/joe
+ExecStart=/usr/bin/baresip -f /home/joe/.baresip
+# No keyboard: baresip's console module gets an empty input.
+StandardInput=null
+# Tailscale may not be up yet at boot (baresip binds to tailscale0): it simply tries again.
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
