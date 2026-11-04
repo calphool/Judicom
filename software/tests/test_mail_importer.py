@@ -120,6 +120,15 @@ class Importer(unittest.TestCase):
                          ("Amy and Joe", "Your daughter and son-in-law", "December 24, 2025"))
         self.assertIn("Saved caption:", log)
 
+    def test_jellyfin_refresh_sends_the_key_the_way_jellyfin_accepts(self):
+        importer.requests.post.reset_mock()
+        self.run_with(mail("Judi", CAPTION), env={"JELLYFIN_URL": "http://127.0.0.1:8096", "JELLYFIN_API_KEY": "abc123",
+                                                  "JELLYFIN_LIBRARY_ID": "lib1"})
+        args, kwargs = importer.requests.post.call_args
+        self.assertEqual(args[0], "http://127.0.0.1:8096/Items/lib1/Refresh")
+        self.assertEqual(kwargs["headers"], {"Authorization": 'MediaBrowser Token="abc123"'})
+        self.assertNotIn("X-Emby-Token", kwargs["headers"])
+
     def test_without_caption_lines_nothing_changes(self):
         _, gmail = self.run_with(mail("Judi", "Merry Christmas Mom!"))
         self.assertEqual(self.names(self.judi), ["IMG_1234.jpg"])
