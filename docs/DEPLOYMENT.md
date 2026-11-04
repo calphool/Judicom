@@ -118,6 +118,17 @@ at about 9 am while it stays offline, and once when it is back (with how long it
 - `python3 ~/judicom/watch_judicom.py --status` (what it sees now), `--test` (send a test email); log `~/judicom/watch.log`.
 - It cannot tell when only the phone program on the Judicom has crashed while baresip still runs (systemd restarts it anyway).
 
+### Call history
+
+Asterisk writes one line per call (and per leg of a call) to `/var/log/asterisk/cdr-csv/Master.csv` in the container (a Docker
+volume, so it survives restarts): who called whom, when, how long it rang and was talked, and how it ended (`ANSWERED`,
+`NO ANSWER`, `BUSY`, ...).  Times are **UTC** (the container's clock; Iowa is 6 hours behind, 5 in summer).  It holds phone
+numbers: it stays on the NAS.  The folder was made by hand on 2026-11-03 (before that every call logged a harmless
+"Unable to open file ... Master.csv" error):
+
+    docker exec asterisk-test tail -20 /var/log/asterisk/cdr-csv/Master.csv
+    # if the volume is ever made new:  docker exec asterisk-test sh -c "mkdir -p /var/log/asterisk/cdr-csv && chown asterisk:asterisk /var/log/asterisk/cdr-csv"
+
 ### Applying a change (safe: no restart, no dropped registrations)
 
 Back up the file first (`cp -p x.conf x.conf.before-<what>-<date>`), edit, then:
