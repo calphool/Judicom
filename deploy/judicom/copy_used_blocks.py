@@ -5,7 +5,8 @@ partition).  Run by backup_stream.sh as root, while the partition is frozen.
 
     copy_used_blocks.py DEVICE [SIZE_BYTES]
 
-Which blocks are free comes from `dumpe2fs` (read-only).  The output is SIZE_BYTES long (default: the size of DEVICE), so it
+Which blocks are free comes from `dumpe2fs` (read-only).  The partition is read in 4 MB windows (long sequential reads),
+skipping windows with nothing in use, and the free blocks in each window are sent as zeros.  The output is SIZE_BYTES long (default: the size of DEVICE), so it
 also covers any space after the end of the file system (as zeros).  Reads go past the memory cache (it is dropped first), so
 nothing stale from earlier reads ends up in the image.  Only the standard library.
 """
@@ -58,9 +59,13 @@ def write_zeros(out, n, zeros):
 
 
 def copy(device, out, size_bytes=None, dumpe2fs_text=None):
+    """Go through the partition in CHUNK-sized windows: a window with no used block is sent as zeros without being read; any
+    other window is read in one go (long, sequential reads: SD cards are slow at many small ones) and its free blocks are set to
+    zeros before it is sent.  The output is the same as copying only the used blocks."""
     if dumpe2fs_text is None:
         dumpe2fs_text = subprocess.run([DUMPE2FS, device], capture_output=True, text=True, check=True).stdout
     block, count, free = free_ranges(dumpe2fs_text)
+    used = [(a * block, (b + 1) * block) for a, b in used_ranges(count, free)]          # byte ranges [start, end)
     fd = os.open(device, os.O_RDONLY)
     try:
         total = device_size(fd) if size_bytes is None else size_bytes
@@ -69,18 +74,27 @@ def copy(device, out, size_bytes=None, dumpe2fs_text=None):
         except OSError:
             pass
         zeros = bytes(CHUNK)
-        pos = 0
-        for first, last in used_ranges(count, free):
-            start, end = first * block, (last + 1) * block
-            write_zeros(out, start - pos, zeros)
-            pos = start
-            while pos < end:
-                data = os.pread(fd, min(CHUNK, end - pos), pos)
-                if not data:
-                    raise OSError("short read at byte %d of %s" % (pos, device))
-                out.write(data)
-                pos += len(data)
-        write_zeros(out, total - pos, zeros)                         # free blocks at the end, and space after the file system
+        i = 0                                                         # the first used range that may still matter
+        for pos in range(0, total, CHUNK):
+            end = min(pos + CHUNK, total)
+            while i < len(used) and used[i][1] <= pos:
+                i += 1
+            if i >= len(used) or used[i][0] >= end:
+                out.write(zeros[:end - pos])                          # nothing used in this window
+                continue
+            data = bytearray(os.pread(fd, end - pos, pos))
+            if len(data) != end - pos:
+                raise OSError("short read at byte %d of %s" % (pos, device))
+            cursor, j = pos, i                                        # blank the free parts of the window
+            while j < len(used) and used[j][0] < end:
+                start = max(used[j][0], pos)
+                if start > cursor:
+                    data[cursor - pos:start - pos] = zeros[:start - cursor]
+                cursor = max(cursor, min(used[j][1], end))
+                j += 1
+            if cursor < end:
+                data[cursor - pos:] = zeros[:end - cursor]
+            out.write(data)
     finally:
         os.close(fd)
 

@@ -6,7 +6,7 @@
 #     backup_stream.sh DEVICE START_SECTOR_OF_PARTITION_2 STATE_DIR [backup|trial|trial-read|trial-watchdog] ["UNITS TO START"]
 #
 # SAFETY: the partition is unfrozen whenever this script ends, however it ends (done, error, Ctrl-C, killed by TERM).
-#   - a watchdog started BEFORE the freeze ends the copy after MAX_SECONDS, so this script always ends;
+#   - a watchdog started BEFORE the freeze ends the copy after MAX_SECONDS (30 min), so this script always ends;
 #   - a separate guard unfreezes after GUARD_SECONDS even if this script itself were killed with -9.
 # Nothing in here writes to the frozen partition: no sudo, no logging; STATE_DIR must be in memory (/run/user/...).
 #   trial            freeze for 10 seconds, send nothing, unfreeze          (to see that freezing and unfreezing work)
@@ -24,8 +24,8 @@ COPIER="${COPIER:-python3 -B $(cd "$(dirname "$0")" && pwd)/copy_used_blocks.py}
 SYSTEMCTL="${SYSTEMCTL:-systemctl}"
 JOURNALCTL="${JOURNALCTL:-journalctl}"
 BOOT="${BOOT:-/boot/firmware}"
-MAX_SECONDS="${MAX_SECONDS:-900}"            # the copy gives up after 15 minutes ...
-GUARD_SECONDS="${GUARD_SECONDS:-1200}"       # ... and the partition is unfrozen after 20 minutes whatever happens
+MAX_SECONDS="${MAX_SECONDS:-1800}"           # the copy gives up after 30 minutes (a whole copy takes about 10-14) ...
+GUARD_SECONDS="${GUARD_SECONDS:-2100}"       # ... and the partition is unfrozen after 35 minutes whatever happens
 [ "$MODE" = trial-watchdog ] && MAX_SECONDS="${TRIAL_MAX_SECONDS:-15}"
 [ "$MODE" = trial-read ] && MAX_SECONDS="${TRIAL_READ_MAX_SECONDS:-180}"
 export PYTHONDONTWRITEBYTECODE=1                 # python must not try to write .pyc files onto the frozen card
