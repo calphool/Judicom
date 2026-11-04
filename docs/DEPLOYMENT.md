@@ -249,15 +249,22 @@ or through the NAS: `ssh -J pi@naspi.local joe@100.64.0.2`.
 
 ## Backup of the SD card
 
-The whole card, as an image, while the Judicom runs: on the Judicom, `bash ~/Judicom/deploy/judicom/backup_judicom.sh`.  The phone
-is off for a few minutes (callers hear "can't come to the phone"; more than 30 minutes would also send the offline email).  It
-stops the phone and the syncs, moves the system log to memory, freezes the main partition (`fsfreeze`; unfrozen whatever happens,
-and by a safety timer after 45 minutes), and sends the start of the card and the boot partition as they are plus the main
-partition's used blocks (`e2image`; free space as zeros) to the NAS, then starts everything again and checks the copy's SHA-256.
-At home it uses the home network, elsewhere Tailscale.
+The whole card, as an image, while the Judicom runs, **at home only** (it goes over the home network; over Tailscale the copy
+stalls while the card is frozen, which on 2026-11-04 left the Judicom frozen until it was unplugged).  On the Judicom:
+
+    bash ~/Judicom/deploy/judicom/backup_judicom.sh --trial     # measures the speed and the image size; tries the freeze and
+                                                                # the watchdog; the phone is off for about a minute
+    bash ~/Judicom/deploy/judicom/backup_judicom.sh             # the backup: the phone is off for a few minutes
+
+It stops the phone and the syncs, moves the system log to memory, and runs `backup_stream.sh` as root: it freezes the main
+partition (`fsfreeze`) and writes the start of the card and the boot partition (dd) plus the main partition's used blocks
+(`e2image -ra`; free space as zeros) to the NAS through zstd.  It unfreezes whenever it ends (done, error, Ctrl-C), a watchdog
+inside it ends the copy after 15 minutes, and a separate guard unfreezes after 20 minutes even if it were killed.  Then the phone
+starts again and the copy's SHA-256 is checked on the NAS.  While frozen nothing can start `sudo` (it writes a session record):
+if something ever does hang, wait for the guard (20 minutes) or unplug the Judicom (a frozen card is in a clean state).
 
 - On the NAS: `/mnt/2tbdrive/judicom-backups/judicom-<date-time>.img.zst` (+ `.sha256`), the newest 5 kept.  The Judicom's key
-  `~/.ssh/judicom_backup` may only store and check backups: `restrict,command="/home/pi/judicom/receive_backup.sh" ...`
+  `~/.ssh/judicom_backup` may only store, check and discard (speed test): `restrict,command="/home/pi/judicom/receive_backup.sh" ...`
   (`deploy/nas/judicom/receive_backup.sh`).
 - **Putting a backup on a new card** (as large as the old one, or larger): copy the `.img.zst` to a computer, then either
   Raspberry Pi Imager -> "Use custom" -> the file, or
