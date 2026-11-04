@@ -9,6 +9,9 @@ Run these from this folder (`software/`).  Needs `sudo apt install python3-pygam
     sudo systemctl restart judicom-phone      # after a git pull
     bash systemd/uninstall_services.sh        # back to starting things by hand
 
+It also keeps the boot picture on the screen until the first photo replaces it, and turns off the login prompt on the screen
+(SSH is unchanged; Ctrl-Alt-F2 still gives a login with a keyboard).  Run it again after a `git pull` that changes `systemd/`.
+
 While the services run, the screen, the switches, the sound cards and baresip's control port are taken: stop them first to run
 anything by hand (`sudo systemctl stop judicom-phone judicom-baresip`).  baresip under systemd has no keyboard, so its log shows
 "module stdio.so: Operation not permitted" once at start; that is expected and harmless.
