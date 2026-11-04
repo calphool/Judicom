@@ -4,8 +4,9 @@
 [Unit]
 Description=Judicom phone (photos, screens, buttons)
 Wants=judicom-baresip.service
-# After the boot splash has let go of the screen.
-After=judicom-baresip.service plymouth-quit-wait.service systemd-user-sessions.service
+# Only after the boot splash has let go of the screen, but NOT after baresip: that waits for the network (several seconds), and
+# the photos need no network.  The phone connects to baresip whenever it is ready.
+After=plymouth-quit.service plymouth-quit-wait.service systemd-user-sessions.service
 
 [Service]
 User=joe
