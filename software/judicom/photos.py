@@ -11,7 +11,8 @@ THE FOLDER
 
 THE ORDER
   A shuffled deck: every picture is shown once, in random order, before any picture is shown a second time.  The folder is looked at
-  again each time the deck runs out, so pictures added by the twice-a-day NAS sync join the next round and deleted ones drop out.
+  again each time the deck runs out, so pictures added by the hourly NAS sync (judicom/photo_sync.py) join the next round and
+  deleted ones drop out.
   A new round never starts with the picture that ended the one before.  A picture that disappears in the middle of a round is skipped.
 
 CAPTION FILES (optional)
