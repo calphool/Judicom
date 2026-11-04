@@ -104,6 +104,31 @@ def sync_events(fetcher=None, path=None, log=print):
     return 0
 
 
+VERSES_HEADER = ("# COPY of Judi's verse list.  The master is /home/pi/judicom/verses.txt on the NAS: edit it there.\n"
+                 "# This file is replaced every 10 minutes (python3 -m judicom.sync), so changes made here are lost.\n")
+
+
+def sync_verses(fetcher=None, path=None, log=print):
+    """Fetch the verse list; 0 done, 1 not changed (the reason is logged).  Like sync_events."""
+    from .verses import parse as parse_verses
+    fetcher = fetcher or (lambda: fetch(what="verses"))
+    try:
+        text = fetcher()
+        problems = []
+        verses = parse_verses(text, problems.append)
+        lines = [l for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+        if lines and not verses:
+            raise RuntimeError("the NAS's answer has no verses in it (is serve_list.sh up to date on the NAS?)")
+    except RuntimeError as exc:
+        log("verses not updated: %s (keeping the current list)" % exc)
+        return 1
+    for p in problems:
+        log("in the NAS's verse list: " + p)
+    changed = store(text, str(config.VERSES_FILE if path is None else path), VERSES_HEADER)
+    log("verses %s: %d" % ("updated" if changed else "unchanged", len(verses)))
+    return 0
+
+
 def sync(fetcher=fetch, path=None, log=print):
     """0: done (changed or not), 1: nothing changed because the list could not be fetched or is not usable."""
     try:
@@ -126,6 +151,7 @@ def main(argv=None):
     argparse.ArgumentParser(prog="python3 -m judicom.sync", description=__doc__.splitlines()[0]).parse_args(argv)
     result = sync()
     sync_events()                                        # the caller list matters more: its result is the exit status
+    sync_verses()
     sys.exit(result)
 
 

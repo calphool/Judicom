@@ -163,7 +163,9 @@ def main(argv=None):
     from .weather import Weather
     weather = Weather(log=log)
     weather.start()                                      # in the background: never holds the screen up
-    photos = Home(PhotoView(PhotoDeck(args.folder), log=log), EventList(log=log), weather, log=log)   # photos, info screen, night clock
+    from .verses import VerseDeck
+    photos = Home(PhotoView(PhotoDeck(args.folder), log=log), EventList(log=log), weather, log=log,    # photos, info / verse
+                  verses=VerseDeck(log=log))                                                          # screens, night clock
     if args.no_calls:
         calls = NoCalls(log)
     else:

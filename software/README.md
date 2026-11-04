@@ -88,6 +88,8 @@ top of `judicom/photos.py`.
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
     judicom/home.py         what shows when no call is on: photos, every 5 photos the info screen, 9 pm - 6 am the night clock
     judicom/info_view.py    the info screen (day, date, time, weather, next events with countdowns) and the night clock (pygame)
+    judicom/verse_view.py   the verse screen: a verse on a page like an old Bible (EB Garamond, judicom/fonts)    (pygame)
+    judicom/verses.py       Judi's verse list (KJV) and the shuffled deck                                 (no pygame)
     judicom/events.py       Judi's events list (birthdays, holidays, visits) and the countdowns           (no pygame)
     judicom/weather.py      Springfield's weather from Open-Meteo, fetched in the background every 30 min  (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
