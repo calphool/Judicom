@@ -148,7 +148,8 @@ the screen's clock and the 9 pm - 6 am night clock go by it).
 
 **What the screen shows** when no call is going on: the photos; after every 5 photos the info screen for 30 s (day, date, time,
 Springfield's weather from Open-Meteo, the next 3 events with countdowns); from 9 pm to 6 am the night clock (time and date, dim).
-Settings at the end of `software/judicom/config.py`.
+Settings at the end of `software/judicom/config.py`.  To see the photos and the info screen at night (setting up, showing
+someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 2 hours (or until `rm ~/judicom-awake`).
 
     sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio alsa-utils baresip
     git clone https://github.com/calphool/Judicom.git ~/Judicom
