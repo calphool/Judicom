@@ -95,7 +95,8 @@ def refresh_jellyfin(url, api_key, library_id=None):
 
         response = requests.post(
             endpoint,
-            headers={"X-Emby-Token": api_key},
+            # Jellyfin no longer accepts the old "X-Emby-Token" header (it answered 401); the key goes in Authorization now.
+            headers={"Authorization": f'MediaBrowser Token="{api_key}"'},
             params=params,
             timeout=30
         )
