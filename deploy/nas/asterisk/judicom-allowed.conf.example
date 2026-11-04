@@ -1,0 +1,7 @@
+; Who may ring the Judicom: one 10-digit number per line.  Copy to judicom-allowed.conf on the NAS and put the real numbers in.
+; Keep it in step with /home/joe/contacts.txt on the Judicom (that file puts the names on the screen).
+; The real file is not kept in git (the repository is public).  After a change:  asterisk -rx "dialplan reload"
+[judicom-allowed]
+exten => 2125550142,1,NoOp(Frank)
+exten => 3125550187,1,NoOp(Ann)
+exten => 3125550123,1,NoOp(Hannah)

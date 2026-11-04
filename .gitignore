@@ -221,3 +221,12 @@ __marimo__/
 
 # Judicom: the real contacts file has family phone numbers; only contacts.example.txt belongs in git
 contacts.txt
+
+# Judicom deploy/: only the *.example files belong in git; the real ones have passwords or family phone numbers
+deploy/nas/asterisk/voipms.conf
+deploy/nas/asterisk/judicom.conf
+deploy/nas/asterisk/judicom-allowed.conf
+deploy/judicom/baresip/accounts
+# the generated messages say the contact number out loud; the text-to-speech download is ~60 MB
+deploy/prompts/*.wav
+deploy/prompts/.tts/
