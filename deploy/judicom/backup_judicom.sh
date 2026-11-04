@@ -14,7 +14,7 @@ MODE=backup
 case "${1:-}" in "") ;; --trial) MODE=trial ;; *) echo "usage: $0 [--trial]" >&2; exit 1 ;; esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 NAS="pi@192.168.1.2"                   # the NAS on the home network
-KEY="$HOME/.ssh/judicom_backup"         # the NAS lets this key only store, check and discard (receive_backup.sh)
+KEY="$HOME/.ssh/judicom_backup"         # the NAS lets this key only store, commit and discard (receive_backup.sh)
 DEV=/dev/mmcblk0
 SERVICES="judicom-phone judicom-baresip"
 TIMERS="judicom-contacts-sync.timer judicom-photo-sync.timer"
@@ -24,8 +24,8 @@ SSH=(ssh -i "$KEY" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -
 [ "$(hostname)" = judicom ] || { echo "Run this on the Judicom." >&2; exit 1; }
 [ -f "$KEY" ] || { echo "No backup key ($KEY): see docs/DEPLOYMENT.md." >&2; exit 1; }
 [ -f "$HERE/backup_stream.sh" ] || { echo "backup_stream.sh is missing next to this script." >&2; exit 1; }
-answer=$("${SSH[@]}" "check none" 2>&1 || true)
-if [[ "$answer" != *"no such backup"* ]]; then
+answer=$("${SSH[@]}" "commit none none" 2>&1 || true)
+if [[ "$answer" != *"receive_backup: commit NAME SUM"* ]]; then
   echo "The NAS cannot be reached on the home network ($NAS): ${answer:-no answer}" >&2
   echo "This backup only runs at home (over Tailscale it would stall while the card is frozen).  Nothing done." >&2
   exit 1
@@ -47,6 +47,7 @@ work=$(mktemp -d -p "/run/user/$(id -u)")             # in memory: nothing may b
 
 stopped=0
 restart() {
+  [ -f "$work/restarted" ] && stopped=0                    # the frozen part already started them again
   if [ "$stopped" = 1 ]; then
     sudo journalctl --flush 2>/dev/null || true         # the log back onto the card
     sudo systemctl start $SERVICES $TIMERS || true
@@ -61,7 +62,7 @@ stop() {
   stopped=1
   sync
 }
-stream() { sudo bash "$HERE/backup_stream.sh" "$DEV" "$start2" "$work" "$1"; }
+stream() { sudo bash "$HERE/backup_stream.sh" "$DEV" "$start2" "$work" "$1" "${2:-}"; }
 
 if [ "$MODE" = trial ]; then
   echo "1. Speed of the home network to the NAS ..."
@@ -82,38 +83,45 @@ if [ "$MODE" = trial ]; then
   stream trial > /dev/null
   [ -f "$work/unfrozen" ] && echo "   frozen and unfrozen again: OK" || { echo "   NOT unfrozen?" >&2; exit 1; }
   rm -f "$work/unfrozen" "$work/frozen"
-  echo "4. The safety net: a copy that hangs, which the watchdog must stop (about 15 seconds) ..."
+  echo "4. Reading 200 MB of the frozen card with e2image (what failed on 2026-11-04) ..."
+  stream trial-read > /dev/null
+  if [ "$(cat "$work/read_bytes" 2>/dev/null)" = 209715200 ] && [ -f "$work/unfrozen" ] && [ ! -f "$work/timeout" ]; then
+    echo "   read 200 MB from the frozen card, and unfrozen: OK"
+  else
+    echo "   e2image could not read the frozen card (read: $(cat "$work/read_bytes" 2>/dev/null || echo 0) bytes)" >&2; exit 1
+  fi
+  rm -f "$work/unfrozen" "$work/frozen"
+  echo "5. The safety net: a copy that hangs, which the watchdog must stop (about 15 seconds) ..."
   if stream trial-watchdog > /dev/null 2>"$work/wd.err"; then echo "   the watchdog did not act?" >&2; exit 1; fi
   [ -f "$work/timeout" ] && [ -f "$work/unfrozen" ] && echo "   stopped by the watchdog and unfrozen: OK" || { cat "$work/wd.err" >&2; exit 1; }
   restart
-  echo "5. Phone started again.  Trial done: if the estimate above is well under 15 minutes, the backup can go ahead."
+  echo "6. Phone started again.  Trial done: if the estimate above is well under 15 minutes, the backup can go ahead."
   exit 0
 fi
 
 echo "1. Stopping the phone and the syncs ..."
 stop
-echo "2. Freezing the card and sending it to the NAS (a few minutes) ..."
+echo "2. Freezing the card and sending it to the NAS (a few minutes; the phone starts again as soon as the card is unfrozen) ..."
 set +e
-stream backup | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | zstd -T0 -3 -q | "${SSH[@]}" store > "$work/name"
+stream backup "$SERVICES $TIMERS" | zstd -T0 -3 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
 codes=("${PIPESTATUS[@]}")
 set -e
 sleep 2
-echo "3. Starting the phone again ..."
+echo "3. The phone: $([ -f "$work/restarted" ] && echo "started again" || echo "starting it again ...")"
 restart
-if [ "${codes[0]}" != 0 ] || [ "${codes[3]}" != 0 ] || [ ! -s "$work/name" ]; then
+if [ "${codes[0]}" != 0 ] || [ "${codes[3]}" != 0 ] || [ ! -s "$work/name" ] || [ ! -s "$work/sum" ]; then
   [ -f "$work/timeout" ] && echo "The copy took longer than 15 minutes and was stopped; the card was unfrozen." >&2
   echo "The backup did not complete (exit codes: ${codes[*]}).  The card is unfrozen and the phone running again." >&2
+  echo "(What reached the NAS stays a hidden, unfinished file there: it is never taken for a backup.)" >&2
   exit 1
 fi
 name=$(cat "$work/name"); sum=$(cat "$work/sum")
-echo "4. Checking the copy on the NAS: $name ..."
-nas_sum=$("${SSH[@]}" "check $name")
-echo "   read from the card: $sum"
-echo "   the copy on the NAS: $nas_sum"
-if [ "$sum" = "$nas_sum" ]; then
-  "${SSH[@]}" "note $name $sum"
+echo "4. Checking the copy on the NAS (its SHA-256, and that it unpacks): $name ..."
+if result=$("${SSH[@]}" "commit $name $sum" 2>&1); then
+  echo "   $result"
   echo "GOOD: the backup is complete and exact: $name"
 else
-  echo "BAD: the copy on the NAS does not match. Run this again." >&2
+  echo "BAD: $result" >&2
+  echo "The upload stays a hidden, unfinished file on the NAS.  Run this again." >&2
   exit 1
 fi

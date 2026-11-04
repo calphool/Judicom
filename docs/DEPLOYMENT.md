@@ -259,12 +259,15 @@ stalls while the card is frozen, which on 2026-11-04 left the Judicom frozen unt
 It stops the phone and the syncs, moves the system log to memory, and runs `backup_stream.sh` as root: it freezes the main
 partition (`fsfreeze`) and writes the start of the card and the boot partition (dd) plus the main partition's used blocks
 (`e2image -ra`; free space as zeros) to the NAS through zstd.  It unfreezes whenever it ends (done, error, Ctrl-C), a watchdog
-inside it ends the copy after 15 minutes, and a separate guard unfreezes after 20 minutes even if it were killed.  Then the phone
-starts again and the copy's SHA-256 is checked on the NAS.  While frozen nothing can start `sudo` (it writes a session record):
+inside it ends the copy after 15 minutes, and a separate guard unfreezes after 20 minutes even if it were killed.  It starts the
+phone again itself as soon as the card is unfrozen.  e2image reads the main partition through a read-only, direct-I/O loop device:
+given the mounted partition itself, e2image's "is it mounted?" check creates `/.ismount-test-file`, which waits forever on a
+frozen card.  The NAS keeps the upload as a hidden unfinished file until `commit`: only if its SHA-256 matches what the Judicom
+sent and it unpacks does it get its real name (so a cut-off upload never looks like a backup).  While frozen nothing can start `sudo` (it writes a session record):
 if something ever does hang, wait for the guard (20 minutes) or unplug the Judicom (a frozen card is in a clean state).
 
 - On the NAS: `/mnt/2tbdrive/judicom-backups/judicom-<date-time>.img.zst` (+ `.sha256`), the newest 5 kept.  The Judicom's key
-  `~/.ssh/judicom_backup` may only store, check and discard (speed test): `restrict,command="/home/pi/judicom/receive_backup.sh" ...`
+  `~/.ssh/judicom_backup` may only store, commit and discard (speed test): `restrict,command="/home/pi/judicom/receive_backup.sh" ...`
   (`deploy/nas/judicom/receive_backup.sh`).
 - **Putting a backup on a new card** (as large as the old one, or larger): copy the `.img.zst` to a computer, then either
   Raspberry Pi Imager -> "Use custom" -> the file, or
