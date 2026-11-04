@@ -85,7 +85,7 @@ def draw_info(surf, now, report, upcoming):
     if report is not None:
         card = pygame.Rect(24, y, W - 48, 204)
         pygame.draw.rect(surf, CARD, card, border_radius=30)
-        draw_weather_icon(surf, report.icon, card.x + 125, card.centery + 6, 72)
+        draw_weather_icon(surf, report.icon, card.x + 125, card.y + 122, 62)    # below the place name, clear of it
         tx = card.x + 250
         surf.blit(draw.text("%d°" % report.temp, "bold", 96, INK), (tx, card.y + 8))
         surf.blit(draw.text(report.text, "reg", 36, INK, card.right - tx - 14), (tx, card.y + 118))
