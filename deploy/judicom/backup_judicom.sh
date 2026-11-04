@@ -9,6 +9,7 @@
 # The result: /mnt/2tbdrive/judicom-backups/judicom-<date>.img.zst on the NAS, checked against the SHA-256 of what was read.
 # To put a backup on a new card: docs/DEPLOYMENT.md, "Backup of the SD card".
 set -euo pipefail
+trap 'echo "STOPPED at line $LINENO: $BASH_COMMAND" >&2' ERR
 MODE=backup
 case "${1:-}" in "") ;; --trial) MODE=trial ;; *) echo "usage: $0 [--trial]" >&2; exit 1 ;; esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -69,7 +70,7 @@ if [ "$MODE" = trial ]; then
   echo "   $speed MB/s"
   echo "2. How big the image would be (reading the card, nothing frozen yet; a few minutes) ..."
   t0=$(date +%s%N)
-  bytes=$( { sudo dd if="$DEV" bs=4M iflag=count_bytes count=$((start2 * 512)) status=none; sudo /usr/sbin/e2image -ra "${DEV}p2" - 2>/dev/null; } \
+  bytes=$( { sudo dd if="$DEV" bs=4M iflag=count_bytes count=$((start2 * 512)) status=none; sudo /usr/sbin/e2image -raf "${DEV}p2" -; } \
            | zstd -T0 -3 -q | wc -c )
   t1=$(date +%s%N)
   read_s=$(( (t1 - t0) / 1000000000 ))
