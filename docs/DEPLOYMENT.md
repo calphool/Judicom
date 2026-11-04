@@ -141,7 +141,7 @@ installed and logged in (address `100.64.0.2`).
 | File on the Judicom | From | Notes |
 |---|---|---|
 | `~/.asoundrc` | `deploy/judicom/asoundrc` | names the cards: `judicom_handset` (USB card `Device`), `judicom_ring` (`Headphones` jack), `judicom_mic_boost` (USB mic, with a software gain control).  The USB adapter's microphone is **mono** (`slave.channels 1`) |
-| `~/.baresip/config` | `deploy/judicom/baresip/config` | binds to `tailscale0`; `ctrl_tcp` on `127.0.0.1:4444` (the phone program's connection); `call_max_calls 1` (a second caller gets busy); `audio_alert alsa,null` (baresip does not ring: the phone program does) |
+| `~/.baresip/config` | `deploy/judicom/baresip/config` | binds to `tailscale0`; `ctrl_tcp` on `127.0.0.1:4444` (the phone program's connection); `call_max_calls 1` (a second caller gets busy); `audio_alert alsa,null` (baresip does not ring: the phone program does); `statmode_default off` (no live call-status line: under systemd it piles up into one huge journal entry, `[blob data]`, during every call) |
 | `~/.baresip/accounts` | `deploy/judicom/baresip/accounts.example` | the password is the one in `judicom.conf` on the NAS |
 | `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |

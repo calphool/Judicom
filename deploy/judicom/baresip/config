@@ -229,7 +229,7 @@ video_selfview		window # {window,pip}
 #redial_attempts	0 # Num or <inf>
 #redial_delay		5 # Delay in seconds
 #ringback_disabled	no
-#statmode_default	off
+statmode_default	off		# no live call-status line (it floods the journal under systemd)
 #menu_clean_number	no
 #sip_autoanswer_beep	yes
 #sip_autoanswer_method	rfc5373 # {rfc5373,call-info,alert-info}
