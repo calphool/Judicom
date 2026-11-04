@@ -14,6 +14,7 @@ MIN_FREE_GB=40
 NAME_RE='^judicom-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}\.img\.zst$'
 set -f                                     # the request is split into words, never expanded into file names
 set -- ${SSH_ORIGINAL_COMMAND:-}
+set +f                                     # file-name patterns back on (needed to keep the newest 5)
 case "${1:-}" in
   store)
     [ $# -eq 1 ] || { echo "receive_backup: store takes nothing more" >&2; exit 1; }
