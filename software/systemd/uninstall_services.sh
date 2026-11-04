@@ -1,0 +1,8 @@
+#!/bin/bash
+# Stops judicom-phone and judicom-baresip and removes them (the Judicom then no longer starts by itself).
+set -euo pipefail
+UNITS="judicom-phone.service judicom-baresip.service"
+sudo systemctl disable --now $UNITS || true
+for u in $UNITS; do sudo rm -f "/etc/systemd/system/$u"; done
+sudo systemctl daemon-reload
+echo "Removed.  Start things by hand again:  baresip   and   python3 -m judicom.main"

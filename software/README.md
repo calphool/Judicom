@@ -2,6 +2,17 @@
 
 Run these from this folder (`software/`).  Needs `sudo apt install python3-pygame python3-pil` for anything that draws.
 
+## Starting by itself at power-on
+
+    bash systemd/install_services.sh          # once, on the Judicom: installs and starts judicom-baresip and judicom-phone
+    journalctl -u judicom-phone -f            # what the phone is doing (judicom-baresip for the phone line)
+    sudo systemctl restart judicom-phone      # after a git pull
+    bash systemd/uninstall_services.sh        # back to starting things by hand
+
+While the services run, the screen, the switches, the sound cards and baresip's control port are taken: stop them first to run
+anything by hand (`sudo systemctl stop judicom-phone judicom-baresip`).  baresip under systemd has no keyboard, so its log shows
+"module stdio.so: Operation not permitted" once at start; that is expected and harmless.
+
 ## The contacts file (on the Judicom, not in git)
 
 Who the two buttons call and the names shown for incoming calls are in `/home/joe/contacts.txt` on the Judicom (setting:
