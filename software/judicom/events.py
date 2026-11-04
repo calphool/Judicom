@@ -9,6 +9,7 @@ THE FILE (/home/joe/events.txt on the Judicom, a copy of /home/pi/judicom/events
     4th Thursday of November | Thanksgiving         every year, on a weekday of the month: 1st 2nd 3rd 4th 5th or last
     last Monday of May       | Memorial Day
     Easter                   | Easter              every year (Western Easter Sunday)
+    Sunday after 1st Monday of September | Grandparents' Day     the first such weekday after a day of the kind above
 
 Lines starting with # and empty lines are skipped; a line that cannot be read is reported and skipped.  An event that happens once
 drops off when its day is over.  A yearly event on February 29 is on February 28 in other years.
@@ -39,14 +40,19 @@ class Event:
     nth: int = 0                            # a weekday of the month: 1..5, or -1 for the last one (day is then unused) ...
     weekday: int = -1                       # ... and which weekday (0 = Monday)
     easter: bool = False                    # Easter Sunday
+    after: int = -1                         # "Sunday after ...": the first such weekday (0 = Monday) after the day above
 
     def date_in(self, year: int) -> datetime.date | None:
         """The day of this (yearly) event in a given year; None if that year has no such day (a 5th Monday that is not there)."""
         if self.easter:
-            return easter(year)
-        if self.nth:
-            return nth_weekday(year, self.month, self.weekday, self.nth)
-        return _yearly(year, self.month, self.day)
+            d = easter(year)
+        elif self.nth:
+            d = nth_weekday(year, self.month, self.weekday, self.nth)
+        else:
+            d = _yearly(year, self.month, self.day)
+        if d is not None and self.after >= 0:
+            d += datetime.timedelta(days=(self.after - d.weekday() - 1) % 7 + 1)      # strictly after: 1..7 days later
+        return d
 
     def next_date(self, today: datetime.date) -> datetime.date | None:
         """The day this event next happens on, today included; None for a one-time event that is over."""
@@ -171,15 +177,26 @@ def parse(text: str, log=None) -> list[Event]:
         try:
             if not title:
                 raise ValueError("no title after the |")
+            after = -1
+            m_after = re.match(r"^(%s)\s+after\s+(.+)$" % "|".join(WEEKDAYS), when, re.IGNORECASE)
+            if m_after:
+                after, when = WEEKDAYS.index(m_after.group(1).lower()), m_after.group(2).strip()
             rule = RULE.match(when)
             if rule or re.match(r"^easter(?:\s+(.+))?$", when, re.IGNORECASE):
                 tail = rule.group(4) if rule else re.match(r"^easter(?:\s+(.+))?$", when, re.IGNORECASE).group(1)
                 time = parse_time(tail) if tail else None
                 if rule:
                     events.append(Event(title, MONTH_NAMES.index(rule.group(3).lower()) + 1, 0, None, time,
-                                        NTH[rule.group(1).lower()], WEEKDAYS.index(rule.group(2).lower())))
+                                        NTH[rule.group(1).lower()], WEEKDAYS.index(rule.group(2).lower()), after=after))
                 else:
-                    events.append(Event(title, time=time, easter=True))
+                    events.append(Event(title, time=time, easter=True, after=after))
+                continue
+            if after >= 0:
+                m = re.match(r"^(\d{1,2})-(\d{1,2})$", when)                  # "Monday after 12-25": a yearly date
+                if not m:
+                    raise ValueError("'... after' needs a yearly day after it: 12-25, 4th Thursday of November or Easter")
+                _yearly(2024, int(m.group(1)), int(m.group(2)))
+                events.append(Event(title, int(m.group(1)), int(m.group(2)), after=after))
                 continue
             m = re.match(r"^(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(.+))?$", when)
             if not m:
