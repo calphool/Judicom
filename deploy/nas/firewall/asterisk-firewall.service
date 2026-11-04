@@ -1,0 +1,12 @@
+[Unit]
+Description=Asterisk SIP firewall
+After=network-pre.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '/usr/sbin/nft list table inet asterisk_test >/dev/null 2>&1 || /usr/sbin/nft -f /etc/asterisk-firewall.nft'
+
+[Install]
+WantedBy=multi-user.target

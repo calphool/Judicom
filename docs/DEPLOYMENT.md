@@ -137,8 +137,30 @@ To see why a call failed, turn on detailed logging for one call, then off again:
 
 ### Firewall
 
-The NAS's `nftables` rules for SIP are **not documented yet** (reading them needs sudo on the NAS).  To add:
-`sudo nft list ruleset`, and how the rules are made permanent.
+One hand-made rule guards Asterisk; everything else in the NAS's nftables ruleset is made automatically by Tailscale (the
+`ts-...` chains) and Docker (the `DOCKER...` chains).  Debian's own `nftables` service is **off** and `/etc/nftables.conf` is the
+untouched default; the rule has its own service instead:
+
+| File on the NAS | Copy | What it does |
+|---|---|---|
+| `/etc/asterisk-firewall.nft` | `deploy/nas/firewall/` | table `inet asterisk_test`: on the home network (`eth0`), SIP (UDP 5060) from anyone but VoIP.ms's Chicago server `208.100.60.6` is **dropped** |
+| `/etc/systemd/system/asterisk-firewall.service` | `deploy/nas/firewall/` | loads that file at boot (before Docker), only if the table is not there already; enabled |
+
+What gets through to Asterisk:
+- **VoIP.ms** (`208.100.60.6`) on the home network: the registration, and incoming calls to Judi's number.
+- **The Judicom**, over Tailscale (`tailscale0`, Asterisk's `100.64.0.1:5060`): Tailscale's own rules accept everything that comes
+  over Tailscale, so the rule above does not apply there.
+- Nobody else's SIP on the home network.  (The rule is IPv4 only; Asterisk listens on IPv4 only, so that is enough.)  The RTP
+  (voice) ports are not filtered.
+
+**If VoIP.ms ever changes the server's address, incoming calls stop** (the new address is dropped) while outgoing calls may still
+work.  Check: `getent ahostsv4 chicago4.voip.ms` must give `208.100.60.6` (it did on 2026-11-03).  If not, change the address in
+both `/etc/asterisk-firewall.nft` and the `match=` line of `voipms-identify` in `voipms.conf`, then:
+
+    sudo nft delete table inet asterisk_test && sudo nft -f /etc/asterisk-firewall.nft     # the new rule, now
+    docker exec asterisk-test asterisk -rx "module reload res_pjsip.so"                    # the new address in Asterisk
+
+See the live rules: `sudo nft list table inet asterisk_test` (all of them: `sudo nft list ruleset`).
 
 ## 3. The Judicom
 
