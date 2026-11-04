@@ -6,6 +6,10 @@ from pathlib import Path
 # For a test on another computer:  JUDICOM_PHOTOS=/some/folder python3 -m judicom.photos
 PHOTO_DIR = Path(os.environ.get("JUDICOM_PHOTOS", "/home/joe/photos"))
 
+# Judi's own name as family members might write it in a caption: shown as "You" ("Judi and Ann" -> "You and Ann",
+# "Judi's sister" -> "Your sister").  Add other names she goes by if family use them for her.
+JUDI_NAMES = ("Judi",)
+
 # Which files count as pictures (capital letters do not matter).
 PHOTO_EXTS = (".jpg", ".jpeg", ".png", ".bmp")
 

@@ -91,7 +91,9 @@ For Judi's folder it also turns caption lines in the email's text into a `.meta`
     taken: 2025-12-24
 
 (Also accepted: names / who, relation, date / when; any capitals.  Only the sender's own text counts, not a quoted reply, a forwarded
-message or a signature.  `CAPTION_FOLDERS` in `config.env` lists the folders that get captions; default `Judi`.)  The Judicom shows
+message or a signature.  `CAPTION_FOLDERS` in `config.env` lists the folders that get captions; default `Judi`.)  The words are
+saved as typed; the Judicom tidies them on the screen however they were written ("bryson and JOE" -> "Bryson and Joe",
+"great-grandson" -> "Your great-grandson", "10/24/2026" -> "October 24, 2026"; rules at the top of `software/judicom/photos.py`).  The Judicom shows
 .jpg, .png and .bmp only: an iPhone `.heic` is saved (and Jellyfin shows it) but not on the Judicom.
 Log: `journalctl -u jellyfin-mail-importer`.
 
