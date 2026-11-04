@@ -71,7 +71,7 @@ if [ "$MODE" = trial ]; then
   echo "   $speed MB/s"
   echo "2. How big the image would be (reading the card, nothing frozen yet; a few minutes) ..."
   t0=$(date +%s%N)
-  bytes=$( { sudo dd if="$DEV" bs=4M iflag=count_bytes count=$((start2 * 512)) status=none; sudo /usr/sbin/e2image -raf "${DEV}p2" -; } \
+  bytes=$( { sudo dd if="$DEV" bs=4M iflag=count_bytes count=$((start2 * 512)) status=none; sudo python3 -B "$HERE/copy_used_blocks.py" "${DEV}p2"; } \
            | zstd -T0 -3 -q | wc -c )
   t1=$(date +%s%N)
   read_s=$(( (t1 - t0) / 1000000000 ))
@@ -83,12 +83,12 @@ if [ "$MODE" = trial ]; then
   stream trial > /dev/null
   [ -f "$work/unfrozen" ] && echo "   frozen and unfrozen again: OK" || { echo "   NOT unfrozen?" >&2; exit 1; }
   rm -f "$work/unfrozen" "$work/frozen"
-  echo "4. Reading 200 MB of the frozen card with e2image (what failed on 2026-11-04) ..."
-  stream trial-read > /dev/null
+  echo "4. Reading 200 MB of the frozen card with the copier (what failed on 2026-11-04; gives up after 3 minutes) ..."
+  stream trial-read > /dev/null || true                    # judged by what it read, below
   if [ "$(cat "$work/read_bytes" 2>/dev/null)" = 209715200 ] && [ -f "$work/unfrozen" ] && [ ! -f "$work/timeout" ]; then
     echo "   read 200 MB from the frozen card, and unfrozen: OK"
   else
-    echo "   e2image could not read the frozen card (read: $(cat "$work/read_bytes" 2>/dev/null || echo 0) bytes)" >&2; exit 1
+    echo "   the copier could not read the frozen card (read: $(cat "$work/read_bytes" 2>/dev/null || echo 0) bytes)" >&2; exit 1
   fi
   rm -f "$work/unfrozen" "$work/frozen"
   echo "5. The safety net: a copy that hangs, which the watchdog must stop (about 15 seconds) ..."

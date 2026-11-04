@@ -10,23 +10,25 @@
 #   - a separate guard unfreezes after GUARD_SECONDS even if this script itself were killed with -9.
 # Nothing in here writes to the frozen partition: no sudo, no logging; STATE_DIR must be in memory (/run/user/...).
 #   trial            freeze for 10 seconds, send nothing, unfreeze          (to see that freezing and unfreezing work)
-#   trial-read       freeze, read 200 MB of the main partition with e2image, unfreeze (to see that e2image reads a frozen card)
-# e2image reads the main partition through a read-only loop device (direct I/O, so nothing stale from memory): given the mounted
-# partition itself, its "is this mounted?" check creates /.ismount-test-file, which waits forever on a frozen card (2026-11-04).
+#   trial-read       freeze, read 200 MB of the main partition with the copier, unfreeze (3-minute watchdog)
+# The main partition is read by copy_used_blocks.py (used blocks from dumpe2fs, free ones as zeros: what e2image -ra makes).
+# Not e2image: its "is this mounted?" check creates /.ismount-test-file, which waits forever on a frozen root (2026-11-04); a
+# loop device does not hide the mount, and device-mapper refuses a mounted partition.
 # The units named last are started again by this script itself as soon as the card is unfrozen (no sudo needed afterwards).
 #   trial-watchdog   freeze, pretend the copy hangs, let the watchdog end it (to see that the safety net works)
 set -uo pipefail
 DEV="$1"; START="$2"; STATE="$3"; MODE="${4:-backup}"; UNITS="${5:-}"
 FSFREEZE="${FSFREEZE:-/usr/sbin/fsfreeze}"
-E2IMAGE="${E2IMAGE:-/usr/sbin/e2image}"
 REMOUNT_BOOT="${REMOUNT_BOOT:-mount -o remount}"
-LOSETUP="${LOSETUP:-losetup}"
+COPIER="${COPIER:-python3 -B $(cd "$(dirname "$0")" && pwd)/copy_used_blocks.py}"
 SYSTEMCTL="${SYSTEMCTL:-systemctl}"
 JOURNALCTL="${JOURNALCTL:-journalctl}"
 BOOT="${BOOT:-/boot/firmware}"
 MAX_SECONDS="${MAX_SECONDS:-900}"            # the copy gives up after 15 minutes ...
 GUARD_SECONDS="${GUARD_SECONDS:-1200}"       # ... and the partition is unfrozen after 20 minutes whatever happens
 [ "$MODE" = trial-watchdog ] && MAX_SECONDS="${TRIAL_MAX_SECONDS:-15}"
+[ "$MODE" = trial-read ] && MAX_SECONDS="${TRIAL_READ_MAX_SECONDS:-180}"
+export PYTHONDONTWRITEBYTECODE=1                 # python must not try to write .pyc files onto the frozen card
 
 frozen=0
 unfreeze() {
@@ -36,8 +38,6 @@ unfreeze() {
     frozen=0
   fi
   $REMOUNT_BOOT,rw "$BOOT" 2>/dev/null
-  [ -n "${loop:-}" ] && $LOSETUP -d "$loop" 2>/dev/null
-  loop=""
   if [ -n "$UNITS" ]; then
     $JOURNALCTL --flush 2>/dev/null
     $SYSTEMCTL start $UNITS 2>/dev/null && echo "restarted" > "$STATE/restarted"
@@ -62,18 +62,16 @@ trap 'echo "stopped" > "$STATE/stopped"; exit 130' INT TERM HUP PIPE
 guard=$!
 echo "$guard" > "$STATE/guard"
 
-loop=$($LOSETUP --read-only --direct-io=on --find --show "${DEV}p2") || { echo "could not set up the loop device" >&2; exit 1; }
 $REMOUNT_BOOT,ro "$BOOT" 2>/dev/null || echo "(the boot partition stays writable; nothing writes to it)" >&2
 $FSFREEZE -f / || { echo "could not freeze the main partition" >&2; exit 1; }
 frozen=1
 echo "frozen" > "$STATE/frozen"
 
 case "$MODE" in
-  # e2image -f: it refuses a partition that is mounted read-write unless told; frozen, it cannot change, so the copy is sound
-  backup)         ( dd if="$DEV" bs=4M iflag=direct,count_bytes count=$(( START * 512 )) status=none && $E2IMAGE -raf "$loop" - ) & ;;
+  backup)         ( dd if="$DEV" bs=4M iflag=direct,count_bytes count=$(( START * 512 )) status=none && $COPIER "${DEV}p2" ) & ;;
   trial)          ( sleep 10 ) & ;;
-  # (e2image gets "broken pipe" when head has its 200 MB: expected; what counts is how much was read)
-  trial-read)     ( set +o pipefail; $E2IMAGE -raf "$loop" - 2>/dev/null | head -c 209715200 | wc -c > "$STATE/read_bytes" ) & ;;
+  # (the copier gets "broken pipe" when head has its 200 MB: expected; what counts is how much was read)
+  trial-read)     ( set +o pipefail; $COPIER "${DEV}p2" 2>/dev/null | head -c 209715200 | wc -c > "$STATE/read_bytes" ) & ;;
   trial-watchdog) ( sleep 100000 ) & ;;
   *)              echo "unknown mode $MODE" >&2; exit 1 ;;
 esac
