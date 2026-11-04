@@ -141,6 +141,28 @@ class Real(unittest.TestCase):
         self.assertEqual(self.sync(), 1)                              # "no pictures": nothing removed here
         self.assertEqual(self.names(), ["a.jpg"])
 
+    def test_a_nearly_full_card_gets_no_new_photos(self):
+        self.add("a.jpg", "b.jpg")
+        self.sync()
+        (self.nas / "c.jpg").write_bytes(b"x" * 5000)
+        GB = 1024 ** 3
+        self.assertEqual(self.sync(free=lambda folder: 4 * GB + 4000, keep_free=4 * GB), 1)   # 5000 bytes would cross the floor
+        self.assertEqual(self.names(), ["a.jpg", "b.jpg"])
+        self.assertIn("nearly full", self.logged[-1])
+        self.assertEqual(self.sync(free=lambda folder: 4 * GB + 6000, keep_free=4 * GB), 0)   # just enough room
+        self.assertEqual(self.names(), ["a.jpg", "b.jpg", "c.jpg"])
+
+    def test_photos_already_here_do_not_count_again(self):
+        self.add("a.jpg", "b.jpg")
+        self.sync()
+        GB = 1024 ** 3
+        self.assertEqual(self.sync(free=lambda folder: 4 * GB + 1, keep_free=4 * GB), 0)      # nothing new: no space needed
+        self.assertIn("unchanged", self.logged[-1])
+
+    def test_sizes_come_from_the_listing(self):
+        (self.nas / "big.jpg").write_bytes(b"y" * 1234567)
+        self.assertEqual(photo_sync.remote_files()["big.jpg"], 1234567)
+
     def test_the_key_cannot_write_to_the_nas(self):
         (self.here).mkdir()
         (self.here / "upload.jpg").write_bytes(b"x")

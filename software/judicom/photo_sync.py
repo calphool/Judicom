@@ -53,7 +53,7 @@ def is_picture(name):
 
 
 def remote_files(host=None, key=None, run=subprocess.run):
-    """The file names in the NAS folder (top level only), or raises RuntimeError."""
+    """{file name: size in bytes} of the NAS folder (top level only), or raises RuntimeError."""
     host = host or config.SYNC_HOST
     cmd = ["rsync", "--list-only", "-e", ssh_command(key), "%s:./" % host]
     try:
@@ -62,13 +62,31 @@ def remote_files(host=None, key=None, run=subprocess.run):
         raise RuntimeError("cannot reach %s: %s" % (host, exc)) from None
     if result.returncode != 0:
         raise RuntimeError("%s: %s" % (host, reason(result.stderr, result.returncode)))
-    names = []
+    files = {}
     for line in result.stdout.splitlines():
         # "-rw-r--r--      1,707,019 2026/11/03 20:24:01 Joe_And_Amy.jpg"   (names may contain spaces)
         parts = line.split(None, 4)
         if len(parts) == 5 and parts[0].startswith("-"):
-            names.append(parts[4])
-    return names
+            files[parts[4]] = int("".join(ch for ch in parts[1] if ch.isdigit()) or 0)    # "1,707,019" -> 1707019
+    return files
+
+
+def to_copy_bytes(remote, local_folder):
+    """How many bytes the sync would bring over: files that are not here yet, or here with another size."""
+    total = 0
+    for name, size in remote.items():
+        try:
+            here = os.path.getsize(os.path.join(local_folder, name))
+        except OSError:
+            here = None
+        if here != size:
+            total += size
+    return total
+
+
+def free_bytes(folder):
+    st = os.statvfs(folder if os.path.isdir(folder) else os.path.dirname(os.path.abspath(folder)) or "/")
+    return st.f_bavail * st.f_frsize
 
 
 def plan(remote, local_folder):
@@ -108,11 +126,16 @@ def copy(local_folder, host=None, key=None, run=subprocess.run):
     return [line for line in result.stdout.splitlines() if line.strip() and not line.startswith(".d")]
 
 
-def sync(local_folder=None, lister=remote_files, copier=copy, dry_run=False, force=False, log=print):
+def sync(local_folder=None, lister=remote_files, copier=copy, dry_run=False, force=False, log=print, free=free_bytes,
+         keep_free=config.PHOTO_KEEP_FREE):
     """0: done (changed or not), 1: nothing changed (the reason is logged)."""
     local_folder = str(config.PHOTO_DIR if local_folder is None else local_folder)
     try:
-        remote = [n for n in lister() if wanted(n)]                   # videos etc. on the NAS do not count here
+        listing = lister()
+        if not isinstance(listing, dict):
+            listing = {n: 0 for n in listing}
+        listing = {n: s for n, s in listing.items() if wanted(n)}     # videos etc. on the NAS do not count here
+        remote = list(listing)
         to_remove, local_pictures, remote_pictures = plan(remote, local_folder)
         if not force:
             check(to_remove, local_pictures, remote_pictures)
@@ -120,6 +143,12 @@ def sync(local_folder=None, lister=remote_files, copier=copy, dry_run=False, for
             raise RuntimeError("the NAS's photo folder has no pictures in it; not even --force empties the Judicom's")
     except RuntimeError as exc:
         log("photos not updated: %s (keeping the photos that are here)" % exc)
+        return 1
+    need, have = to_copy_bytes(listing, local_folder), free(local_folder)
+    if have - need < keep_free:
+        log("WARNING: photos not updated: the card is nearly full.  Copying %.1f GB of new photos would leave %.1f GB free, "
+            "and %.1f GB must stay free.  Remove photos on the NAS, or make room on the card." % (need / 1e9, (have - need) / 1e9,
+                                                                                                  keep_free / 1e9))
         return 1
     if dry_run:
         new = sorted(set(remote) - set(os.listdir(local_folder) if os.path.isdir(local_folder) else []))

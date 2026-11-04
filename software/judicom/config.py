@@ -49,6 +49,7 @@ SYNC_KEY = "/home/joe/.ssh/judicom_sync"
 # The photos come from /mnt/8tbdrive/Photos/Judi on the NAS (shared with Jellyfin); judicom.photo_sync copies them into PHOTO_DIR
 # every hour, with a key the NAS only lets read that folder.
 PHOTO_SYNC_KEY = "/home/joe/.ssh/judicom_photos"
+PHOTO_KEEP_FREE = 4 * 1024 ** 3    # the photo sync never fills the card past this: it copies nothing and logs a warning instead
 
 # Only used when there is no contacts file (a demo on a PC).  Made-up 555 numbers.
 # "dial" is what is sent to the PBX (an extension or a number).
