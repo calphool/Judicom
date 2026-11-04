@@ -4,6 +4,7 @@ import random
 import re
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from judicom import photos
@@ -210,3 +211,54 @@ class CheckCommand(Folder):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Tidying(unittest.TestCase):
+    """Captions read the same on the screen however they were typed (by hand, or from a family member's email)."""
+
+    def test_people(self):
+        from judicom.photos import nice_people
+        for typed, shown in [("waylyn and joe", "Waylyn and Joe"), ("JUDI AND AMY", "You and Amy"),
+                             ("judi, clark & amy.", "You, Clark and Amy"), ("mary-ann o'brien", "Mary-Ann O'Brien"),
+                             ("Bob McDonald and sue", "Bob McDonald and Sue"), ("Sydney, Andrew, You, and Clark", "Sydney, Andrew, You, and Clark"),
+                             ("  Amy   and  Joe ", "Amy and Joe"), ("Judi", "You"), ("waylyn and JOE", "Waylyn and Joe"),
+                             ("AJ and Bob", "AJ and Bob")]:
+            with self.subTest(typed=typed):
+                self.assertEqual(nice_people(typed), shown)
+
+    def test_relationship(self):
+        from judicom.photos import nice_relationship
+        for typed, shown in [("great-grandson and son-in-law", "Your great-grandson and son-in-law"),
+                             ("your granddaughter", "Your granddaughter"), ("Your daughter", "Your daughter"),
+                             ("judi's sister", "Your sister"), ("her best friend", "Your best friend"),
+                             ("granddaughters", "Your granddaughters"), ("NEPHEW.", "Your nephew"),
+                             ("stepson", "Your stepson"), ("daughter-in-law", "Your daughter-in-law"),
+                             ("Sydney's husband, you, and your husband", "Sydney's husband, you, and your husband"),
+                             ("Your granddaughter, her husband, you, and your husband",
+                              "Your granddaughter, her husband, you, and your husband"),     # 'her' here is Sydney's: kept
+                             ("the nurse at Fairfield", "The nurse at Fairfield"), ("you", "You"),
+                             ("your GRANDSON", "Your grandson")]:
+            with self.subTest(typed=typed):
+                self.assertEqual(nice_relationship(typed), shown)
+
+    def test_dates(self):
+        for typed, shown in [("10/24/2026", "October 24, 2026"), ("oct 24 2026", "October 24, 2026"),
+                             ("24 October 2026", "October 24, 2026"), ("October 24th, 2026", "October 24, 2026"),
+                             ("2026/10/24", "October 24, 2026"), ("10/24/26", "October 24, 2026"), ("oct 2026", "October 2026"),
+                             ("Sept. 2020", "September 2020"), ("6/2019", "June 2019"), ("summer 2024", "Summer 2024"),
+                             ("christmas 1998", "Christmas 1998"), ("last week", "Last week"), ("13/45/2020", "13/45/2020"),
+                             ("OCTOBER 2026.", "October 2026")]:
+            with self.subTest(typed=typed):
+                self.assertEqual(nice_date(typed), shown)
+
+    def test_the_file_text_is_kept_and_the_screen_text_is_tidy(self):
+        c = parse_caption("people: waylyn and joe\nrelationship: great-grandson and son-in-law\ntaken: 10/24/2026\n")
+        self.assertEqual((c.people, c.relationship, c.taken), ("waylyn and joe", "great-grandson and son-in-law", "10/24/2026"))
+        self.assertEqual((c.people_text, c.relationship_text, c.taken_text),
+                         ("Waylyn and Joe", "Your great-grandson and son-in-law", "October 24, 2026"))
+
+    def test_judis_other_names(self):
+        from judicom import photos
+        with mock.patch.object(photos, "JUDI_NAMES", ("Judi", "Grandma")):
+            self.assertEqual(photos.nice_people("grandma and Waylyn"), "You and Waylyn")
+            self.assertEqual(photos.nice_relationship("Grandma's sister"), "Your sister")

@@ -22,9 +22,18 @@ CAPTION FILES (optional)
       relationship: Your husband and your daughter
       taken: 2019-06-14
 
-  'taken' may be 2019-06-14, 2019-06 or 2019 (shown as "June 14, 2019", "June 2019", "2019") or any other text, shown as it is.  Write the
-  relationship the way it should read on the screen.  Lines without a "word:" in front are used in the same order (people, relationship,
-  taken).  A line that starts with # is a comment.  No caption file, or one that cannot be read, simply means no caption.
+  Lines without a "word:" in front are used in the same order (people, relationship, taken).  A line that starts with # is a comment.
+  No caption file, or one that cannot be read, simply means no caption.
+
+  HOW IT READS ON THE SCREEN: however the caption was typed (by hand, or by the NAS from a family member's email), it is shown tidied the
+  same way.  The file itself is never changed.
+    people        each name starts with a capital ("waylyn and joe" -> "Waylyn and Joe"); names that already have capitals stay as
+                  typed ("McDonald"); Judi's own name (JUDI_NAMES in config.py) becomes "You"
+    relationship  starts with a capital and is said to Judi: "granddaughter" -> "Your granddaughter", "Judi's sister" / "her sister"
+                  -> "Your sister"
+    taken         2019-06-14, 6/14/2019, Jun 14 2019, 14 June 2019 -> "June 14, 2019";  2019-06, 6/2019, june 2019 -> "June 2019";
+                  2019 -> "2019";  anything else starts with a capital ("summer 2024" -> "Summer 2024")
+  In all three: extra spaces and a full stop at the end go, and ALL-CAPS typing is calmed down.
 """
 from __future__ import annotations
 
@@ -37,7 +46,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import PHOTO_DIR, PHOTO_EXTS
+from .config import JUDI_NAMES, PHOTO_DIR, PHOTO_EXTS
 
 
 # ----------------------------------------------------------------------------------------------- the folder and the order
@@ -97,27 +106,130 @@ META_KEYS = {"people": "people", "names": "people", "name": "people", "who": "pe
 META_ORDER = ("people", "relationship", "taken")
 
 
+MONTHS = {m.lower(): i for i, m in enumerate(("January February March April May June July August September October November "
+                                              "December").split(), 1)}
+MONTHS.update({name[:3]: i for name, i in list(MONTHS.items())})
+MONTHS.update({"sept": 9})
+
+# Words that, at the start of a relationship, are said to Judi: "granddaughter" -> "Your granddaughter".
+KIN = {"daughter", "son", "husband", "wife", "sister", "brother", "niece", "nephew", "cousin", "friend", "aunt", "uncle", "mother",
+       "father", "mom", "dad", "child", "children", "kids", "family", "caregiver", "neighbor", "neighbour", "nurse", "pastor",
+       "doctor", "sisters", "brothers", "daughters", "sons", "nieces", "nephews", "cousins", "friends", "parents", "in-laws"}
+
+
+def _tidy(text: str) -> str:
+    """Extra spaces, a full stop at the end and surrounding quotes go; ALL-CAPS typing becomes lower case (then capitalised)."""
+    text = " ".join((text or "").split()).strip("\"'“”‘’ ").rstrip(".;,").strip()
+    letters = [ch for ch in text if ch.isalpha()]
+    if len(letters) >= 4 and all(ch.isupper() for ch in letters):
+        text = text.lower()
+    return text
+
+
+def _cap(word: str) -> str:
+    """'mary-ann' -> 'Mary-Ann', "o'brien" -> "O'Brien"; a word that already has a capital stays as it is ('McDonald')."""
+    if any(ch.isupper() for ch in word):
+        return word
+    return re.sub(r"(^|[-'’])([a-z])", lambda m: m.group(1) + m.group(2).upper(), word)
+
+
+def _shouted(word: str) -> bool:
+    """A word typed in capitals ('JOE', 'GRANDSON'); one or two letters are initials ('AJ') and stay."""
+    letters = [ch for ch in word if ch.isalpha()]
+    return len(letters) >= 3 and all(ch.isupper() for ch in letters)
+
+
+def _is_judi(word: str) -> bool:
+    return word.lower().strip(",.;:!?") in {n.lower() for n in JUDI_NAMES}
+
+
+def nice_people(raw: str) -> str:
+    """'waylyn, judi and joe' -> 'Waylyn, You and Joe'."""
+    out = []
+    for word in _tidy(raw).split():
+        core, tail = re.match(r"^(.*?)([,.;:!?]*)$", word).groups()
+        low = core.lower()
+        if low in ("and", "or", "with", "&"):
+            out.append(("and" if low == "&" else low) + tail)
+        elif _is_judi(core) or low == "you":
+            out.append("You" + tail)
+        else:
+            out.append(_cap(core.lower() if _shouted(core) else core) + tail)
+    return " ".join(out)
+
+
+def nice_relationship(raw: str) -> str:
+    """'granddaughter' -> 'Your granddaughter', "judi's sister" -> 'Your sister', "sydney's husband" -> "Sydney's husband"."""
+    text = _tidy(raw)
+    if not text:
+        return ""
+    words = [w.lower() if _shouted(w) else w for w in text.split()]
+    possessive = {n.lower() + suffix for n in JUDI_NAMES for suffix in ("'s", "’s")}
+    words = ["your" if w.lower().strip(",") in possessive else ("you" + w[len(w.rstrip(",")):] if _is_judi(w) else w) for w in words]
+    if words[0].lower() == "her":
+        words[0] = "your"
+    first = words[0].lower().strip(",")
+    if first in KIN or first.startswith(("grand", "great", "step")) or first.endswith(("-in-law", "-in-laws")):
+        words.insert(0, "your")
+    text = " ".join(words)
+    return text[0].upper() + text[1:]
+
+
 def nice_date(raw: str) -> str:
-    """2019-06-14 -> June 14, 2019;  2019-06 -> June 2019;  2019 -> 2019;  anything else as it is."""
-    raw = raw.strip()
-    m = re.fullmatch(r"(\d{4})-(\d{1,2})-(\d{1,2})", raw)
-    try:
+    """2019-06-14, 6/14/2019, Jun 14 2019, 14 June 2019 -> June 14, 2019;  2019-06, 6/2019, june 2019 -> June 2019;  2019 -> 2019;
+    anything else as written, with a capital first letter (and the date as written if it is not a real date: 2019-02-31)."""
+    text = _tidy(raw)
+    low = text.lower().replace(",", " ")
+
+    def day(y, m, d):
+        try:
+            dt = datetime.date(y, m, d)
+        except ValueError:
+            return None
+        return "%s %d, %d" % (dt.strftime("%B"), dt.day, dt.year)
+
+    def month(y, m):
+        return "%s %d" % (datetime.date(y, m, 1).strftime("%B"), y) if 1 <= m <= 12 else None
+
+    def year(y):
+        return y + 2000 if y < 100 else y
+
+    no = False                                             # "not this kind of date": try the next pattern
+    patterns = [
+        (r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", lambda g: day(int(g[0]), int(g[1]), int(g[2]))),
+        (r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})", lambda g: day(year(int(g[2])), int(g[0]), int(g[1]))),     # US: month first
+        (r"([a-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\s+(\d{4})",
+         lambda g: day(int(g[2]), MONTHS[g[0]], int(g[1])) if g[0] in MONTHS else no),
+        (r"(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\.?\s+(\d{4})",
+         lambda g: day(int(g[2]), MONTHS[g[1]], int(g[0])) if g[1] in MONTHS else no),
+        (r"(\d{4})[-/.](\d{1,2})", lambda g: month(int(g[0]), int(g[1]))),
+        (r"(\d{1,2})[-/.](\d{4})", lambda g: month(int(g[1]), int(g[0]))),
+        (r"([a-z]+)\.?\s+(\d{4})", lambda g: month(int(g[1]), MONTHS[g[0]]) if g[0] in MONTHS else no),
+        (r"(\d{4})", lambda g: g[0]),
+    ]
+    for pattern, make in patterns:
+        m = re.fullmatch(pattern, " ".join(low.split()))
         if m:
-            d = datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-            return "%s %d, %d" % (d.strftime("%B"), d.day, d.year)
-        m = re.fullmatch(r"(\d{4})-(\d{1,2})", raw)
-        if m:
-            return "%s %d" % (datetime.date(int(m.group(1)), int(m.group(2)), 1).strftime("%B"), int(m.group(1)))
-    except ValueError:
-        pass
-    return raw
+            result = make(m.groups())
+            if result is no:
+                continue
+            return result or text                          # a date that cannot be (2019-02-31): as written
+    return text[:1].upper() + text[1:]
 
 
 @dataclass(frozen=True)
 class Caption:
     people: str = ""
     relationship: str = ""
-    taken: str = ""                          # as written in the file
+    taken: str = ""                          # all three as written in the file; the *_text versions are what the screen shows
+
+    @property
+    def people_text(self) -> str:
+        return nice_people(self.people) if self.people else ""
+
+    @property
+    def relationship_text(self) -> str:
+        return nice_relationship(self.relationship) if self.relationship else ""
 
     @property
     def taken_text(self) -> str:
@@ -171,7 +283,7 @@ def load_caption(photo: Path) -> Caption:
 
 # ----------------------------------------------------------------------------------------------- python3 -m judicom.photos
 def describe(caption: Caption) -> str:
-    parts = [p for p in (caption.people, caption.relationship, caption.taken_text) if p]
+    parts = [p for p in (caption.people_text, caption.relationship_text, caption.taken_text) if p]
     return " | ".join(parts) if parts else "(no caption)"
 
 

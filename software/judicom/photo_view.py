@@ -60,9 +60,9 @@ def compose_caption(caption):
     """The caption band (a see-through dark strip with the words on it) and the y where it goes; None if there is no caption."""
     lines = []                                                   # (kind, size, color, string)
     if caption.people:
-        lines += [("bold", 54, INK, s) for s in draw.wrap(caption.people, "bold", 54, W - 70)]
+        lines += [("bold", 54, INK, s) for s in draw.wrap(caption.people_text, "bold", 54, W - 70)]
     if caption.relationship:
-        lines += [("reg", 38, INK, s) for s in draw.wrap(caption.relationship, "reg", 38, W - 70)]
+        lines += [("reg", 38, INK, s) for s in draw.wrap(caption.relationship_text, "reg", 38, W - 70)]
     if caption.taken:
         lines += [("reg", 34, SOFT, "Taken " + caption.taken_text)]
     if not lines:
@@ -193,5 +193,5 @@ class PhotoView:
         self.since = now
         self.shown += 1
         cap = photo.caption
-        self.log("%s%s" % (photo.path.name, "  [%s]" % " | ".join(p for p in (cap.people, cap.relationship, cap.taken_text) if p)
+        self.log("%s%s" % (photo.path.name, "  [%s]" % " | ".join(p for p in (cap.people_text, cap.relationship_text, cap.taken_text) if p)
                            if cap else "  [no caption]"))
