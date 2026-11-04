@@ -67,8 +67,16 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
   `judicom-allowed.conf.prev`.
 - A list that cannot be read or has nobody in it changes nothing (the last good allowed list stays, and the log says why).
 - The Judicom fetches the same file itself every 10 minutes (section 3), with its own key.  That key's line in
-  `/home/pi/.ssh/authorized_keys` only lets it read this file:
-  `restrict,command="cat /home/pi/judicom/contacts.txt" ssh-ed25519 AAAA... judicom-contacts-sync`
+  `/home/pi/.ssh/authorized_keys` only lets it read this list and the events list (below):
+  `restrict,command="/home/pi/judicom/serve_list.sh" ssh-ed25519 AAAA... judicom-contacts-sync`
+  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, or `events`, and refuses anything else).
+
+### Judi's events
+
+`/home/pi/judicom/events.txt` on the NAS (start from `deploy/nas/judicom/events.example.txt`): birthdays, holidays and visits for
+the Judicom's info screen, which shows the next three with a countdown ("Christmas, December 25 (52 days to go)").  One per line:
+`12-25 | Christmas` (every year) or `2026-11-08 10:30 | Visit from Amy` (once; the time is optional).  The Judicom fetches it with
+the caller list every 10 minutes; format details at the top of `software/judicom/events.py`.
 
 ### Judi's photos
 
@@ -133,7 +141,12 @@ The NAS's `nftables` rules for SIP are **not documented yet** (reading them need
 ## 3. The Judicom
 
 Raspberry Pi 3 B+, Raspberry Pi OS without a desktop, user `joe` (in the groups `video render input gpio audio`), Tailscale
-installed and logged in (address `100.64.0.2`).
+installed and logged in (address `100.64.0.2`), **time zone America/Chicago** (`sudo timedatectl set-timezone America/Chicago`:
+the screen's clock and the 9 pm - 6 am night clock go by it).
+
+**What the screen shows** when no call is going on: the photos; after every 5 photos the info screen for 30 s (day, date, time,
+Oskaloosa's weather from Open-Meteo, the next 3 events with countdowns); from 9 pm to 6 am the night clock (time and date, dim).
+Settings at the end of `software/judicom/config.py`.
 
     sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio alsa-utils baresip
     git clone https://github.com/calphool/Judicom.git ~/Judicom
@@ -144,6 +157,7 @@ installed and logged in (address `100.64.0.2`).
 | `~/.baresip/config` | `deploy/judicom/baresip/config` | binds to `tailscale0`; `ctrl_tcp` on `127.0.0.1:4444` (the phone program's connection); `call_max_calls 1` (a second caller gets busy); `audio_alert alsa,null` (baresip does not ring: the phone program does); `statmode_default off` (no live call-status line: under systemd it piles up into one huge journal entry, `[blob data]`, during every call) |
 | `~/.baresip/accounts` | `deploy/judicom/baresip/accounts.example` | the password is the one in `judicom.conf` on the NAS |
 | `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
+| `~/events.txt` | **fetched from the NAS** with the caller list | a copy of Judi's events list, for the info screen |
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
 | `~/photos/` | **copied from the NAS** by the `judicom-photo-sync` timer (2 min after boot, then every hour) | a copy of `/mnt/8tbdrive/Photos/Judi`: pictures removed there go here too.  Nothing is changed if the NAS can't be reached, its folder has no pictures (drive not mounted?), or more than half of the pictures would go (`python3 -m judicom.photo_sync --force` by hand if that is meant).  Fetch now: `sudo systemctl start judicom-photo-sync`; see first: `python3 -m judicom.photo_sync --dry-run`; log: `journalctl -u judicom-photo-sync` |
 | `~/.ssh/judicom_photos` | `ssh-keygen -t ed25519 -N "" -C judicom-photo-sync -f ~/.ssh/judicom_photos` | the key that copies the photos; its public half goes on the NAS (section 2) |

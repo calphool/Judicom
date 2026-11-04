@@ -112,6 +112,46 @@ class Sync(Folder):
         self.assertEqual([p.name for p in self.dir.iterdir()], ["contacts.txt"])
 
 
+class Events(Folder):
+    def test_writes_the_events_with_a_copy_header(self):
+        path = self.dir / "events.txt"
+        self.assertEqual(sync.sync_events(lambda: "12-25 | Christmas\n", path, self.logged.append), 0)
+        self.assertTrue(path.read_text().startswith("# COPY of Judi's events list"))
+        from judicom.events import EventList
+        self.assertEqual(EventList(path).events[0].title, "Christmas")
+        self.assertIn("events updated: 1", self.logged[-1])
+
+    def test_an_empty_list_is_fine(self):
+        path = self.dir / "events.txt"
+        self.assertEqual(sync.sync_events(lambda: "# nothing planned\n", path, self.logged.append), 0)
+        self.assertIn("events updated: 0", self.logged[-1])
+
+    def test_the_caller_list_given_instead_is_refused(self):
+        path = self.dir / "events.txt"
+        path.write_text("old\n")
+        self.assertEqual(sync.sync_events(lambda: LIST, path, self.logged.append), 1)  # an old NAS key line answers contacts
+        self.assertEqual(path.read_text(), "old\n")
+        self.assertIn("serve_list.sh", self.logged[-1])
+
+    def test_unreachable_keeps_the_old_list(self):
+        path = self.dir / "events.txt"
+        path.write_text("old\n")
+
+        def down():
+            raise RuntimeError("cannot reach pi@100.64.0.1: timed out")
+        self.assertEqual(sync.sync_events(down, path, self.logged.append), 1)
+        self.assertEqual(path.read_text(), "old\n")
+
+    def test_asks_the_nas_for_events(self):
+        calls = []
+
+        def run(cmd, **kw):
+            calls.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, b"12-25 | Christmas\n", b"")
+        self.assertEqual(sync.fetch("pi@h", "/k", run=run, what="events"), "12-25 | Christmas\n")
+        self.assertEqual(calls[0][-2:], ["pi@h", "events"])
+
+
 class NasSide(Folder):
     def setUp(self):
         super().setUp()
@@ -188,3 +228,30 @@ class NasSide(Folder):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServeList(unittest.TestCase):
+    """deploy/nas/judicom/serve_list.sh: what the Judicom's sync key may read on the NAS."""
+
+    def ask(self, request):
+        script = NAS_SCRIPT.parent / "serve_list.sh"
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "contacts.txt").write_text("C\n")
+            (Path(d) / "events.txt").write_text("E\n")
+            local = Path(d) / "serve_list.sh"
+            local.write_text(script.read_text().replace("/home/pi/judicom/", d + "/"))
+            env = {"PATH": "/usr/bin:/bin", "SSH_ORIGINAL_COMMAND": request}
+            r = subprocess.run(["sh", str(local)], capture_output=True, text=True, env=env)
+            return r.returncode, r.stdout, r.stderr
+
+    def test_answers(self):
+        self.assertEqual(self.ask("")[:2], (0, "C\n"))
+        self.assertEqual(self.ask("contacts")[:2], (0, "C\n"))
+        self.assertEqual(self.ask("events")[:2], (0, "E\n"))
+
+    def test_refuses_everything_else(self):
+        for request in ("cat /etc/passwd", "contacts; id", "events && ls", "../contacts", "bash"):
+            with self.subTest(request=request):
+                code, out, err = self.ask(request)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(out, "")
