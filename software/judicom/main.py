@@ -1,4 +1,5 @@
-"""The Judicom: photos while nothing is happening, the phone screens when the handset is lifted or a call comes in.
+"""The Judicom: photos (now and then the info screen; the night clock at night) while nothing is happening, the phone screens
+when the handset is lifted or a call comes in.
 
     python3 -m judicom.main                    on the Judicom: full screen, the real hook switch and buttons
     python3 -m judicom.main --demo --window    on a PC: l = lift / hang up the handset, 1 / 2 = left / right button
@@ -157,7 +158,12 @@ def main(argv=None):
     controls, source = make_controls(args.demo, log)
     display = Display(window=args.window, rotate=not args.no_rotate, flip=args.flip)
     sounds = Sounds(log, enabled=not args.no_sound)
-    photos = PhotoView(PhotoDeck(args.folder), log=log)
+    from .events import EventList
+    from .home import Home
+    from .weather import Weather
+    weather = Weather(log=log)
+    weather.start()                                      # in the background: never holds the screen up
+    photos = Home(PhotoView(PhotoDeck(args.folder), log=log), EventList(log=log), weather, log=log)   # photos, info screen, night clock
     if args.no_calls:
         calls = NoCalls(log)
     else:
@@ -193,6 +199,7 @@ def main(argv=None):
         pass
     finally:
         calls.close()
+        weather.stop()
         sounds.close()
         controls.close()
         if terminal:

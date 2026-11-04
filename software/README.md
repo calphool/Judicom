@@ -86,6 +86,10 @@ top of `judicom/photos.py`.
     judicom/display.py      opens the screen; turns the upright picture 90 degrees onto the panel
     judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
+    judicom/home.py         what shows when no call is on: photos, every 5 photos the info screen, 9 pm - 6 am the night clock
+    judicom/info_view.py    the info screen (day, date, time, weather, next events with countdowns) and the night clock (pygame)
+    judicom/events.py       Judi's events list (birthdays, holidays, visits) and the countdowns           (no pygame)
+    judicom/weather.py      Springfield's weather from Open-Meteo, fetched in the background every 30 min  (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)

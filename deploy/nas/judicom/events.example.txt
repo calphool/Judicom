@@ -1,0 +1,7 @@
+# Judi's events, for the Judicom's info screen ("Coming up", with a countdown).  This is the master list: the Judicom fetches it
+# from /home/pi/judicom/events.txt on the NAS every 10 minutes.  One event per line:   date | what
+#     12-25            | Christmas                   every year (month-day)
+#     2026-11-08 10:30 | Visit from Ann              once (year-month-day), with a time if you like: 10:30, 14:00, 2 PM
+# Birthdays: add one line each, e.g.   03-14 | Ann's birthday
+01-01 | New Year's Day
+12-25 | Christmas
