@@ -1,7 +1,35 @@
-# Judi's events, for the Judicom's info screen ("Coming up", with a countdown).  This is the master list: the Judicom fetches it
-# from /home/pi/judicom/events.txt on the NAS every 10 minutes.  One event per line:   date | what
-#     12-25            | Christmas                   every year (month-day)
-#     2026-11-08 10:30 | Visit from Ann              once (year-month-day), with a time if you like: 10:30, 14:00, 2 PM
-# Birthdays: add one line each, e.g.   03-14 | Ann's birthday
-01-01 | New Year's Day
-12-25 | Christmas
+# Judi's events, for the Judicom's info screen ("Coming up", the next 3 with a countdown).  This is the master list: the Judicom
+# fetches it from /home/pi/judicom/events.txt on the NAS every 10 minutes.  One event per line:   when | what
+#     12-25                     | Christmas            every year (month-day)
+#     4th Thursday of November  | Thanksgiving         every year, on a weekday of the month (1st 2nd 3rd 4th 5th or last)
+#     Easter                    | Easter               every year
+#     2026-11-08 10:30          | Visit from Ann       once (year-month-day); a time is optional: 10:30, 14:00, 2 PM
+# Delete any holiday you don't want on Judi's screen.  Add birthdays and visits at the end.
+
+# ---- US federal holidays
+01-01                    | New Year's Day
+3rd Monday of January    | Martin Luther King Jr. Day
+3rd Monday of February   | Presidents' Day
+last Monday of May       | Memorial Day
+06-19                    | Juneteenth
+07-04                    | Independence Day
+1st Monday of September  | Labor Day
+2nd Monday of October    | Columbus Day
+11-11                    | Veterans Day
+4th Thursday of November | Thanksgiving
+12-25                    | Christmas
+
+# ---- other holidays families celebrate
+02-14                    | Valentine's Day
+03-17                    | St. Patrick's Day
+Easter                   | Easter
+2nd Sunday of May        | Mother's Day
+06-14                    | Flag Day
+3rd Sunday of June       | Father's Day
+10-31                    | Halloween
+12-24                    | Christmas Eve
+12-31                    | New Year's Eve
+
+# ---- birthdays and visits (examples: remove the # to use)
+# 03-14                  | Ann's birthday
+# 2026-11-26 13:00       | Thanksgiving dinner at Ann's

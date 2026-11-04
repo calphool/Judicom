@@ -106,3 +106,54 @@ class File(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Holidays(unittest.TestCase):
+    """The moving holidays, checked against the real calendar."""
+
+    def dates(self, line, years):
+        e = parse(line + " | x\n")[0]
+        return [e.date_in(y) for y in years]
+
+    def test_easter(self):
+        from judicom.events import easter
+        known = {2024: (3, 31), 2025: (4, 20), 2026: (4, 5), 2027: (3, 28), 2028: (4, 16), 2030: (4, 21), 2038: (4, 25)}
+        for year, (m, d) in known.items():
+            with self.subTest(year=year):
+                self.assertEqual(easter(year), datetime.date(year, m, d))
+
+    def test_weekday_rules(self):
+        cases = [("4th Thursday of November", {2024: 28, 2025: 27, 2026: 26, 2027: 25}),      # Thanksgiving
+                 ("last Monday of May", {2024: 27, 2025: 26, 2026: 25, 2027: 31}),             # Memorial Day
+                 ("1st Monday of September", {2024: 2, 2025: 1, 2026: 7}),                     # Labor Day
+                 ("3rd Monday of January", {2025: 20, 2026: 19, 2027: 18}),                    # Martin Luther King Jr. Day
+                 ("2nd Sunday of May", {2025: 11, 2026: 10, 2027: 9}),                         # Mother's Day
+                 ("third sunday in june", {2025: 15, 2026: 21})]                               # Father's Day (any capitals, "in")
+        for rule, days in cases:
+            for year, day in days.items():
+                with self.subTest(rule=rule, year=year):
+                    self.assertEqual(parse(rule + " | x\n")[0].date_in(year).day, day)
+
+    def test_a_missing_5th_weekday_skips_to_a_year_that_has_one(self):
+        e = parse("5th Friday of February | Rare\n")[0]
+        self.assertIsNone(e.date_in(2026))
+        self.assertEqual(e.date_in(2036), datetime.date(2036, 2, 29))         # February 2036 has five Fridays
+        self.assertIsNone(e.next_date(datetime.date(2026, 1, 1)))              # more than 8 years away: not listed, no hang
+
+    def test_rules_with_a_time_and_in_the_countdown(self):
+        up = upcoming(parse("4th Thursday of November 1 PM | Thanksgiving dinner\nEaster | Easter\n"), NOW)
+        self.assertEqual((up[0].title, up[0].when, up[0].countdown), ("Thanksgiving dinner", "November 26, 1:00 PM", "23 days to go"))
+        self.assertEqual(up[1].date, datetime.date(2027, 3, 28))
+
+    def test_bad_rules_are_reported(self):
+        logged = []
+        self.assertEqual(parse("6th Monday of May | x\n4th Funday of November | y\nlast Monday of Smarch | z\n", logged.append), [])
+        self.assertEqual(len(logged), 3)
+
+    def test_the_example_list_reads_cleanly(self):
+        logged = []
+        example = Path(__file__).resolve().parents[2] / "deploy" / "nas" / "judicom" / "events.example.txt"
+        events = parse(example.read_text(), logged.append)
+        self.assertEqual(logged, [])
+        self.assertGreaterEqual(len(events), 18)
+        self.assertTrue(all(e.next_date(NOW.date()) for e in events))      # every one of them comes round
