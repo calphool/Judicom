@@ -54,7 +54,8 @@ frozen=1
 echo "frozen" > "$STATE/frozen"
 
 case "$MODE" in
-  backup)         ( dd if="$DEV" bs=4M iflag=count_bytes count=$(( START * 512 )) status=none && $E2IMAGE -ra "${DEV}p2" - 2>/dev/null ) & ;;
+  # e2image -f: it refuses a partition that is mounted read-write unless told; frozen, it cannot change, so the copy is sound
+  backup)         ( dd if="$DEV" bs=4M iflag=count_bytes count=$(( START * 512 )) status=none && $E2IMAGE -raf "${DEV}p2" - ) & ;;
   trial)          ( sleep 10 ) & ;;
   trial-watchdog) ( sleep 100000 ) & ;;
   *)              echo "unknown mode $MODE" >&2; exit 1 ;;
