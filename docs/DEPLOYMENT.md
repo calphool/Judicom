@@ -5,14 +5,17 @@ phone numbers are **not** in git (the repository is public), so each place that 
 
 ```text
 Judi's phone number (VoIP.ms DID) --SIP--> NAS: Asterisk in Docker --Tailscale--> Judicom: baresip + judicom-phone
-                                           screens callers against                  rings, shows the caller's name
-                                           judicom-allowed.conf                     (contacts.txt), dials the buttons
+                                           screens callers against                  rings, shows the caller's name,
+                                           judicom-allowed.conf                     dials the buttons
+                                                    ^ every 10 min                          ^ every 10 min
+                                           NAS: ~/judicom/contacts.txt  <-- the ONE caller list (edit only this)
 ```
 
 | Part | Where it runs | Kept in git | Kept only on the device |
 |---|---|---|---|
 | VoIP.ms account, DID, caller ID | voip.ms web portal | the settings, below | everything |
-| Asterisk (PBX) | NAS `naspi`, Docker container `asterisk-test` | `deploy/nas/asterisk/` | passwords, `judicom-allowed.conf`, the two messages |
+| Judi's caller list (master) | NAS: `/home/pi/judicom/contacts.txt` | `deploy/nas/judicom/` (the script) | the list itself |
+| Asterisk (PBX) | NAS `naspi`, Docker container `asterisk-test` | `deploy/nas/asterisk/` | passwords, the two messages |
 | baresip (phone line) | Judicom, service `judicom-baresip` | `deploy/judicom/` | `~/.baresip/accounts` (password) |
 | The phone program | Judicom, service `judicom-phone` | `software/` | `~/contacts.txt`, `~/photos/` |
 
@@ -38,7 +41,7 @@ reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 | `judicom.conf` | the Judicom's account (endpoint `judicom`, Tailscale only); its calls land in `from-judicom`.  From `judicom.conf.example` |
 | `voipms-test.conf` | `from-judicom`: test numbers 100 (melody) and 101 (records 5 s and plays it back), and 10-digit North American numbers out through VoIP.ms (nothing else can be dialled out).  `from-voipms`: hands every call to `judicom-inbound` |
 | `judicom-inbound.conf` | screening: caller on the allowed list -> the Judicom rings 40 s, then "can't come to the phone" (also when busy); anyone else, or a hidden number -> the protected-number message |
-| `judicom-allowed.conf` | the allowed callers, 10 digits each.  From `judicom-allowed.conf.example` |
+| `judicom-allowed.conf` | the allowed callers, 10 digits each.  **Written by `apply_contacts.py`** from the caller list (below): do not edit it |
 
 `extensions.conf` is Asterisk's stock file with these lines at the end (the first was there already):
 
@@ -49,6 +52,21 @@ reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 The two messages are `custom/judicom-protected.wav` and `custom/judicom-unavailable.wav` in the container's
 `/var/lib/asterisk/sounds/custom/` (a Docker volume).  Make them with `deploy/prompts/make_prompts.sh <contact number>` (Piper
 text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy them in with `docker cp` (the script says how).
+
+### Judi's caller list
+
+`/home/pi/judicom/contacts.txt` on the NAS is the only list to edit: same format as `software/contacts.example.txt`
+(`number | name | relationship | button`).  Everyone in it may ring the Judicom; `left` / `right` put a person on a button.
+
+- `/home/pi/judicom/apply_contacts.py` (from `deploy/nas/judicom/`) writes `judicom-allowed.conf` from it and reloads the dialplan,
+  only when something changed.  `pi`'s crontab runs it every 10 minutes:
+  `*/10 * * * * /usr/bin/python3 /home/pi/judicom/apply_contacts.py >/dev/null 2>&1`.  Run it by hand for an instant update;
+  `--dry-run` shows what it would write.  Its log: `/home/pi/judicom/apply.log`.  The list before each change is kept as
+  `judicom-allowed.conf.prev`.
+- A list that cannot be read or has nobody in it changes nothing (the last good allowed list stays, and the log says why).
+- The Judicom fetches the same file itself every 10 minutes (section 3), with its own key.  That key's line in
+  `/home/pi/.ssh/authorized_keys` only lets it read this file:
+  `restrict,command="cat /home/pi/judicom/contacts.txt" ssh-ed25519 AAAA... judicom-contacts-sync`
 
 ### Applying a change (safe: no restart, no dropped registrations)
 
@@ -96,10 +114,11 @@ installed and logged in (address `100.64.0.2`).
 | `~/.asoundrc` | `deploy/judicom/asoundrc` | names the cards: `judicom_handset` (USB card `Device`), `judicom_ring` (`Headphones` jack), `judicom_mic_boost` (USB mic, with a software gain control).  The USB adapter's microphone is **mono** (`slave.channels 1`) |
 | `~/.baresip/config` | `deploy/judicom/baresip/config` | binds to `tailscale0`; `ctrl_tcp` on `127.0.0.1:4444` (the phone program's connection); `call_max_calls 1` (a second caller gets busy); `audio_alert alsa,null` (baresip does not ring: the phone program does) |
 | `~/.baresip/accounts` | `deploy/judicom/baresip/accounts.example` | the password is the one in `judicom.conf` on the NAS |
-| `~/contacts.txt` | `software/contacts.example.txt` | the two buttons and the names shown for incoming calls (see `software/README.md`) |
+| `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
+| `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
 | `~/photos/` | the NAS (twice-a-day sync, still to be set up) | |
 | boot picture | `judicom_splash/install_splash.sh` | |
-| services | `bash ~/Judicom/software/systemd/install_services.sh` | `judicom-baresip` and `judicom-phone`; also keeps the boot picture up until the first photo and turns off the login prompt on the screen |
+| services | `bash ~/Judicom/software/systemd/install_services.sh` | `judicom-baresip`, `judicom-phone` and the `judicom-contacts-sync` timer; also keeps the boot picture up until the first photo and turns off the login prompt on the screen |
 
 baresip's controlling connection takes **one client at a time**: while `judicom-phone` runs, do not use
 `python3 -m judicom.calls` (it knocks the phone off the line).  Stop the service first.
@@ -129,14 +148,17 @@ or through the NAS: `ssh -J pi@naspi.local joe@100.64.0.2`.
 
 ## 4. Adding someone who may call Judi
 
-1. On the NAS: add `exten => <10 digits>,1,NoOp(<name>)` to `judicom-allowed.conf`, then `dialplan reload`.
-2. On the Judicom: add `<number> | <name> | <relationship>` to `~/contacts.txt` (picked up within 5 s).
+Add a line `<number> | <name> | <relationship>` to `/home/pi/judicom/contacts.txt` on the NAS.  Within 10 minutes they can ring
+through, and within 10 minutes their name shows on the Judicom.  For both at once:
 
-If step 2 is forgotten the call still rings, as "Incoming call from unknown caller: <number>".  If step 1 is forgotten the caller hears
-the protected-number message.
+    python3 /home/pi/judicom/apply_contacts.py                  # on the NAS
+    sudo systemctl start judicom-contacts-sync                  # on the Judicom
+
+Removing someone works the same way.  To change who the buttons call, move `left` / `right` to another line.
 
 ## 5. What is not in git (back it up somewhere private)
 
-- NAS: `voipms.conf`, `judicom.conf` (passwords), `judicom-allowed.conf` (numbers), the two message WAVs (they speak the contact number)
-- Judicom: `~/.baresip/accounts` (password), `~/contacts.txt` (numbers), `~/photos/`
+- NAS: `/home/pi/judicom/contacts.txt` (Judi's caller list), `voipms.conf`, `judicom.conf` (passwords), the two message WAVs (they
+  speak the contact number)
+- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` (can be made again), `~/photos/`
 - VoIP.ms portal settings (section 1)

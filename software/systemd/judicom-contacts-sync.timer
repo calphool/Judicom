@@ -1,0 +1,12 @@
+# Runs judicom-contacts-sync a minute after boot, then every 10 minutes.  Installed by install_services.sh.
+#   systemctl list-timers judicom-contacts-sync        sudo systemctl start judicom-contacts-sync   (fetch now)
+[Unit]
+Description=Judicom: fetch the caller list from the NAS every 10 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=10min
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

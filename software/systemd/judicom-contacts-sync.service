@@ -1,0 +1,13 @@
+# Fetches Judi's caller list from the NAS into /home/joe/contacts.txt (python3 -m judicom.sync).  Started by the timer of the same
+# name; installed by install_services.sh.     journalctl -u judicom-contacts-sync
+[Unit]
+Description=Judicom: fetch the caller list from the NAS
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+
+[Service]
+Type=oneshot
+User=joe
+Group=joe
+WorkingDirectory=/home/joe/Judicom/software
+ExecStart=/usr/bin/python3 -m judicom.sync
