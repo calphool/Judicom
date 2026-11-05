@@ -45,7 +45,12 @@ class Choosing(unittest.TestCase):
                 "Dog Biscuit Appreciation Day", "International Day Of Sleep", "The Ides of March", "International Goof Off Day",
                 "Make Up Your Own Holiday Day", "April Fool's Day", "Okay To Tell A Lie Day", "Lawyer Appreciation Day",
                 "Wear Pajamas Today Day", "Pretend You Are An Astronaut Day", "No Pants Day", "Lost Sock Remembrance Day",
-                "Dance Like A Chicken Day", "Talk Like A Star War Character Day", "Put Something Funny Under Your Pillow Day")
+                "Dance Like A Chicken Day", "Talk Like A Star War Character Day", "Put Something Funny Under Your Pillow Day",
+                "Hug A Cat Day", "Eat All Your Veggies Day", "Don't Panic Day", "Pandemonium Day", "Insurance Agent Appreciation Day",
+                "Musical Instrument Day", "Go For A Walk Day", "Lazy Day", "Dad Joke Day", "No Rhyme Or Reason Day",
+                "Rock Collection Day", "Talk Like A Pirate Day", "Stupid Question Day", "Mad Hatter Day", "Unexplained Event Day",
+                "Wear Something Crazy Day", "Howl At The Moon Night", "Deviled Eggs Day", "Chaos Never Ends Day",
+                "Clean The Refrigerator Day", "National Absurdity Celebration Day", "Black Friday", "International Monkey Day")
         kinds = [event_icons.icon_for(d) for d in days]
         self.assertEqual(len(set(kinds)), len(days), kinds)
         self.assertNotIn("calendar", kinds)
