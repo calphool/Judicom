@@ -4,9 +4,10 @@
     draw_night(surf, now)
 
 THE INFO SCREEN   the day ("Tuesday"), the date, the time; a card with the weather (icon, temperature, words, high and low; left out
-                  when there is none); a card "Coming up" with the next events, each with its date and countdown:
-                      Christmas                       Visit from Ann
-                      December 25  (52 days to go)    Sunday, 10:30 AM  (5 days to go)
+                  when there is none); a card "Coming up" with the next events, each with a little cartoon (event_icons.py: a cake
+                  for a birthday, a tree for Christmas ...), its date and countdown:
+                      [tree]  Christmas                       [house]  Visit from Ann
+                              December 25  (52 days to go)             Sunday, 10:30 AM  (5 days to go)
 THE NIGHT CLOCK   black, with only the time and the date in dim grey.
 """
 import math
@@ -14,9 +15,13 @@ import math
 import pygame
 
 from . import draw
+from .event_icons import event_icon
 from .config import AMBER, BG, CARD, INK, NIGHT_INK, NIGHT_SOFT, SOFT, WEATHER_PLACE
 from .config import SCREEN_H as H
 from .config import SCREEN_W as W
+
+
+ICON = 84                                    # the events' little pictures (pixels)
 
 
 def clock_text(now):
@@ -99,7 +104,8 @@ def draw_info(surf, now, report, upcoming):
     if not upcoming:
         draw.centered(surf, draw.text("Nothing on the calendar", "reg", 36, SOFT), ev.centery - 18)
         return
-    items = [_event_lines(u, ev.width - 60) for u in upcoming]
+    text_x = ev.x + 22 + ICON + 16                       # the words start right of the icons
+    items = [_event_lines(u, ev.right - 24 - text_x) for u in upcoming]
     room = ev.bottom - 10 - yy
     heights = [sum(int(size * 1.15) for _, _, size, _ in lines) for lines in items]
     while len(items) > 1 and sum(heights) + 16 * (len(items) - 1) > room:
@@ -107,10 +113,12 @@ def draw_info(surf, now, report, upcoming):
         heights.pop()
     gap = (room - sum(heights)) / float(len(items) + 1)
     y1 = yy + gap
-    for lines, height in zip(items, heights):
+    for u, lines, height in zip(upcoming, items, heights):
         yl = int(y1)
+        icon = event_icon(u.title, ICON, u.date.day)
+        surf.blit(icon, (ev.x + 22, yl + max(0, (min(height, 2 * ICON) - ICON) // 2)))    # level with the event's words
         for text, kind, size, color in lines:
-            surf.blit(draw.text(text, kind, size, color, ev.width - 60), (ev.x + 30, yl))
+            surf.blit(draw.text(text, kind, size, color, ev.right - 24 - text_x), (text_x, yl))
             yl += int(size * 1.15)
         y1 += height + gap
 
@@ -133,7 +141,11 @@ def _event_lines(u, max_w):
         when = u.when.replace("Today", "Today!", 1) if u.days == 0 else u.when
         lines += [(t, "bold", 32, AMBER) for t in _wrapped(when, "bold", 32, max_w, 2)]
     else:
-        lines += [(t, "reg", 32, SOFT) for t in _wrapped("%s  (%s)" % (u.when, u.countdown), "reg", 32, max_w, 2)]
+        both = "%s  (%s)" % (u.when, u.countdown)
+        if draw.get_font("reg", 32).size(both)[0] <= max_w:
+            lines.append((both, "reg", 32, SOFT))
+        else:                                             # not on one line: the date, then the countdown whole beneath it
+            lines += [(_wrapped(u.when, "reg", 32, max_w, 1)[0], "reg", 32, SOFT), ("(%s)" % u.countdown, "reg", 32, SOFT)]
     return lines
 
 def draw_night(surf, now):
