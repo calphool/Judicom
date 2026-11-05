@@ -13,7 +13,7 @@
   NO_ANSWER       "No answer." and who it was
   ENDED           "Call just ended with Amy (daughter)"
   PLEASE_HANG_UP  yellow all over: "Please put the handset back on the phone."
-  OUT_OF_ORDER    the handset, greyed, and "The phone is not working.  It is being fixed."  (a button pressed while the phone
+  OUT_OF_ORDER    a cartoon fellow with a cold (judicom/sick_guy.py), and "The phone is not working.  It is being fixed."  (a button pressed while the phone
                   cannot reach the PBX)
 
 With a picture of the person (faces.Faces: "Amy.png" in config.PEOPLE_DIR), DIALING, CALLING, ONGOING and INCOMING show their face
@@ -159,20 +159,18 @@ class CallView:
         return self.faces.get(party.name, size)
 
     def draw_out_of_order(self, surf):
-        """Calm, not alarming: the same teal, the handset faded, and plain words."""
+        """Calm, not alarming: the same teal, a cartoon fellow with a cold (the phone is poorly), and plain words."""
+        from .sick_guy import sick_guy
         surf.fill(BG)
         tmp = pygame.Surface((W, 700), pygame.SRCALPHA)
         y = draw.block(tmp, "The phone is not working.", "bold", 72, INK, 0)
         y = draw.block(tmp, "It is being fixed.", "reg", 52, SOFT, y + 24)
         words = tmp.subsurface((0, 0, W, max(1, min(y, tmp.get_height())))).copy()
-        group = 290 + 56 + words.get_height()
-        y0 = max(24, (H - group) // 2 - 30)
-        panel = pygame.Rect(40, y0, W - 80, 290)
-        pygame.draw.rect(surf, mix(PANEL, BG, 0.55), panel, border_radius=34)
-        body = handset_body().copy()
-        body.fill((255, 255, 255, 110), special_flags=pygame.BLEND_RGBA_MULT)      # faded: this phone is resting
-        surf.blit(body, body.get_rect(center=panel.center))
-        surf.blit(words, (0, panel.bottom + 56))
+        size = 460
+        group = size + 20 + words.get_height()
+        y0 = max(24, (H - group) // 2 - 20)
+        surf.blit(sick_guy(size), ((W - size) // 2, y0))
+        surf.blit(words, (0, y0 + size + 20))
 
     def draw_call(self, surf, mode, party, t):
         surf.fill(BG)
