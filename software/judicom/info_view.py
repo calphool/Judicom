@@ -154,8 +154,8 @@ def _at_commas(text, kind, size, max_w):
 
 
 def _event_lines(u, max_w):
-    """The lines of one event: its title (up to 2 lines), then when it is and the countdown (up to 2 lines)."""
-    lines = [(t, "bold", 42, INK) for t in _wrapped(u.title, "bold", 42, max_w, 2)]
+    """The lines of one event: its title (up to 3 lines), then when it is and the countdown (up to 2 lines)."""
+    lines = [(t, "bold", 42, INK) for t in _wrapped(u.title, "bold", 42, max_w, 3)]
     if u.days <= 1:
         when = u.when.replace("Today", "Today!", 1) if u.days == 0 else u.when
         lines += [(t, "bold", 32, AMBER) for t in _wrapped(when, "bold", 32, max_w, 2)]

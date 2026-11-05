@@ -84,6 +84,13 @@ class Drawing(unittest.TestCase):
         self.assertIs(event_icons.event_icon("Easter", 84), event_icons.event_icon("Easter Sunday", 84))
         self.assertIsNot(event_icons.event_icon("Dentist", 84, 3), event_icons.event_icon("Dentist", 84, 4))   # the day shows
 
+    def test_a_long_name_is_shown_whole(self):
+        from judicom import events, info_view
+        now = datetime.datetime(2027, 5, 24, 10, 0)
+        up = events.upcoming(events.parse("05-29 | Put Something Funny Under Your Pillow Day"), now, 1)[0]
+        lines = [text for text, kind, size, color in info_view._event_lines(up, 600 - 48 - 16 - 72 - 12 - 18)]
+        self.assertEqual(" ".join(lines[:3]), "Put Something Funny Under Your Pillow Day")      # three lines, no "..."
+
     def test_info_screen_with_icons(self):
         from judicom import events, info_view
         from judicom.config import CARD, SCREEN_H, SCREEN_W
