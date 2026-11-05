@@ -13,6 +13,15 @@ JUDI_NAMES = ("Judi",)
 # Which files count as pictures (capital letters do not matter).
 PHOTO_EXTS = (".jpg", ".jpeg", ".png", ".bmp")
 
+# A picture of each person in the caller list, shown while calling them, talking with them, or when they ring: "Amy.png",
+# "Clark.jpg" (named as in the caller list; capitals do not matter).  Square, about 800 x 800, the face filling most of it; any
+# other shape is cropped from the middle.  judicom.sync fills this folder from /home/pi/judicom/people on the NAS.
+PEOPLE_DIR = Path(os.environ.get("JUDICOM_PEOPLE", "/home/joe/people"))
+PEOPLE_EXTS = (".png", ".jpg", ".jpeg")
+PEOPLE_MAX_FILE = 5 * 1024 * 1024     # a bigger picture is not copied from the NAS (800 x 800 is far smaller)
+PEOPLE_MAX_TOTAL = 50 * 1024 * 1024   # nor more than this altogether
+FACE_PX = 400                         # the picture's size on the call screens
+
 # ---- the screen -------------------------------------------------------------------------------------------------------------
 # Everything is drawn upright at this size.  The panel is mounted sideways, so judicom/display.py turns the picture 90 degrees.
 SCREEN_W, SCREEN_H = 600, 1024

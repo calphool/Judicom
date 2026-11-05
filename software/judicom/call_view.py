@@ -13,13 +13,17 @@
   NO_ANSWER       "No answer." and who it was
   ENDED           "Call just ended with Amy (daughter)"
   PLEASE_HANG_UP  yellow all over: "Please put the handset back on the phone."
+
+With a picture of the person (faces.Faces: "Amy.png" in config.PEOPLE_DIR), DIALING, CALLING, ONGOING and INCOMING show their face
+in place of the handset: in a frame, with the same rings spreading out while it rings, a green border while talking, and gently
+growing and shrinking with the ring of an incoming call.  No picture, or an unknown caller: the handset, as above.
 """
 import math
 
 import pygame
 
 from . import draw
-from .config import AMBER, BG, BUTTON_X, DARK, GREEN, INK, ROSE, SOFT, YELLOW
+from .config import AMBER, BG, BUTTON_X, DARK, FACE_PX, GREEN, INK, ROSE, SOFT, YELLOW
 from .config import SCREEN_H as H
 from .config import SCREEN_W as W
 from .machine import Mode
@@ -27,6 +31,9 @@ from .machine import Mode
 PANEL = (232, 235, 238)
 ACCENT = {Mode.DIALING: AMBER, Mode.CALLING: AMBER, Mode.ONGOING: GREEN, Mode.ENDED: ROSE, Mode.INCOMING: AMBER, Mode.NO_ANSWER: ROSE}
 ANIMATED = (Mode.LIFTED, Mode.DIALING, Mode.CALLING, Mode.ONGOING, Mode.INCOMING)
+WITH_FACE = (Mode.DIALING, Mode.CALLING, Mode.ONGOING, Mode.INCOMING)
+FRAME = 12                     # the light frame round a face
+PULSE_STEPS = (0, 6, 12, 18)   # how much bigger (pixels) an incoming caller's face gets as it pulses: a few sizes, made once each
 
 
 def mix(a, b, f):
@@ -88,8 +95,9 @@ def arrow(surf, cx, tip, color):
 
 # ------------------------------------------------------------------ the screens ----------------------------------------------
 class CallView:
-    def __init__(self, buttons):
+    def __init__(self, buttons, faces=None):
         self.buttons = buttons
+        self.faces = faces
         self._words_key = self._words = None
 
     @staticmethod
@@ -140,10 +148,20 @@ class CallView:
             draw.centered(surf, draw.text(line, "bold", size, DARK), y)
             y += int(size * 1.15)
 
+    def face(self, mode, party, size=FACE_PX):
+        """The person's picture for this screen, or None (then the handset is drawn)."""
+        if self.faces is None or mode not in WITH_FACE or not (party and party.name):
+            return None
+        return self.faces.get(party.name, size)
+
     def draw_call(self, surf, mode, party, t):
         surf.fill(BG)
         accent = ACCENT[mode]
         words = self.words(mode, party)
+        face = self.face(mode, party)
+        if face is not None:
+            self.draw_face_call(surf, mode, party, t, accent, words)
+            return
         group = 290 + 56 + words.get_height()                                 # handset panel + gap + words, centred as one block
         y0 = max(24, (H - group) // 2 - 30)
         panel = pygame.Rect(40, y0, W - 80, 290)
@@ -162,6 +180,31 @@ class CallView:
         else:
             draw_handset(surf, panel.centerx, panel.centery)
         surf.blit(words, (0, panel.bottom + 56))
+        if mode == Mode.INCOMING:
+            draw.centered(surf, draw.text("Pick up the handset to answer", "reg", 36, SOFT, W - 60), H - 90)
+
+    def draw_face_call(self, surf, mode, party, t, accent, words):
+        """draw_call with the person's picture in place of the handset."""
+        side = FACE_PX + 2 * FRAME
+        group = side + 48 + words.get_height()
+        y0 = max(24, (H - group) // 2 - (40 if mode == Mode.INCOMING else 10))     # incoming: room for the hint at the bottom
+        panel = pygame.Rect((W - side) // 2, y0, side, side)
+        if mode in (Mode.DIALING, Mode.CALLING, Mode.INCOMING):
+            for k in range(3):
+                phase = (t * 0.7 + k / 3.0) % 1.0
+                grow = int(phase * 46)
+                pygame.draw.rect(surf, mix(accent, BG, phase), panel.inflate(2 * grow, 2 * grow), 5, border_radius=34 + grow)
+        grow = 0
+        if mode == Mode.INCOMING and (t % 2.0) < 1.2:                          # with the ring, like the handset's shaking
+            wave = abs(math.sin(t * 2 * math.pi * 1.5))
+            grow = PULSE_STEPS[min(len(PULSE_STEPS) - 1, int(wave * len(PULSE_STEPS)))]
+        frame = panel.inflate(grow, grow)
+        pygame.draw.rect(surf, PANEL, frame, border_radius=34)
+        if mode == Mode.ONGOING:
+            pygame.draw.rect(surf, accent, frame, 8, border_radius=34)
+        img = self.face(mode, party, FACE_PX + grow) or self.face(mode, party)
+        surf.blit(img, img.get_rect(center=frame.center))
+        surf.blit(words, (0, panel.bottom + 48))
         if mode == Mode.INCOMING:
             draw.centered(surf, draw.text("Pick up the handset to answer", "reg", 36, SOFT, W - 60), H - 90)
 

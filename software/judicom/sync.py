@@ -8,6 +8,8 @@ It connects over Tailscale with its own key (~/.ssh/judicom_sync), which the NAS
 the key's line in ~pi/.ssh/authorized_keys is   restrict,command="/home/pi/judicom/serve_list.sh" ssh-ed25519 ...
 (serve_list.sh answers "contacts", the default, or "events", and refuses anything else).
 The events list (/home/pi/judicom/events.txt on the NAS -> ~/events.txt) is for the info screen; see judicom/events.py.
+The verse list likewise (verses.txt).  The people pictures (/home/pi/judicom/people/Amy.png ... -> ~/people/) are for the call
+screens (judicom/faces.py); they are compared by sha256 and only fetched when something there changed.
 The fetched list replaces ~/contacts.txt only if it reads correctly and has somebody in it; otherwise the old one stays (and the
 reason is printed: journalctl -u judicom-contacts-sync).  The file is replaced in one step, so the phone never sees half of it.
 """
@@ -27,8 +29,8 @@ HEADER = ("# COPY of Judi's caller list.  The master is /home/pi/judicom/contact
           "# This file is replaced every 10 minutes (python3 -m judicom.sync), so changes made here are lost.\n")
 
 
-def fetch(host=None, key=None, timeout=30, run=subprocess.run, what=None):
-    """The master list's text ('events': the events list), or raises RuntimeError with the reason."""
+def fetch(host=None, key=None, timeout=30, run=subprocess.run, what=None, raw=False):
+    """The master list's text ('events': the events list; raw: the bytes), or raises RuntimeError with the reason."""
     host = host or config.SYNC_HOST
     key = key or config.SYNC_KEY
     cmd = ["ssh", "-i", key, "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "ConnectTimeout=15",
@@ -40,7 +42,7 @@ def fetch(host=None, key=None, timeout=30, run=subprocess.run, what=None):
     if result.returncode != 0:
         why = result.stderr.decode("utf-8", "replace").strip().splitlines()
         raise RuntimeError("%s refused (%s)" % (host, why[-1] if why else "exit status %d" % result.returncode))
-    return result.stdout.decode("utf-8", "replace")
+    return result.stdout if raw else result.stdout.decode("utf-8", "replace")
 
 
 def check(text):
@@ -129,6 +131,108 @@ def sync_verses(fetcher=None, path=None, log=print):
     return 0
 
 
+def parse_people_list(text):
+    """{file name: sha256} from serve_list.sh's "people-list" answer ("<sha256>  ./Amy.png" lines).  Names that are not plain
+    picture names (a path, hidden, odd characters, another kind of file) are left out."""
+    wanted = {}
+    for line in text.splitlines():
+        digest, sep, name = line.partition("  ")
+        name = name[2:] if name.startswith("./") else name
+        if not sep or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            continue
+        if (not name or "/" in name or "\\" in name or name.startswith(".") or any(ord(c) < 32 for c in name)
+                or os.path.splitext(name)[1].lower() not in config.PEOPLE_EXTS):
+            continue
+        wanted[name] = digest
+    return wanted
+
+
+def sha256_of(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def unpack_people(data, wanted):
+    """{name: bytes} of the pictures in the tar file `data`; only names in `wanted`, each checked against its sha256 and the size
+    limits.  Raises RuntimeError if the file is not usable."""
+    import hashlib
+    import io
+    import tarfile
+    got, total = {}, 0
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:") as tar:
+            for m in tar:
+                name = os.path.basename(m.name)
+                if not m.isfile() or name not in wanted:
+                    continue
+                if m.size > config.PEOPLE_MAX_FILE:
+                    raise RuntimeError("%s is too big (%.1f MB)" % (name, m.size / 1e6))
+                total += m.size
+                if total > config.PEOPLE_MAX_TOTAL:
+                    raise RuntimeError("the pictures add up to more than %d MB" % (config.PEOPLE_MAX_TOTAL // 2 ** 20))
+                body = tar.extractfile(m).read()
+                if hashlib.sha256(body).hexdigest() != wanted[name]:
+                    raise RuntimeError("%s did not arrive whole" % name)
+                got[name] = body
+    except (tarfile.TarError, OSError, EOFError) as exc:
+        raise RuntimeError("the pictures did not arrive whole (%s)" % exc) from None
+    missing = sorted(set(wanted) - set(got))
+    if missing:
+        raise RuntimeError("missing from what the NAS sent: %s" % ", ".join(missing))
+    return got
+
+
+def sync_people(lister=None, fetcher=None, folder=None, log=print):
+    """Make the people-pictures folder the same as the NAS's (/home/pi/judicom/people).  The pictures themselves are fetched only
+    when the NAS's list differs from what is here.  0 done (changed or not), 1 nothing changed (the reason is logged)."""
+    lister = lister or (lambda: fetch(what="people-list"))
+    fetcher = fetcher or (lambda: fetch(what="people", raw=True, timeout=300))
+    folder = str(config.PEOPLE_DIR if folder is None else folder)
+    try:
+        wanted = parse_people_list(lister())
+        here = {}
+        try:
+            for n in os.listdir(folder):
+                p = os.path.join(folder, n)
+                if not n.startswith(".") and os.path.isfile(p):
+                    here[n] = sha256_of(p)
+        except OSError:
+            pass
+        new = {n: d for n, d in wanted.items() if here.get(n) != d}
+        gone = sorted(set(here) - set(wanted))
+        if not new and not gone:
+            log("people pictures unchanged: %d" % len(wanted))
+            return 0
+        got = unpack_people(fetcher(), new) if new else {}
+    except RuntimeError as exc:
+        log("people pictures not updated: %s (keeping the ones here)" % exc)
+        return 1
+    os.makedirs(folder, exist_ok=True)
+    for name, body in got.items():                       # each written under a hidden name, then renamed: never half a picture
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=".people.")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(body)
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, os.path.join(folder, name))
+        except BaseException:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
+    for name in gone:
+        try:
+            os.unlink(os.path.join(folder, name))
+        except OSError:
+            pass
+    parts = (["new or changed: " + ", ".join(sorted(got))] if got else []) + (["removed: " + ", ".join(gone)] if gone else [])
+    log("people pictures updated (%s): %d" % ("; ".join(parts), len(wanted)))
+    return 0
+
+
 def sync(fetcher=fetch, path=None, log=print):
     """0: done (changed or not), 1: nothing changed because the list could not be fetched or is not usable."""
     try:
@@ -152,6 +256,7 @@ def main(argv=None):
     result = sync()
     sync_events()                                        # the caller list matters more: its result is the exit status
     sync_verses()
+    sync_people()
     sys.exit(result)
 
 
