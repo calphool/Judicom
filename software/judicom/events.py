@@ -16,7 +16,7 @@ drops off when its day is over.  A yearly event on February 29 is on February 28
 
 ON THE SCREEN the next few events, soonest first, each with its date and how far away it is:
     Christmas            December 25  (52 days to go)
-    Visit from Ann       Sunday, 10:30 AM  (5 days to go)          (within the coming week: the weekday)
+    Visit from Ann       Sunday, November 8, 10:30 AM  (5 days to go)    (within the coming week: the weekday too)
     Ann's birthday       Today!                      or   Tomorrow
 Days are counted by the calendar (an event tomorrow at 8 AM is "Tomorrow" even at 11 PM tonight).
 """
@@ -78,13 +78,14 @@ class Upcoming:
 
     @property
     def when(self) -> str:
-        """'Today', 'Tomorrow', 'Sunday' (within the coming week the weekday says it), 'December 25'; with the time if it has one."""
+        """'Today', 'Tomorrow', 'Sunday, November 8' (within the coming week the weekday too), 'December 25'; with the time if it
+        has one."""
         if self.days == 0:
             text = "Today"
         elif self.days == 1:
             text = "Tomorrow"
         elif self.days < 7:
-            text = self.date.strftime("%A")
+            text = "%s, %s %d" % (self.date.strftime("%A"), self.date.strftime("%B"), self.date.day)
         else:
             text = "%s %d" % (self.date.strftime("%B"), self.date.day)
         if self.event.time is not None:

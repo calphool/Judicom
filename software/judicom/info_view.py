@@ -7,7 +7,8 @@ THE INFO SCREEN   the day ("Tuesday"), the date, the time; a card with the weath
                   when there is none); a card "Coming up" with the next events, each with a little cartoon (event_icons.py: a cake
                   for a birthday, a tree for Christmas ...), its date and countdown:
                       [tree]  Christmas                       [house]  Visit from Ann
-                              December 25  (52 days to go)             Sunday, 10:30 AM  (5 days to go)
+                              December 25  (52 days to go)             Sunday, November 8, 10:30 AM
+                                                                       (5 days to go)
 THE NIGHT CLOCK   black, with only the time and the date in dim grey.
 """
 import math
@@ -21,7 +22,7 @@ from .config import SCREEN_H as H
 from .config import SCREEN_W as W
 
 
-ICON = 84                                    # the events' little pictures (pixels)
+ICON = 72                                    # the events' little pictures (pixels)
 
 
 def clock_text(now):
@@ -104,8 +105,8 @@ def draw_info(surf, now, report, upcoming):
     if not upcoming:
         draw.centered(surf, draw.text("Nothing on the calendar", "reg", 36, SOFT), ev.centery - 18)
         return
-    text_x = ev.x + 22 + ICON + 16                       # the words start right of the icons
-    items = [_event_lines(u, ev.right - 24 - text_x) for u in upcoming]
+    text_x = ev.x + 16 + ICON + 12                       # the words start right of the icons
+    items = [_event_lines(u, ev.right - 18 - text_x) for u in upcoming]
     room = ev.bottom - 10 - yy
     heights = [sum(int(size * 1.15) for _, _, size, _ in lines) for lines in items]
     while len(items) > 1 and sum(heights) + 16 * (len(items) - 1) > room:
@@ -116,9 +117,9 @@ def draw_info(surf, now, report, upcoming):
     for u, lines, height in zip(upcoming, items, heights):
         yl = int(y1)
         icon = event_icon(u.title, ICON, u.date.day)
-        surf.blit(icon, (ev.x + 22, yl + max(0, (min(height, 2 * ICON) - ICON) // 2)))    # level with the event's words
+        surf.blit(icon, (ev.x + 16, yl + max(0, (min(height, 2 * ICON) - ICON) // 2)))    # level with the event's words
         for text, kind, size, color in lines:
-            surf.blit(draw.text(text, kind, size, color, ev.right - 24 - text_x), (text_x, yl))
+            surf.blit(draw.text(text, kind, size, color, ev.right - 18 - text_x), (text_x, yl))
             yl += int(size * 1.15)
         y1 += height + gap
 
@@ -134,6 +135,24 @@ def _wrapped(text, kind, size, max_w, max_lines):
     return lines[:max_lines - 1] + [last + "\u2026"]
 
 
+def _at_commas(text, kind, size, max_w):
+    """Lines of text broken after its commas where it must be ("Sunday, November 8," / "10:30 AM"), so that a date is never
+    split from its day number; a part still too long is word-wrapped."""
+    font, lines = draw.get_font(kind, size), []
+    for part in text.split(", "):
+        joined = (lines[-1] + ", " + part) if lines else part
+        if lines and font.size(joined)[0] <= max_w:
+            lines[-1] = joined
+        else:
+            if lines:
+                lines[-1] += ","
+            lines.append(part)
+    out = []
+    for line in lines:
+        out += draw.wrap(line, kind, size, max_w) if font.size(line)[0] > max_w else [line]
+    return out
+
+
 def _event_lines(u, max_w):
     """The lines of one event: its title (up to 2 lines), then when it is and the countdown (up to 2 lines)."""
     lines = [(t, "bold", 42, INK) for t in _wrapped(u.title, "bold", 42, max_w, 2)]
@@ -145,7 +164,8 @@ def _event_lines(u, max_w):
         if draw.get_font("reg", 32).size(both)[0] <= max_w:
             lines.append((both, "reg", 32, SOFT))
         else:                                             # not on one line: the date, then the countdown whole beneath it
-            lines += [(_wrapped(u.when, "reg", 32, max_w, 1)[0], "reg", 32, SOFT), ("(%s)" % u.countdown, "reg", 32, SOFT)]
+            lines += [(t, "reg", 32, SOFT) for t in _at_commas(u.when, "reg", 32, max_w)]
+            lines.append(("(%s)" % u.countdown, "reg", 32, SOFT))
     return lines
 
 def draw_night(surf, now):

@@ -60,7 +60,7 @@ class Countdown(unittest.TestCase):
     def test_when(self):
         up = {u.title: u for u in upcoming(parse(FILE), NOW, 10)}
         self.assertEqual(up["Christmas"].when, "December 25")
-        self.assertEqual(up["Visit from Ann"].when, "Sunday, 10:30 AM")
+        self.assertEqual(up["Visit from Ann"].when, "Sunday, November 8, 10:30 AM")
         later = upcoming(parse("2026-11-20 10:30 | Dentist\n"), NOW)[0]
         self.assertEqual((later.when, later.countdown), ("November 20, 10:30 AM", "17 days to go"))
         self.assertEqual(up["Hair appointment"].when, "Tomorrow, 2:00 PM")
