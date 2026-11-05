@@ -15,6 +15,12 @@
     Make Up Your Own Holiday -> a light bulb, April Fool -> a jester's hat, Tell A Lie -> a long nose, Lawyer -> scales,
     Pajamas -> a pajama top, Astronaut -> a rocket, No Pants -> boxer shorts, Lost Sock -> an odd sock,
     Dance Like A Chicken -> a chicken, Star War -> a ringed planet, Under Your Pillow -> a pillow hiding a rubber duck
+    Hug A Cat -> a happy cat and a heart, Veggies -> a carrot and broccoli, Don't Panic -> a life ring, Pandemonium -> a
+    jack-in-the-box, Insurance Agent -> an umbrella, Musical Instrument -> a guitar, Go For A Walk -> a sneaker, Lazy -> a sloth,
+    Dad Joke -> nose-and-glasses, No Rhyme Or Reason -> jumbled blocks, Rock Collection -> rocks, Talk Like A Pirate -> a parrot,
+    Stupid Question -> a raised hand, Mad Hatter -> a green top hat, Unexplained Event -> a flying saucer, Wear Something Crazy ->
+    a propeller beanie, Howl At The Moon -> a wolf and a full moon, Deviled Eggs -> a deviled egg, Chaos -> a tangled ball of yarn,
+    Clean The Refrigerator -> a sparkling fridge, Absurdity -> a fish on a bicycle, Black Friday -> a shopping bag, Monkey -> a monkey
     anything else -> a calendar page with the day of the month on it
 
     icon = event_icon(title, size, day)      # a transparent size x size surface (made once per kind, size and day)
@@ -29,7 +35,30 @@ import pygame
 ICONS = [                                   # (words, any of which in the title picks it, icon); the first match wins
     (("birthday",), "cake"),
     (("sweater",), "sweater"),
-    (("flagpole",), "flagpole"),                          # the made-up family days
+    (("hug a cat",), "cathug"),                           # the made-up family days
+    (("veggie", "vegetable"), "veggies"),
+    (("panic",), "lifering"),
+    (("pandemonium",), "jackbox"),
+    (("insurance",), "umbrella"),
+    (("instrument", "music"), "guitar"),
+    (("walk",), "shoe"),
+    (("lazy",), "sloth"),
+    (("dad joke",), "disguise"),
+    (("rhyme",), "blocks"),
+    (("rock collect", "rock day"), "rocks"),
+    (("pirate",), "parrot"),
+    (("stupid question",), "hand"),
+    (("hatter",), "madhat"),
+    (("unexplained", "ufo"), "ufo"),
+    (("crazy",), "beanie"),
+    (("howl",), "wolf"),
+    (("deviled",), "deviledegg"),
+    (("chaos",), "yarn"),
+    (("refrigerator", "fridge"), "fridge"),
+    (("absurd",), "fishbike"),
+    (("black friday",), "bag"),
+    (("monkey",), "monkey"),
+    (("flagpole",), "flagpole"),
     (("morse",), "telegraph"),
     (("absolutely nothing", "nothing day"), "hammock"),
     (("your cat", "cat's", "cat day"), "cat"),
@@ -913,6 +942,383 @@ def _pillow(p, day):
     pygame.draw.ellipse(p.s, (255, 235, 140), pygame.Rect(*p.P(52, 74), p.R(14), p.R(6)))
 
 
+def _rot(pts, cx, cy, deg):
+    a = math.radians(deg)
+    c, s_ = math.cos(a), math.sin(a)
+    return [(cx + (x - cx) * c - (y - cy) * s_, cy + (x - cx) * s_ + (y - cy) * c) for x, y in pts]
+
+
+def _oval(cx, cy, rx, ry, n=36):
+    return [(cx + math.cos(2 * math.pi * i / n) * rx, cy + math.sin(2 * math.pi * i / n) * ry) for i in range(n)]
+
+
+def _cathug(p, day):
+    p.poly((240, 130, 160), _heart_pts(50, 50, 46))                              # a big heart behind
+    fur = (175, 175, 190)
+    for pts in (((24, 50), (26, 22), (44, 38)), ((56, 38), (74, 22), (76, 50))):
+        p.poly(fur, pts)
+    p.ellipse(fur, 20, 34, 60, 50)
+    for x in (37, 63):                                                           # happy closed eyes
+        pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(x - 7, 50), p.R(14), p.R(10)), 0.2, math.pi - 0.2, p.R(2.5))
+    for x in (30, 70):
+        pygame.draw.circle(p.s, (245, 160, 170), p.P(x, 64), p.R(4))
+    p.poly((250, 170, 180), [(46, 62), (54, 62), (50, 67)], o=1.5)
+    pygame.draw.lines(p.s, LINE, False, [p.P(43, 68), p.P(46.5, 72), p.P(50, 68), p.P(53.5, 72), p.P(57, 68)], p.R(2.2))   # a contented "w"
+
+
+def _veggies(p, day):
+    for a in (-40, -10, 20):                                                     # carrot leaves
+        p.poly((80, 170, 80), _leaf(22 + math.cos(math.radians(a - 120)) * 10, 22 + math.sin(math.radians(a - 120)) * 10,
+                                    a - 120, 24, 9), o=1.8)
+    p.poly((245, 140, 40), [(16, 34), (34, 18), (64, 90), (60, 92)])
+    for t in (0.3, 0.5, 0.7):
+        x, y = 25 + (62 - 25) * t, 26 + (91 - 26) * t
+        pygame.draw.line(p.s, (210, 110, 30), p.P(x - 5, y + 2), p.P(x + 3, y - 3), p.R(2))
+    p.rect((150, 200, 110), 66, 58, 12, 34, radius=3)                             # broccoli
+    for x, y in ((60, 48), (84, 48), (66, 36), (80, 34), (72, 52), (73, 42)):
+        p.circle((60, 145, 70), x, y, 10, o=2)
+    for x, y in ((66, 36), (80, 34), (73, 42)):
+        pygame.draw.circle(p.s, (90, 175, 90), p.P(x - 2, y - 3), p.R(3))
+
+
+def _lifering(p, day):
+    pygame.draw.circle(p.s, LINE, p.P(50, 50), p.R(42.5))
+    pygame.draw.circle(p.s, (252, 252, 252), p.P(50, 50), p.R(40))
+    for k in range(4):                                                           # red and white quarters
+        a0 = math.radians(k * 90 + 20)
+        pts = [(50 + math.cos(a0 + math.radians(d)) * 40, 50 + math.sin(a0 + math.radians(d)) * 40) for d in range(0, 51, 5)]
+        pygame.draw.polygon(p.s, (225, 50, 55), [p.P(50, 50)] + [p.P(*q) for q in pts])
+    pygame.draw.circle(p.s, LINE, p.P(50, 50), p.R(21))
+    pygame.draw.circle(p.s, (0, 0, 0, 0), p.P(50, 50), p.R(18.5))
+    for k in range(4):                                                           # the rope around it
+        a = math.radians(k * 90 + 65)
+        pygame.draw.circle(p.s, (230, 200, 140), p.P(50 + math.cos(a) * 41, 50 + math.sin(a) * 41), p.R(4))
+
+
+def _jackbox(p, day):
+    p.poly((90, 140, 230), [(20, 56), (80, 56), (92, 40), (32, 40)])              # the open lid
+    pts = [(50 + (8 if i % 2 else -8), 58 - i * 5) for i in range(7)]            # the spring
+    pygame.draw.lines(p.s, LINE, False, [p.P(*q) for q in pts], p.R(5))
+    pygame.draw.lines(p.s, (200, 200, 210), False, [p.P(*q) for q in pts], p.R(2.5))
+    for x in (38, 62):
+        p.circle((245, 140, 40), x, 18, 7, o=2)                                  # hair tufts
+    p.circle((255, 230, 190), 50, 20, 14)                                         # a jolly face
+    for x in (45, 55):
+        pygame.draw.circle(p.s, LINE, p.P(x, 17), p.R(2))
+    p.circle((230, 60, 60), 50, 22, 3.5, o=1.2)
+    pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(43, 20), p.R(14), p.R(9)), math.pi + 0.3, 2 * math.pi - 0.3, p.R(2))
+    p.rect((225, 60, 70), 20, 56, 60, 38, radius=2)                               # the box
+    p.rect((255, 214, 60), 20, 56, 60, 6, o=0)
+    p.poly((255, 214, 60), _star_pts(50, 77, 10, inner=0.45), o=1.5)
+    p.rect((200, 200, 210), 80, 70, 10, 4, o=1.5)                                 # the crank
+    p.circle((200, 200, 210), 90, 78, 4, o=1.5)
+
+
+def _umbrella(p, day):
+    for x, y in ((16, 10), (50, 4), (84, 10), (30, 20), (70, 20)):
+        p.poly((110, 180, 240), [(x, y - 4), (x + 3, y + 2), (x, y + 5), (x - 3, y + 2)], o=1.2)   # rain
+    top = [(50 + math.cos(math.radians(a)) * 44, 56 + math.sin(math.radians(a)) * 34) for a in range(180, 361, 6)]
+    scallops = []
+    for k in range(4, 0, -1):
+        cx = 6 + (k - 0.5) * 22
+        scallops += [(cx + math.cos(math.radians(a)) * 11, 56 - math.sin(math.radians(a)) * 6) for a in range(0, 181, 30)]
+    canopy = top + scallops
+
+    def panels(q):
+        for i in range(6):
+            pygame.draw.rect(q.s, (60, 110, 200) if i % 2 == 0 else (250, 250, 250), pygame.Rect(*q.P(6 + i * 14.7, 0), q.R(15), q.R(100)))
+    p.line(LINE, (50, 52), (50, 86), 7)
+    p.line((120, 80, 50), (50, 52), (50, 86), 3.5)
+    hook = [(50 - 8 + math.cos(math.radians(a)) * 8, 86 + math.sin(math.radians(a)) * 8) for a in range(0, 181, 15)]
+    pygame.draw.lines(p.s, LINE, False, [p.P(*q) for q in hook], p.R(7))
+    pygame.draw.lines(p.s, (120, 80, 50), False, [p.P(*q) for q in hook], p.R(3.5))
+    _clipped(p, canopy, panels)
+    p.circle((255, 214, 60), 50, 20, 3, o=1.5)
+
+
+def _guitar(p, day):
+    wood = (230, 150, 70)
+    p.line(LINE, (56, 40), (86, 10), 10)
+    p.line((120, 80, 50), (56, 40), (86, 10), 6)                                  # the neck
+    p.poly((120, 80, 50), _rot([(80, 2), (96, 2), (96, 14), (80, 14)], 88, 8, -45), o=2)
+    for cx, cy, r in ((40, 68), (55, 50)) and ((40, 68, 26), (56, 48, 18)):
+        pygame.draw.circle(p.s, LINE, p.P(cx, cy), p.R(r + 2.5))
+    for cx, cy, r in ((40, 68, 26), (56, 48, 18)):
+        pygame.draw.circle(p.s, wood, p.P(cx, cy), p.R(r))
+    pygame.draw.circle(p.s, LINE, p.P(47, 58), p.R(7))                           # sound hole
+    p.poly((120, 80, 50), _rot([(26, 74), (40, 74), (40, 80), (26, 80)], 33, 77, -45), o=1.5)   # bridge
+    for d in (-1.6, 0, 1.6):
+        pygame.draw.line(p.s, (240, 240, 230), p.P(33 + d, 77 + d), p.P(86 + d, 10 + d), p.R(0.8))
+    for x, y in ((16, 30), (24, 18)):                                             # a tune
+        p.circle(LINE, x, y + 8, 3.5, o=0)
+        pygame.draw.line(p.s, LINE, p.P(x + 3, y + 8), p.P(x + 3, y - 4), p.R(2))
+
+
+def _shoe(p, day):
+    for y in (52, 62, 72):
+        pygame.draw.line(p.s, (200, 220, 230), p.P(2, y), p.P(10, y), p.R(2.5))   # off for a walk
+    upper = [(14, 76), (16, 44), (30, 40), (40, 50), (58, 54), (80, 60), (92, 70), (92, 76)]
+    p.poly((80, 150, 230), upper)
+    p.rect((250, 250, 250), 12, 74, 82, 10, radius=4)                              # the sole
+    pygame.draw.line(p.s, (200, 200, 205), p.P(14, 79), p.P(92, 79), p.R(1.5))
+    for i in range(3):                                                            # laces
+        x = 36 + i * 7
+        pygame.draw.line(p.s, (255, 255, 255), p.P(x, 50 + i * 1.5), p.P(x + 6, 46 + i * 1.5), p.R(2.5))
+    pygame.draw.lines(p.s, (255, 214, 60), False, [p.P(24, 66), p.P(50, 62), p.P(80, 68)], p.R(3))
+    p.rect((230, 60, 60), 14, 40, 6, 10, radius=2, o=1.5)                         # heel tab
+
+
+def _sloth(p, day):
+    p.line(LINE, (2, 18), (98, 18), 9)
+    p.line((140, 95, 55), (2, 18), (98, 18), 5)                                   # the branch
+    for x in (12, 86):
+        p.poly((90, 170, 90), _leaf(x, 12, -30 if x < 50 else 30, 16, 7), o=1.5)
+    for a, b in (((30, 18), (36, 50)), ((70, 18), (64, 50))):
+        p.line(LINE, a, b, 13)
+        p.line((160, 125, 90), a, b, 8)                                           # long arms hanging on
+    p.ellipse((160, 125, 90), 26, 36, 48, 52)                                     # body
+    p.ellipse((235, 215, 180), 32, 40, 36, 28, o=2)                              # face
+    for x, d in ((40, -1), (60, 1)):
+        p.poly((110, 80, 55), _rot(_oval(x, 52, 7, 4), x, 52, 20 * d), o=0)       # sleepy eye patches
+        pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(x - 3, 50), p.R(6), p.R(5)), math.pi, 2 * math.pi, p.R(1.8))
+    p.ellipse((90, 65, 45), 47, 56, 6, 4, o=0)
+    pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(44, 56), p.R(12), p.R(8)), math.pi + 0.3, 2 * math.pi - 0.3, p.R(1.8))
+    for x in (26, 74):
+        p.ellipse((160, 125, 90), x - 6, 82, 12, 10)                              # dangling feet
+
+
+def _disguise(p, day):
+    for a, b in (((14, 26), (44, 22)), ((56, 22), (86, 26))):
+        p.line((70, 50, 40), a, b, 10)                                            # bushy eyebrows
+    pygame.draw.line(p.s, LINE, p.P(40, 42), p.P(60, 42), p.R(4))                 # bridge
+    for x in (28, 72):
+        pygame.draw.circle(p.s, LINE, p.P(x, 42), p.R(16))
+        pygame.draw.circle(p.s, (215, 235, 250), p.P(x, 42), p.R(11.5))
+        pygame.draw.circle(p.s, LINE, p.P(x + 2, 44), p.R(3.5))
+        pygame.draw.ellipse(p.s, (255, 255, 255), pygame.Rect(*p.P(x - 7, 34), p.R(5), p.R(7)))
+    p.ellipse((245, 160, 140), 40, 44, 20, 30)                                    # the big nose
+    pygame.draw.ellipse(p.s, (255, 200, 185), pygame.Rect(*p.P(44, 50), p.R(5), p.R(9)))
+    p.poly((60, 45, 40), [(18, 82), (30, 72), (50, 76), (70, 72), (82, 82), (66, 80), (50, 84), (34, 80)], o=2)   # moustache
+
+
+def _blocks(p, day):
+    for (cx, cy, ang, c, ch) in ((28, 74, -6, (220, 70, 70), "A"), (72, 74, 8, (80, 150, 230), "Z"), (50, 36, -14, (90, 180, 100), "?")):
+        sq = _rot([(cx - 20, cy - 20), (cx + 20, cy - 20), (cx + 20, cy + 20), (cx - 20, cy + 20)], cx, cy, ang)
+        p.poly(c, sq)
+        inner = _rot([(cx - 14, cy - 14), (cx + 14, cy - 14), (cx + 14, cy + 14), (cx - 14, cy + 14)], cx, cy, ang)
+        p.poly((250, 245, 230), inner, o=1.5)
+        _label(p, ch, cx, cy, 24, c)
+
+
+def _rocks(p, day):
+    p.ellipse((150, 150, 160), 6, 56, 52, 36)                                    # a pile of stones
+    p.ellipse((185, 140, 100), 46, 60, 46, 32)
+    p.ellipse((205, 200, 190), 24, 36, 36, 28)
+    for x, y in ((18, 70), (30, 80), (40, 66), (60, 72), (74, 82), (36, 46), (46, 52)):
+        pygame.draw.circle(p.s, (120, 115, 120) if x < 50 else (150, 105, 75), p.P(x, y), p.R(1.8))
+    gem = [(70, 26), (80, 30), (84, 44), (74, 56), (62, 46), (62, 32)]
+    p.poly((170, 110, 220), gem)                                                  # and one purple crystal
+    pygame.draw.lines(p.s, (215, 180, 250), False, [p.P(66, 34), p.P(74, 30), p.P(76, 46)], p.R(2))
+    p.poly((255, 240, 150), _star_pts(88, 20, 5, inner=0.35), o=1.2)
+
+
+def _parrot(p, day):
+    p.line(LINE, (14, 80), (90, 80), 9)
+    p.line((140, 95, 55), (14, 80), (90, 80), 5)                                  # perch
+    p.poly((60, 110, 220), [(44, 72), (36, 98), (46, 96), (52, 76)])              # tail feathers
+    p.poly((255, 210, 60), [(50, 72), (50, 98), (58, 94), (56, 74)])
+    p.ellipse((225, 50, 50), 30, 34, 40, 46)                                      # body
+    p.poly((60, 110, 220), [(36, 46), (30, 70), (46, 80), (56, 56)])              # wing
+    pygame.draw.lines(p.s, (255, 210, 60), False, [p.P(34, 62), p.P(44, 70)], p.R(3))
+    p.circle((225, 50, 50), 52, 30, 16)                                           # head
+    p.circle((255, 255, 255), 56, 26, 6, o=1.5)
+    pygame.draw.circle(p.s, LINE, p.P(57, 26), p.R(2.8))
+    p.poly((240, 230, 210), [(62, 30), (78, 30), (80, 40), (74, 46), (72, 38), (64, 40)], o=2)   # hooked beak
+    p.poly((40, 40, 48), [(30, 18), (52, 4), (74, 18), (64, 16), (52, 12), (40, 16)], o=2)       # a pirate's hat
+    p.poly((40, 40, 48), [(36, 18), (68, 18), (64, 10), (40, 10)], o=0)
+    pygame.draw.line(p.s, (255, 214, 60), p.P(32, 18), p.P(72, 18), p.R(2))
+    for x in (40, 64):
+        p.ellipse((70, 60, 50), x - 3, 76, 7, 8, o=1.2)                            # feet
+
+
+def _hand(p, day):
+    skin = (250, 205, 165)
+    fingers = ((30, 22, 64), (41, 12, 64), (52, 10, 64), (63, 16, 64))
+    shapes = [("r", (x, top, 10, bottom - top)) for x, top, bottom in fingers] + [("r", (28, 44, 46, 44))]
+    thumb = _rot([(16, 46), (26, 46), (26, 72), (16, 72)], 21, 72, -30)
+    pygame.draw.polygon(p.s, LINE, [p.P(*q) for q in thumb], p.R(5))
+    for kind, (x, y, w, h) in shapes:                                             # outlines first, then the skin over them
+        pygame.draw.rect(p.s, LINE, pygame.Rect(*p.P(x - 2.5, y - 2.5), p.R(w + 5), p.R(h + 5)), border_radius=p.R(7.5))
+    pygame.draw.polygon(p.s, skin, [p.P(*q) for q in thumb])
+    for kind, (x, y, w, h) in shapes:
+        pygame.draw.rect(p.s, skin, pygame.Rect(*p.P(x, y), p.R(w), p.R(h)), border_radius=p.R(5))
+    for x in (40.5, 51.5, 62.5):
+        pygame.draw.line(p.s, (220, 165, 130), p.P(x, 30), p.P(x, 50), p.R(1.5))
+    p.rect((90, 150, 230), 30, 86, 42, 10, radius=2)                              # a sleeve
+    for y, r in ((26, 8), (40, 12)):                                              # waving: "me! me!"
+        pygame.draw.arc(p.s, (255, 255, 255), pygame.Rect(*p.P(78 - r, y - r), p.R(2 * r), p.R(2 * r)), -0.8, 0.8, p.R(2.5))
+        pygame.draw.arc(p.s, (255, 255, 255), pygame.Rect(*p.P(22 - r - 8, y - r), p.R(2 * r), p.R(2 * r)), math.pi - 0.8, math.pi + 0.8, p.R(2.5))
+
+
+def _madhat(p, day):
+    green, band = (90, 165, 95), (240, 130, 50)
+    brim = _rot(_oval(50, 80, 42, 10), 50, 60, -12)
+    crown = _rot([(30, 18), (70, 18), (66, 80), (34, 80)], 50, 60, -12)            # wider at the top, tipped
+    p.poly(green, brim)
+    p.poly(green, crown)
+    p.poly(band, _rot([(33, 62), (67, 62), (66, 74), (34, 74)], 50, 60, -12), o=1.8)
+    p.poly((255, 255, 255), _rot([(58, 44), (76, 44), (76, 58), (58, 58)], 67, 51, 8), o=1.8)     # the card in the band
+    for y in (48, 53):
+        pygame.draw.line(p.s, (120, 120, 130), p.P(61, y), p.P(73, y + 1.5), p.R(2))
+    p.circle((240, 90, 140), 38, 62, 6, o=1.5)                                     # a flower in the band
+    pygame.draw.circle(p.s, (255, 214, 60), p.P(38, 62), p.R(2.2))
+
+
+def _ufo(p, day):
+    beam = pygame.Surface(p.s.get_size(), pygame.SRCALPHA)
+    pygame.draw.polygon(beam, (255, 235, 120, 170), [p.P(38, 62), p.P(62, 62), p.P(84, 98), p.P(16, 98)])
+    p.s.blit(beam, (0, 0))
+    p.ellipse((170, 225, 245), 30, 22, 40, 34)                                     # the dome ...
+    p.circle((140, 210, 120), 50, 38, 7, o=1.5)                                    # ... with someone in it
+    for x in (47, 53):
+        pygame.draw.circle(p.s, LINE, p.P(x, 37), p.R(1.6))
+    p.ellipse((195, 200, 215), 4, 44, 92, 22)                                      # the saucer
+    pygame.draw.line(p.s, (160, 165, 180), p.P(8, 55), p.P(92, 55), p.R(2))
+    for x in (18, 34, 50, 66, 82):
+        p.circle((255, 214, 60), x, 56, 3, o=1.2)
+    for x, y in ((10, 14), (88, 18), (90, 80)):
+        p.poly((255, 240, 150), _star_pts(x, y, 4.5, inner=0.4), o=1.2)
+
+
+def _beanie(p, day):
+    dome = [(50 + math.cos(math.radians(a)) * 38, 72 + math.sin(math.radians(a)) * 40) for a in range(180, 361, 8)]
+
+    def wedges(q):
+        for i, c in enumerate(((220, 60, 70), (255, 214, 60), (80, 150, 230), (90, 180, 100))):
+            pygame.draw.rect(q.s, c, pygame.Rect(*q.P(12 + i * 19, 0), q.R(19.5), q.R(100)))
+    p.ellipse((80, 150, 230), 6, 66, 52, 14)                                       # the visor
+    _clipped(p, dome, wedges)
+    pygame.draw.line(p.s, LINE, p.P(12, 72), p.P(88, 72), p.R(2.5))
+    p.line(LINE, (50, 32), (50, 18), 5)                                            # the propeller
+    p.line((200, 200, 210), (50, 32), (50, 18), 2.5)
+    p.ellipse((220, 60, 70), 22, 12, 28, 10, o=2)
+    p.ellipse((255, 214, 60), 50, 12, 28, 10, o=2)
+    p.circle((80, 150, 230), 50, 17, 4, o=1.5)
+    for pts in (((6, 20), (12, 14), (8, 8)), ((92, 22), (86, 14), (92, 8))):        # whirr
+        pygame.draw.lines(p.s, (255, 255, 255), False, [p.P(*q) for q in pts], p.R(2))
+
+
+def _wolf(p, day):
+    p.circle((250, 240, 190), 58, 40, 32)                                          # a full moon
+    for x, y, r in ((48, 30, 6), (70, 50, 5), (62, 26, 3.5), (52, 54, 3)):
+        pygame.draw.circle(p.s, (230, 218, 160), p.P(x, y), p.R(r))
+    wolf = [(4, 96), (6, 86), (14, 80), (18, 62), (22, 48), (24, 36), (22, 26), (26, 16), (30, 24), (36, 20), (46, 8),
+            (48, 12), (42, 26), (38, 36), (40, 52), (46, 70), (48, 86), (52, 96)]
+    p.poly((110, 118, 140), wolf)                                                  # a wolf, nose up, howling
+    pygame.draw.circle(p.s, LINE, p.P(31, 26), p.R(1.6))
+    for i, (x, y) in enumerate(((54, 6), (62, 4), (70, 6))):                       # the "ow-ooo"
+        pygame.draw.arc(p.s, (255, 255, 255), pygame.Rect(*p.P(x - 4, y - 2), p.R(8), p.R(8)), math.pi * 0.2, math.pi * 0.8, p.R(2))
+
+
+def _deviledegg(p, day):
+    for x, d in ((30, -1), (70, 1)):                                                # tiny devil horns
+        p.poly((225, 55, 60), [(x - 6, 36), (x + 6, 36), (x + 10 * d, 18)], o=2)
+    p.ellipse((252, 250, 240), 8, 32, 84, 54)                                       # the white
+    blob = []
+    for i in range(40):                                                            # the frilly yellow filling
+        a = 2 * math.pi * i / 40
+        r = 1 + 0.12 * math.sin(8 * a)
+        blob.append((50 + math.cos(a) * 24 * r, 58 + math.sin(a) * 15 * r))
+    p.poly((250, 205, 80), blob, o=2)
+    for x, y in ((42, 54), (54, 52), (48, 62), (60, 60), (38, 62)):
+        pygame.draw.circle(p.s, (210, 70, 40), p.P(x, y), p.R(1.8))                # paprika
+    p.poly((90, 170, 90), _leaf(64, 48, -30, 12, 6), o=1.2)                         # parsley
+
+
+def _yarn(p, day):
+    loose = [(70, 76)] + [(72 + i * 2.6, 80 + 8 * math.sin(i * 0.9)) for i in range(1, 10)]
+    pygame.draw.lines(p.s, LINE, False, [p.P(*q) for q in loose], p.R(5))
+    pygame.draw.lines(p.s, (230, 110, 140), False, [p.P(*q) for q in loose], p.R(2.5))
+    loops = [(8 + i * 3, 86 + 7 * math.sin(i * 1.3) + 3 * math.cos(i * 2.1)) for i in range(0, 13)]
+    pygame.draw.lines(p.s, LINE, False, [p.P(*q) for q in loops], p.R(5))
+    pygame.draw.lines(p.s, (230, 110, 140), False, [p.P(*q) for q in loops], p.R(2.5))
+    p.circle((230, 110, 140), 48, 48, 32)                                           # the ball
+    for (x, y, w, h, a0, a1) in ((22, 22, 50, 60, -0.4, 1.6), (26, 30, 56, 44, 3.0, 5.2), (30, 18, 40, 64, 4.2, 6.0),
+                                 (16, 36, 62, 30, 0.2, 2.8), (36, 26, 34, 50, 1.2, 3.6)):
+        pygame.draw.arc(p.s, (250, 170, 190), pygame.Rect(*p.P(x, y), p.R(w), p.R(h)), a0, a1, p.R(2.5))
+    for a, b in (((74, 14), (90, 40)), ((80, 10), (92, 30))):                       # knitting needles
+        p.line(LINE, a, b, 5)
+        p.line((200, 200, 210), a, b, 2.5)
+
+
+def _fridge(p, day):
+    p.rect((240, 244, 248), 24, 6, 52, 88, radius=6)
+    pygame.draw.line(p.s, LINE, p.P(24, 34), p.P(76, 34), p.R(2.5))                  # freezer door
+    for y0, y1 in ((14, 28), (42, 62)):
+        p.rect((180, 185, 195), 66, y0, 5, y1 - y0, radius=2, o=1.5)                   # handles
+    p.circle((230, 60, 70), 36, 48, 4, o=1.5)                                          # magnets
+    p.poly((90, 150, 230), _heart_pts(44, 62, 5), o=1.2)
+    p.rect((255, 214, 60), 32, 70, 14, 10, radius=1, o=1.5)                              # a note
+    for x, y, r in ((12, 18, 7), (88, 44, 6), (14, 70, 5), (86, 86, 7)):              # sparkling clean
+        p.poly((255, 255, 255), _star_pts(x, y, r, inner=0.3), o=1.2)
+
+
+def _fishbike(p, day):
+    for cx in (22, 78):                                                               # the wheels
+        pygame.draw.circle(p.s, LINE, p.P(cx, 74), p.R(19))
+        pygame.draw.circle(p.s, (200, 200, 210), p.P(cx, 74), p.R(16))
+        pygame.draw.circle(p.s, LINE, p.P(cx, 74), p.R(13.5))
+        pygame.draw.circle(p.s, (0, 0, 0, 0), p.P(cx, 74), p.R(11.5))
+        for a in range(0, 180, 45):
+            r = math.radians(a)
+            pygame.draw.line(p.s, (170, 170, 180), p.P(cx - math.cos(r) * 12, 74 - math.sin(r) * 12),
+                             p.P(cx + math.cos(r) * 12, 74 + math.sin(r) * 12), p.R(1))
+        pygame.draw.circle(p.s, LINE, p.P(cx, 74), p.R(2.5))
+    for a, b in (((22, 74), (44, 74)), ((44, 74), (38, 48)), ((38, 48), (66, 48)), ((66, 48), (44, 74)), ((22, 74), (38, 48)),
+                 ((66, 48), (78, 74)), ((66, 48), (64, 38))):
+        p.line(LINE, a, b, 6)
+    for a, b in (((22, 74), (44, 74)), ((44, 74), (38, 48)), ((38, 48), (66, 48)), ((66, 48), (44, 74)), ((22, 74), (38, 48)),
+                 ((66, 48), (78, 74)), ((66, 48), (64, 38))):
+        p.line((230, 80, 70), a, b, 3)                                                  # the frame
+    p.line(LINE, (58, 36), (72, 36), 5)
+    p.line((200, 200, 210), (58, 36), (72, 36), 2.5)
+    p.poly((245, 150, 60), [(26, 30), (14, 20), (14, 42)])                              # a fish, riding it
+    p.ellipse((245, 150, 60), 22, 18, 40, 26)
+    pygame.draw.circle(p.s, (255, 255, 255), p.P(52, 27), p.R(4))
+    pygame.draw.circle(p.s, LINE, p.P(53, 27), p.R(2))
+    pygame.draw.arc(p.s, (220, 110, 40), pygame.Rect(*p.P(32, 22), p.R(12), p.R(16)), -1.2, 1.2, p.R(2))
+    p.poly((245, 150, 60), [(36, 42), (46, 42), (40, 50)], o=1.5)                        # a fin on the pedal
+
+
+def _bag(p, day):
+    for (x0, c, h) in ((44, (80, 150, 230), (60, 130, 210)), (12, (225, 55, 60), (200, 40, 50))):
+        pts = [(x0 + 12 + math.cos(math.radians(a)) * 10, 36 + math.sin(math.radians(a)) * 14) for a in range(180, 361, 15)]
+        pygame.draw.lines(p.s, LINE, False, [p.P(*q) for q in pts], p.R(6))           # handles
+        pygame.draw.lines(p.s, h, False, [p.P(*q) for q in pts], p.R(3))
+        p.poly(c, [(x0, 36), (x0 + 44, 36), (x0 + 48, 94), (x0 - 4, 94)])
+    p.poly((255, 214, 60), [(24, 52), (48, 52), (52, 60), (48, 68), (24, 68)], o=2)      # the tag
+    pygame.draw.circle(p.s, LINE, p.P(28, 60), p.R(1.8))
+    _label(p, "%", 40, 60, 16, (220, 50, 55))
+
+
+def _monkey(p, day):
+    brown, tan = (150, 100, 60), (235, 200, 150)
+    for x in (16, 84):
+        p.circle(brown, x, 50, 12)                                                   # ears
+        pygame.draw.circle(p.s, tan, p.P(x, 50), p.R(7))
+    p.circle(brown, 50, 48, 32)
+    p.poly(brown, [(42, 18), (48, 8), (52, 18), (58, 10), (60, 22)], o=2)            # a tuft
+    for x in (40, 60):
+        pygame.draw.circle(p.s, tan, p.P(x, 44), p.R(13))
+    pygame.draw.ellipse(p.s, tan, pygame.Rect(*p.P(28, 50), p.R(44), p.R(28)))
+    for x in (40, 60):
+        pygame.draw.circle(p.s, LINE, p.P(x, 44), p.R(4))
+        pygame.draw.circle(p.s, (255, 255, 255), p.P(x + 1.5, 42.5), p.R(1.3))
+    for x in (46, 54):
+        pygame.draw.circle(p.s, (120, 80, 50), p.P(x, 58), p.R(1.8))
+    pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(36, 56), p.R(28), p.R(16)), math.pi + 0.35, 2 * math.pi - 0.35, p.R(2.5))
+
+
 DRAW = {"cake": _cake, "tree": _tree, "egg": _egg, "fireworks": _fireworks, "flag": _flag, "turkey": _turkey, "pumpkin": _pumpkin,
         "heart": _heart, "shamrock": _shamrock, "flower": _flower, "tie": _tie, "house": _house, "star": _star, "calendar": _calendar,
         "clock": _clock, "partyhat": _partyhat, "dove": _dove, "tophat": _tophat, "poppy": _poppy, "tools": _tools,
@@ -920,4 +1326,8 @@ DRAW = {"cake": _cake, "tree": _tree, "egg": _egg, "fireworks": _fireworks, "fla
         "flagpole": _flagpole, "telegraph": _telegraph, "hammock": _hammock, "cat": _cat, "arrow": _arrow, "barrel": _barrel,
         "grouch": _grouch, "bone": _bone, "moon": _moon, "wreath": _wreath, "plane": _plane, "bulb": _bulb, "jester": _jester,
         "nose": _nose, "scales": _scales, "pajamas": _pajamas, "rocket": _rocket, "boxers": _boxers, "sock": _sock,
-        "chicken": _chicken, "planet": _planet, "pillow": _pillow}
+        "chicken": _chicken, "planet": _planet, "pillow": _pillow,
+        "cathug": _cathug, "veggies": _veggies, "lifering": _lifering, "jackbox": _jackbox, "umbrella": _umbrella, "guitar": _guitar,
+        "shoe": _shoe, "sloth": _sloth, "disguise": _disguise, "blocks": _blocks, "rocks": _rocks, "parrot": _parrot, "hand": _hand,
+        "madhat": _madhat, "ufo": _ufo, "beanie": _beanie, "wolf": _wolf, "deviledegg": _deviledegg, "yarn": _yarn,
+        "fridge": _fridge, "fishbike": _fishbike, "bag": _bag, "monkey": _monkey}
