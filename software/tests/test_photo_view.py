@@ -78,9 +78,9 @@ class Compose(unittest.TestCase):
         year = datetime.date.today().year
         one = photo_view.compose_caption(Caption(taken="%d" % (year - 7)))[0]
         this = photo_view.compose_caption(Caption(taken="%d" % year))[0]
-        self.assertEqual(one.get_height(), this.get_height())                                  # "Taken 2019 (7 years ago)": one line
+        self.assertEqual(one.get_height(), this.get_height())                                  # "2019 (7 years ago)": one line
         self.assertGreater(self.ink_width(one), self.ink_width(this) + 80)                     # ... with the years-ago words on it
-        long = photo_view.compose_caption(Caption(taken="%d-06-14" % (year - 7)))[0]
+        long = photo_view.compose_caption(Caption(taken="Christmas morning at the farm, %d" % (year - 7)))[0]
         self.assertGreater(long.get_height(), one.get_height())                                # too long: "(7 years ago)" beneath
 
     @staticmethod

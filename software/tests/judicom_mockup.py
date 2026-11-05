@@ -303,7 +303,7 @@ def compose_photo(img, meta):
     if meta.get("relationship"):
         lines += [("reg", 38, INK, s) for s in wrap(meta["relationship"], "reg", 38, W - 70)]
     if meta.get("taken"):
-        lines += [("reg", 34, SOFT, "Taken " + nice_date(meta["taken"]))]
+        lines += [("reg", 34, SOFT, nice_date(meta["taken"]))]
     if lines:
         height = sum(int(size * 1.18) for _, size, _, _ in lines) + 36
         band = pygame.Surface((W, height), pygame.SRCALPHA)
