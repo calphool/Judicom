@@ -64,7 +64,14 @@ def compose_caption(caption):
     if caption.relationship:
         lines += [("reg", 38, INK, s) for s in draw.wrap(caption.relationship_text, "reg", 38, W - 70)]
     if caption.taken:
-        lines += [("reg", 34, SOFT, "Taken " + caption.taken_text)]
+        taken, ago = "Taken " + caption.taken_text, caption.years_ago()
+        both = "%s (%s)" % (taken, ago) if ago else taken
+        if draw.get_font("reg", 34).size(both)[0] <= W - 70:
+            lines += [("reg", 34, SOFT, both)]
+        else:                                                    # too long for one line: "(7 years ago)" on its own beneath
+            lines += [("reg", 34, SOFT, s) for s in draw.wrap(taken, "reg", 34, W - 70)]
+            if ago:
+                lines += [("reg", 34, SOFT, "(%s)" % ago)]
     if not lines:
         return None
     height = sum(int(size * 1.18) for _, size, _, _ in lines) + 36

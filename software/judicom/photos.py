@@ -236,6 +236,15 @@ class Caption:
         """`taken` as it should read on the screen."""
         return nice_date(self.taken) if self.taken else ""
 
+    def years_ago(self, today: datetime.date | None = None) -> str:
+        """'1 year ago', '7 years ago' from the year in `taken` (by calendar year: December 2025 is '1 year ago' in 2026);
+        '' for this year, a year still to come, or no year in it."""
+        found = re.findall(r"(?<!\d)(1[89]\d\d|20\d\d)(?!\d)", self.taken_text)
+        if not found:
+            return ""
+        n = (today or datetime.date.today()).year - int(found[-1])
+        return "" if n <= 0 else "1 year ago" if n == 1 else "%d years ago" % n
+
     def __bool__(self) -> bool:
         return bool(self.people or self.relationship or self.taken)
 

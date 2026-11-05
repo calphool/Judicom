@@ -72,6 +72,22 @@ class Compose(unittest.TestCase):
             self.assertLess(corner[0], 200)                                                     # the backdrop is darkened
             self.assertGreater(corner[0], 60)                                                   # ... but still the picture's colour
 
+    def test_taken_says_how_long_ago(self):
+        from judicom.photos import Caption
+        import datetime
+        year = datetime.date.today().year
+        one = photo_view.compose_caption(Caption(taken="%d" % (year - 7)))[0]
+        this = photo_view.compose_caption(Caption(taken="%d" % year))[0]
+        self.assertEqual(one.get_height(), this.get_height())                                  # "Taken 2019 (7 years ago)": one line
+        self.assertGreater(self.ink_width(one), self.ink_width(this) + 80)                     # ... with the years-ago words on it
+        long = photo_view.compose_caption(Caption(taken="%d-06-14" % (year - 7)))[0]
+        self.assertGreater(long.get_height(), one.get_height())                                # too long: "(7 years ago)" beneath
+
+    @staticmethod
+    def ink_width(band):
+        xs = [x for x in range(W) if any(band.get_at((x, y))[0] > 120 for y in range(0, band.get_height(), 2))]
+        return xs[-1] - xs[0] if xs else 0
+
     def test_photo_moves_up_out_of_the_captions_way(self):
         img = pygame.Surface((1600, 1200))
         img.fill((200, 20, 20))
