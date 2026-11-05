@@ -64,7 +64,7 @@ def compose_caption(caption):
     if caption.relationship:
         lines += [("reg", 38, INK, s) for s in draw.wrap(caption.relationship_text, "reg", 38, W - 70)]
     if caption.taken:
-        taken, ago = "Taken " + caption.taken_text, caption.years_ago()
+        taken, ago = caption.taken_text, caption.years_ago()   # just the date: "Taken" could sound like someone was taken away
         both = "%s (%s)" % (taken, ago) if ago else taken
         if draw.get_font("reg", 34).size(both)[0] <= W - 70:
             lines += [("reg", 34, SOFT, both)]
