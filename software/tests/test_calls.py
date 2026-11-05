@@ -280,6 +280,29 @@ class Connection(Base):
         self.assertIn("408", self.logged[-1])
         self.assertFalse(self.calls.registered)
 
+    def test_ready_only_when_connected_and_not_refused_by_the_pbx(self):
+        self.up = False
+        self.poll()
+        self.assertFalse(self.calls.ready)                          # baresip not running
+        self.up = True
+        self.clock.t += RECONNECT_SECONDS + 1
+        self.poll()
+        self.assertTrue(self.calls.ready)                           # connected; registration not known yet: try
+        self.event("REGISTER_FAIL", param="408 Request Timeout")
+        self.poll()
+        self.assertFalse(self.calls.ready)                          # no network / NAS down
+        self.event("REGISTER_OK", param="200 OK")
+        self.poll()
+        self.assertTrue(self.calls.ready)
+
+    def test_a_restarted_baresip_starts_unknown(self):
+        self.poll()
+        self.event("REGISTER_FAIL", param="408 Request Timeout")
+        self.poll()
+        self.baresip.close()
+        self.poll()
+        self.assertIsNone(self.calls.registered)
+
     def test_not_json_is_skipped(self):
         self.poll()
         self.baresip.sendall(netstring(b"hello"))

@@ -16,6 +16,10 @@ THE MODES (what the screen shows)
                Only then is the number given to the phone software.  A button with no tones goes straight to CALLING.
   CALLING      "Calling Amy (daughter)..."          -> ONGOING when answered; NO_ANSWER after RING_OUT_SECONDS or if the call fails
   NO_ANSWER    "No answer."  for NO_ANSWER_SECONDS  -> LIFTED if the handset is still up, else IDLE
+  OUT_OF_ORDER "Sorry, the phone is not working right now ... it is being worked on."  for OUT_OF_ORDER_SECONDS, then like
+               NO_ANSWER.  Shown instead of dialing when a button is pressed while phone_ok() says the phone cannot make calls
+               (baresip not running, or not registered with the PBX: no network, NAS down), and instead of "No answer." when a
+               call fails or rings out and phone_ok() has meanwhile turned False.
   INCOMING     the ringer and "Incoming call from ..." -> ONGOING when the handset is lifted; IDLE if the caller gives up
   ONGOING      "Speaking with ..."                  -> ENDED when either side hangs up
   ENDED        "Call just ended with ..." for CALL_ENDED_SECONDS -> IDLE, or PLEASE_HANG_UP if the handset is still up
@@ -38,6 +42,7 @@ class Mode(enum.Enum):
     DIALING = "dialing"
     CALLING = "calling"
     NO_ANSWER = "no answer"
+    OUT_OF_ORDER = "out of order"
     INCOMING = "incoming"
     ONGOING = "ongoing"
     ENDED = "ended"
@@ -70,11 +75,14 @@ def buttons_from_config(buttons=None):
 class Machine:
     def __init__(self, buttons=None, lifted_seconds=config.LIFTED_SECONDS, ring_out_seconds=config.RING_OUT_SECONDS,
                  no_answer_seconds=config.NO_ANSWER_SECONDS, call_ended_seconds=config.CALL_ENDED_SECONDS,
-                 dialing_seconds=dialing_seconds, clock=time.monotonic, log=None):
+                 dialing_seconds=dialing_seconds, clock=time.monotonic, log=None,
+                 out_of_order_seconds=config.OUT_OF_ORDER_SECONDS, phone_ok=None):
         self.dialing_seconds = dialing_seconds          # tones -> how long dialing them takes
+        self.phone_ok = phone_ok or (lambda: True)      # False: the phone cannot make calls now (from the call software)
         self.buttons = buttons if buttons is not None else buttons_from_config()
         self.timeouts = {Mode.LIFTED: lifted_seconds, Mode.CALLING: ring_out_seconds,
-                         Mode.NO_ANSWER: no_answer_seconds, Mode.ENDED: call_ended_seconds}
+                         Mode.NO_ANSWER: no_answer_seconds, Mode.ENDED: call_ended_seconds,
+                         Mode.OUT_OF_ORDER: out_of_order_seconds}
         self.clock, self.log = clock, log or (lambda msg: None)
         self.off_hook = False
         self.party = None
@@ -122,9 +130,9 @@ class Machine:
             self._go(Mode.PLEASE_HANG_UP)
         elif self.mode == Mode.CALLING:
             self.log("      nobody picked up in %g s" % limit)
-            self._go(Mode.NO_ANSWER)
+            self._go(self._failed_mode())
             return [("hangup",)]
-        elif self.mode == Mode.NO_ANSWER:
+        elif self.mode in (Mode.NO_ANSWER, Mode.OUT_OF_ORDER):
             self._go(Mode.LIFTED if self.off_hook else Mode.IDLE)
         elif self.mode == Mode.ENDED:
             self._go(Mode.PLEASE_HANG_UP if self.off_hook else Mode.IDLE)
@@ -137,7 +145,7 @@ class Machine:
             return [("answer",)]
         if self.mode in (Mode.IDLE, Mode.ENDED):
             self._go(Mode.LIFTED)
-        # NO_ANSWER: its screen stays up and then turns into LIFTED by itself
+        # NO_ANSWER, OUT_OF_ORDER: the screen stays up and then turns into LIFTED by itself
 
     def _on_hung_up(self, _):
         self.off_hook = False
@@ -152,7 +160,7 @@ class Machine:
             return [("hangup",)]
         if self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP):
             self._go(Mode.IDLE)
-        # NO_ANSWER, ENDED: their screen stays up for its time, then IDLE
+        # NO_ANSWER, OUT_OF_ORDER, ENDED: their screen stays up for its time, then IDLE
 
     def _on_button(self, key):
         party = self.buttons.get(key)
@@ -161,6 +169,10 @@ class Machine:
             return None
         if self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP) and self.off_hook:
             self.party = party
+            if not self.phone_ok():
+                self.log("      the phone cannot make calls now (no connection to the PBX)")
+                self._go(Mode.OUT_OF_ORDER)
+                return None
             if self.dialing_seconds(party.tones) > 0:
                 self._go(Mode.DIALING)                  # the dial action comes from tick() once the tones are done
                 return None
@@ -170,7 +182,7 @@ class Machine:
         return None
 
     def _on_incoming(self, party):
-        if self.off_hook or self.mode not in (Mode.IDLE, Mode.NO_ANSWER, Mode.ENDED):
+        if self.off_hook or self.mode not in (Mode.IDLE, Mode.NO_ANSWER, Mode.OUT_OF_ORDER, Mode.ENDED):
             self.log("      incoming call from %s rejected: busy" % (party.label if party else "someone"))
             return [("reject",)]
         self.party = party or Party()
@@ -182,9 +194,13 @@ class Machine:
         else:
             self.log("      (answered ignored: %s)" % self.mode.value)
 
+    def _failed_mode(self):
+        """A call that did not get through: "No answer.", or the out-of-order screen if the phone has lost the PBX meanwhile."""
+        return Mode.NO_ANSWER if self.phone_ok() else Mode.OUT_OF_ORDER
+
     def _on_call_failed(self, _):
         if self.mode == Mode.CALLING:
-            self._go(Mode.NO_ANSWER)
+            self._go(self._failed_mode())
         else:
             self.log("      (call_failed ignored: %s)" % self.mode.value)
 

@@ -13,6 +13,8 @@
   NO_ANSWER       "No answer." and who it was
   ENDED           "Call just ended with Amy (daughter)"
   PLEASE_HANG_UP  yellow all over: "Please put the handset back on the phone."
+  OUT_OF_ORDER    the handset, greyed, and "Sorry, the phone is not working right now. Something is wrong with it, and it is being
+                  worked on." (a button pressed while the phone cannot reach the PBX)
 
 With a picture of the person (faces.Faces: "Amy.png" in config.PEOPLE_DIR), DIALING, CALLING, ONGOING and INCOMING show their face
 in place of the handset: in a frame, with the same rings spreading out while it rings, a green border while talking, and gently
@@ -109,6 +111,8 @@ class CallView:
             self.draw_lifted(surf, t)
         elif mode == Mode.PLEASE_HANG_UP:
             self.draw_please_hang_up(surf)
+        elif mode == Mode.OUT_OF_ORDER:
+            self.draw_out_of_order(surf)
         elif mode in ACCENT:
             self.draw_call(surf, mode, party, t)
         else:
@@ -153,6 +157,22 @@ class CallView:
         if self.faces is None or mode not in WITH_FACE or not (party and party.name):
             return None
         return self.faces.get(party.name, size)
+
+    def draw_out_of_order(self, surf):
+        """Calm, not alarming: the same teal, the handset faded, and plain words."""
+        surf.fill(BG)
+        tmp = pygame.Surface((W, 700), pygame.SRCALPHA)
+        y = draw.block(tmp, "Sorry, the phone is not working right now.", "bold", 64, INK, 0)
+        y = draw.block(tmp, "Something is wrong with it, and it is being worked on.", "reg", 46, SOFT, y + 30)
+        words = tmp.subsurface((0, 0, W, max(1, min(y, tmp.get_height())))).copy()
+        group = 290 + 56 + words.get_height()
+        y0 = max(24, (H - group) // 2 - 30)
+        panel = pygame.Rect(40, y0, W - 80, 290)
+        pygame.draw.rect(surf, mix(PANEL, BG, 0.55), panel, border_radius=34)
+        body = handset_body().copy()
+        body.fill((255, 255, 255, 110), special_flags=pygame.BLEND_RGBA_MULT)      # faded: this phone is resting
+        surf.blit(body, body.get_rect(center=panel.center))
+        surf.blit(words, (0, panel.bottom + 56))
 
     def draw_call(self, surf, mode, party, t):
         surf.fill(BG)

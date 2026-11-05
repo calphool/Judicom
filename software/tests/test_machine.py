@@ -295,5 +295,64 @@ class Version(Base):
         self.assertEqual(self.m.version, v)
 
 
+class OutOfOrder(Base):
+    def setUp(self):
+        super().setUp()
+        self.ok = True
+        self.m = Machine(buttons={"left": CLARK, "right": Party("Amy", "daughter", "amy", "5")}, lifted_seconds=60,
+                         ring_out_seconds=30, no_answer_seconds=10, call_ended_seconds=10, out_of_order_seconds=15,
+                         clock=self.clock, phone_ok=lambda: self.ok)
+
+    def test_a_button_while_offline_says_so_and_dials_nothing(self):
+        self.ok = False
+        self.assertEqual(self.go("lifted", ("button", "right")), [])
+        self.assertMode(Mode.OUT_OF_ORDER)
+        self.assertEqual(self.m.dialing_tones, "")                    # no touch-tones either
+        self.assertFalse(self.m.dial_tone)
+        self.assertEqual(self.m.party.name, "Amy")
+        self.assertEqual(self.wait(14.9), [])
+        self.assertMode(Mode.OUT_OF_ORDER)
+        self.wait(0.2)
+        self.assertMode(Mode.LIFTED)                                  # handset still up: she may try again
+
+    def test_hung_up_during_it_goes_back_to_the_photos(self):
+        self.ok = False
+        self.go("lifted", ("button", "left"), "hung_up")
+        self.assertMode(Mode.OUT_OF_ORDER)
+        self.wait(15.1)
+        self.assertMode(Mode.IDLE)
+
+    def test_a_call_that_fails_after_the_connection_went(self):
+        self.go("lifted", ("button", "left"))
+        self.assertMode(Mode.CALLING)
+        self.ok = False
+        self.go("call_failed")
+        self.assertMode(Mode.OUT_OF_ORDER)
+
+    def test_ringing_out_after_the_connection_went(self):
+        self.go("lifted", ("button", "left"))
+        self.ok = False
+        self.assertEqual(self.wait(30.1), [("hangup",)])
+        self.assertMode(Mode.OUT_OF_ORDER)
+
+    def test_online_failures_are_still_no_answer(self):
+        self.go("lifted", ("button", "left"), "call_failed")
+        self.assertMode(Mode.NO_ANSWER)
+
+    def test_back_online_calls_again(self):
+        self.ok = False
+        self.go("lifted", ("button", "left"))
+        self.wait(15.1)
+        self.ok = True
+        self.assertEqual(self.go(("button", "left")), [("dial", CLARK)])
+
+    def test_an_incoming_call_during_it_rings(self):
+        self.ok = False
+        self.go("lifted", ("button", "left"), "hung_up")
+        self.ok = True
+        self.go(("incoming", AMY))
+        self.assertMode(Mode.INCOMING)
+
+
 if __name__ == "__main__":
     unittest.main()
