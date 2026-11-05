@@ -1,0 +1,19 @@
+[Unit]
+Description=Judicom housekeeping website (callers, events, pictures) on port 8080
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/Judicom
+ExecStart=/usr/bin/python3 /home/pi/Judicom/deploy/nas/admin/judicom_admin.py --port 8080
+Restart=on-failure
+RestartSec=5
+# The NAS also serves Jellyfin: this site stays small and out of its way.
+Nice=10
+MemoryMax=400M
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+[Install]
+WantedBy=multi-user.target
