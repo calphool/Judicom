@@ -17,16 +17,26 @@ if pygame:
 @unittest.skipUnless(pygame, "pygame is not installed")
 class Choosing(unittest.TestCase):
     def test_names(self):
-        for title, kind in (("Amy's birthday", "cake"), ("JOE'S BIRTHDAY", "cake"), ("Christmas", "tree"), ("Christmas Eve", "tree"),
+        for title, kind in (("Amy's birthday", "cake"), ("JOE'S BIRTHDAY", "cake"), ("Christmas", "tree"), ("Christmas Eve", "stocking"),
                             ("Easter", "egg"), ("Independence Day", "fireworks"), ("4th of July picnic", "fireworks"),
-                            ("New Year's Day", "fireworks"), ("Flag Day", "flag"), ("Memorial Day", "flag"),
-                            ("Veterans Day", "flag"), ("Presidents' Day", "flag"), ("Thanksgiving", "turkey"),
-                            ("Halloween", "pumpkin"), ("Valentine’s Day", "heart"), ("Grandparents' Day", "heart"),
-                            ("Clark and Judi's anniversary", "heart"), ("St. Patrick's Day", "shamrock"), ("Mother's Day", "flower"),
-                            ("Father's Day", "tie"), ("Visit from Amy", "house"), ("Martin Luther King Jr. Day", "star"),
-                            ("Juneteenth", "star"), ("Labor Day", "star"), ("Dentist", "calendar"), ("", "calendar")):
+                            ("New Year's Day", "partyhat"), ("New Year’s Eve", "clock"), ("Flag Day", "flag"), ("Memorial Day", "poppy"),
+                            ("Veterans Day", "medal"), ("Presidents' Day", "tophat"), ("Thanksgiving", "turkey"),
+                            ("Halloween", "pumpkin"), ("Valentine’s Day", "heart"), ("Grandparents' Day", "rocker"),
+                            ("Clark and Judi's anniversary", "rings"), ("St. Patrick's Day", "shamrock"), ("Mother's Day", "flower"),
+                            ("Father's Day", "tie"), ("Visit from Amy", "house"), ("Martin Luther King Jr. Day", "dove"),
+                            ("Juneteenth", "star"), ("Labor Day", "tools"), ("Columbus Day", "ship"), ("All Saints Day", "candle"),
+                            ("Dentist", "calendar"), ("", "calendar")):
             with self.subTest(title=title):
                 self.assertEqual(event_icons.icon_for(title), kind)
+
+    def test_every_holiday_on_the_list_has_its_own_picture(self):
+        holidays = ("New Year's Day", "Martin Luther King Jr. Day", "Presidents' Day", "Memorial Day", "Juneteenth", "Independence Day",
+                    "Labor Day", "Columbus Day", "Veterans Day", "Thanksgiving", "Christmas", "Valentine's Day", "St. Patrick's Day",
+                    "Easter", "Mother's Day", "Flag Day", "Father's Day", "Grandparents' Day", "Halloween", "All Saints Day",
+                    "Christmas Eve", "New Year's Eve")
+        kinds = [event_icons.icon_for(h) for h in holidays]
+        self.assertEqual(len(set(kinds)), len(holidays))
+        self.assertNotIn("calendar", kinds)
 
     def test_a_birthday_on_christmas_is_still_a_cake(self):
         self.assertEqual(event_icons.icon_for("Christmas birthday party"), "cake")

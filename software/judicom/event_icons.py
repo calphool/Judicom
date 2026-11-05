@@ -1,10 +1,14 @@
-"""Little cartoon pictures for the events on the info screen, chosen from the event's name:
+"""Little cartoon pictures for the events on the info screen, chosen from the event's name.  Each holiday has its own:
 
-    Amy's birthday -> a cake         Christmas, Christmas Eve -> a tree      Easter -> a painted egg
-    Independence Day, 4th of July, New Year's -> fireworks                    Flag Day, Memorial / Veterans / Presidents' Day -> a flag
-    Thanksgiving -> a turkey         Halloween -> a pumpkin                   Valentine's Day, anniversary, wedding, Grandparents' Day -> a heart
-    St. Patrick's Day -> a shamrock  Mother's Day -> a flower                 Father's Day -> a tie
-    Visit from ... -> a house        Martin Luther King Jr. Day, Juneteenth, Labor Day, Columbus Day -> a star
+    New Year's Eve -> a clock at midnight      New Year's Day -> a party hat and horn   Martin Luther King Jr. Day -> a dove
+    Valentine's Day -> a heart                 Presidents' Day -> a stovepipe hat       St. Patrick's Day -> a shamrock
+    Easter -> a painted egg                    Mother's Day -> a flower                 Memorial Day -> a red poppy
+    Flag Day -> a flag                         Juneteenth -> a star                     Father's Day -> a tie
+    Independence Day, 4th of July -> fireworks Labor Day -> a hammer and wrench         Grandparents' Day -> a rocking chair
+    Columbus Day -> a sailing ship             Halloween -> a pumpkin                   All Saints Day -> a lit candle
+    Veterans Day -> a medal                    Thanksgiving -> a turkey                 Christmas Eve -> a stocking
+    Christmas -> a tree
+    any birthday -> a cake       an anniversary or wedding -> two rings      Visit from ... -> a house
     anything else -> a calendar page with the day of the month on it
 
     icon = event_icon(title, size, day)      # a transparent size x size surface (made once per kind, size and day)
@@ -16,20 +20,32 @@ import math
 
 import pygame
 
-ICONS = [                                   # (words, any of which in the title picks it, icon)
+ICONS = [                                   # (words, any of which in the title picks it, icon); the first match wins
     (("birthday",), "cake"),
+    (("christmas eve", "xmas eve"), "stocking"),
     (("christmas", "xmas"), "tree"),
+    (("new year's eve", "new years eve", "new year eve"), "clock"),
+    (("new year",), "partyhat"),
     (("easter",), "egg"),
-    (("independence", "4th of july", "fourth of july", "july 4", "new year"), "fireworks"),
-    (("flag", "memorial", "veteran", "president"), "flag"),
+    (("independence", "4th of july", "fourth of july", "july 4"), "fireworks"),
+    (("flag",), "flag"),
+    (("memorial",), "poppy"),
+    (("veteran",), "medal"),
+    (("president",), "tophat"),
     (("thanksgiving",), "turkey"),
     (("halloween",), "pumpkin"),
-    (("valentine", "anniversary", "wedding", "grandparent"), "heart"),
+    (("valentine",), "heart"),
+    (("anniversary", "wedding"), "rings"),
+    (("grandparent",), "rocker"),
     (("patrick",), "shamrock"),
     (("mother",), "flower"),
     (("father",), "tie"),
+    (("luther", "mlk"), "dove"),
+    (("juneteenth",), "star"),
+    (("labor", "labour"), "tools"),
+    (("columbus",), "ship"),
+    (("all saints", "saints"), "candle"),
     (("visit",), "house"),
-    (("king", "juneteenth", "labor", "columbus"), "star"),
 ]
 LINE = (40, 34, 36)
 _cache = {}
@@ -283,5 +299,222 @@ def _calendar(p, day):
         p.s.blit(num, num.get_rect(center=p.P(50, 64)))
 
 
+def _clock(p, day):
+    for x in (24, 76):                                                        # alarm bells
+        p.circle((255, 205, 70), x, 22, 11, o=2)
+    p.line(LINE, (30, 86), (24, 94), 6)                                       # feet
+    p.line(LINE, (70, 86), (76, 94), 6)
+    p.circle((255, 205, 70), 50, 56, 36)                                      # the case
+    p.circle((255, 252, 240), 50, 56, 29, o=2)                                # the face
+    for i in range(12):
+        a = math.radians(i * 30 - 90)
+        r1 = 22 if i % 3 else 19
+        pygame.draw.line(p.s, LINE, p.P(50 + math.cos(a) * r1, 56 + math.sin(a) * r1),
+                         p.P(50 + math.cos(a) * 26, 56 + math.sin(a) * 26), p.R(2.5 if i % 3 == 0 else 1.5))
+    p.line(LINE, (50, 56), (48.5, 40), 5)                                     # hour hand, just before twelve
+    p.line((220, 60, 60), (50, 56), (50, 31), 2.8)                            # minute hand on twelve
+    pygame.draw.circle(p.s, LINE, p.P(50, 56), p.R(3.5))
+    for x, y, r in ((10, 6, 6), (92, 8, 5), (50, 6, 4)):                       # sparkles: midnight
+        p.poly((255, 240, 150), _star_pts(x, y, r, inner=0.35), o=1.2)
+
+
+def _partyhat(p, day):
+    for x, y, c in ((12, 20, (240, 80, 90)), (82, 14, (90, 170, 255)), (88, 36, (255, 210, 70)), (20, 52, (150, 220, 140)),
+                    (72, 50, (240, 80, 90)), (8, 80, (255, 210, 70))):
+        p.rect(c, x - 2.5, y - 2.5, 5, 5, radius=1, o=1.2)                   # confetti
+    cone = [(18, 84), (62, 84), (40, 16)]
+    p.poly((120, 110, 230), cone)
+    for x, y in ((40, 34), (32, 56), (48, 54), (26, 74), (42, 74), (56, 74)):
+        pygame.draw.circle(p.s, (255, 214, 60), p.P(x, y), p.R(3.2))          # polka dots
+    p.rect((255, 214, 60), 16, 80, 48, 7, radius=3, o=2)                      # the band at the bottom
+    p.circle((240, 80, 90), 40, 14, 7, o=2)                                   # the pompom
+    p.poly((240, 80, 90), [(62, 92), (90, 60), (97, 68), (66, 96)], o=2)      # the horn
+    p.ellipse((255, 214, 60), 86, 54, 14, 18, o=2)
+    for i in range(3):
+        pygame.draw.line(p.s, (255, 255, 255), p.P(68 + i * 8, 87 - i * 9), p.P(72 + i * 8, 91 - i * 9), p.R(2.5))
+
+
+def _dove(p, day):
+    white = (250, 250, 252)
+    p.poly(white, [(26, 52), (4, 42), (8, 58), (2, 66), (26, 64)])            # tail
+    p.ellipse(white, 20, 46, 56, 26)                                          # body
+    wing = [(36, 54), (30, 40), (26, 26), (24, 12), (34, 16), (46, 24), (56, 34), (64, 52)]
+    p.poly(white, wing)                                                       # the raised wing
+    pygame.draw.lines(p.s, (205, 210, 222), False, [p.P(31, 22), p.P(40, 34), p.P(46, 48)], p.R(2))
+    p.circle(white, 74, 46, 11)                                               # head
+    p.poly((255, 170, 60), [(83, 43), (95, 47), (83, 51)], o=1.5)             # beak
+    pygame.draw.circle(p.s, LINE, p.P(76, 43), p.R(2.4))
+    p.line(LINE, (88, 50), (80, 80), 5)                                       # the olive branch
+    p.line((110, 140, 60), (88, 50), (80, 80), 2.5)
+    for x, y, w in ((84, 58, 1), (82, 68, -1), (80, 78, 1), (86, 64, 1)):
+        p.ellipse((110, 175, 80), x + (1 if w > 0 else -13), y - 3, 12, 6, o=1.5)
+
+
+def _tophat(p, day):
+    hat, shine = (58, 58, 66), (96, 96, 108)
+    p.ellipse(hat, 8, 78, 84, 16)                                             # brim
+    p.rect(hat, 27, 10, 46, 76, radius=3)                                     # the tall crown
+    pygame.draw.rect(p.s, shine, pygame.Rect(*p.P(33, 14), p.R(6), p.R(52)), border_radius=p.R(3))
+    p.rect((150, 40, 50), 27, 64, 46, 12, o=0)                                # band
+    pygame.draw.line(p.s, LINE, p.P(27, 64), p.P(73, 64), p.R(2))
+    pygame.draw.line(p.s, LINE, p.P(27, 76), p.P(73, 76), p.R(2))
+
+
+def _poppy(p, day):
+    p.line(LINE, (50, 56), (56, 96), 7)
+    p.line((70, 150, 70), (50, 56), (56, 96), 4)
+    p.ellipse((90, 170, 90), 56, 74, 22, 10, o=2)                             # leaf
+    red = (225, 40, 45)
+    for a in (-135, -45, 45, 135, -90):
+        r = math.radians(a)
+        p.circle(red, 50 + math.cos(r) * 15, 40 + math.sin(r) * 15, 18, o=2)
+    for a in (-135, -45, 45, 135):                                            # petal folds
+        r = math.radians(a)
+        pygame.draw.circle(p.s, (245, 90, 90), p.P(50 + math.cos(r) * 20, 40 + math.sin(r) * 20), p.R(5))
+    p.circle((40, 34, 36), 50, 40, 9, o=0)                                    # the dark middle
+    for a in range(0, 360, 45):
+        r = math.radians(a)
+        pygame.draw.circle(p.s, (90, 120, 60), p.P(50 + math.cos(r) * 5, 40 + math.sin(r) * 5), p.R(1.5))
+
+
+def _tools(p, day):
+    steel, dark = (196, 202, 212), (150, 156, 168)
+    a, b = (80, 88), (34, 28)                                                 # the wrench, lower right to upper left
+    p.line(LINE, a, b, 13)
+    p.line(steel, a, b, 8)
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = math.hypot(dx, dy)
+    ux, uy = dx / n, dy / n                                                   # along the handle, toward the head
+    vx, vy = -uy, ux
+    p.circle(steel, 30, 23, 14)                                               # head ...
+    cx, cy = 30 + ux * 4, 23 + uy * 4
+    notch = [(cx + vx * 6, cy + vy * 6), (cx - vx * 6, cy - vy * 6),          # ... with the open jaw
+             (cx - vx * 6 + ux * 16, cy - vy * 6 + uy * 16), (cx + vx * 6 + ux * 16, cy + vy * 6 + uy * 16)]
+    pygame.draw.polygon(p.s, (0, 0, 0, 0), [p.P(*q) for q in notch])
+    for i, j in ((0, 3), (1, 2), (0, 1)):
+        pygame.draw.line(p.s, LINE, p.P(*notch[i]), p.P(*notch[j]), p.R(2.5))
+    pygame.draw.circle(p.s, dark, p.P(70, 75), p.R(3))
+    a, b = (20, 88), (62, 32)                                                 # the hammer, lower left to upper right
+    p.line(LINE, a, b, 12)
+    p.line((190, 130, 70), a, b, 7)
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = math.hypot(dx, dy)
+    ux, uy = dx / n, dy / n
+    vx, vy = uy, -ux
+    cx, cy = b[0] + ux * 4, b[1] + uy * 4
+    head = [(cx + vx * 20 + ux * 8, cy + vy * 20 + uy * 8), (cx + vx * 20 - ux * 8, cy + vy * 20 - uy * 8),
+            (cx - vx * 12 - ux * 8, cy - vy * 12 - uy * 8), (cx - vx * 18 - ux * 2, cy - vy * 18 - uy * 2),
+            (cx - vx * 12 + ux * 8, cy - vy * 12 + uy * 8)]
+    p.poly(steel, head)
+
+
+def _rocker(p, day):
+    wood, dark = (176, 112, 60), (140, 86, 44)
+
+    def rock(x):
+        return 88 - 10 * ((x - 50) / 42.0) ** 2
+    curve = [(x, rock(x)) for x in range(8, 93, 4)]
+    pygame.draw.lines(p.s, LINE, False, [p.P(*q) for q in curve], p.R(9))
+    pygame.draw.lines(p.s, wood, False, [p.P(*q) for q in curve], p.R(4.5))
+    for q in (curve[0], curve[-1]):
+        pygame.draw.circle(p.s, wood, p.P(*q), p.R(2.3))
+    for top, bottom in (((30, 60), (28, rock(28))), ((68, 60), (70, rock(70))), ((66, 42), (68, 60))):
+        p.line(LINE, top, bottom, 8)
+        p.line(dark, top, bottom, 4)
+    p.line(LINE, (30, 62), (18, 10), 9)                                       # the back, leaning
+    p.line(wood, (30, 62), (18, 10), 5)
+    p.line(LINE, (40, 60), (30, 14), 7)
+    p.line(wood, (40, 60), (30, 14), 3.5)
+    p.line(LINE, (24, 42), (70, 42), 8)                                       # arm rest
+    p.line(wood, (24, 42), (70, 42), 4)
+    p.rect((230, 110, 130), 26, 54, 46, 9, radius=4, o=2)                     # the seat cushion
+    p.poly((120, 170, 230), [(16, 16), (34, 18), (38, 40), (22, 40)], o=2)     # a knitted throw over the back
+    for y in (24, 31):
+        pygame.draw.line(p.s, (180, 210, 250), p.P(20, y), p.P(35, y + 1), p.R(2))
+
+
+def _ship(p, day):
+    p.line(LINE, (50, 8), (50, 72), 6)                                        # mast
+    p.line((140, 90, 50), (50, 8), (50, 72), 3)
+    p.poly((230, 60, 60), [(50, 6), (64, 10), (50, 15)], o=1.5)               # pennant
+    sail = (252, 248, 236)
+    p.poly(sail, [(32, 18), (68, 18), (72, 30), (70, 42), (30, 42), (28, 30)])
+    p.poly(sail, [(26, 46), (74, 46), (78, 58), (76, 68), (24, 68), (22, 58)])
+    p.poly((176, 112, 60), [(8, 66), (92, 66), (80, 86), (20, 86)])            # hull
+    pygame.draw.line(p.s, (130, 80, 40), p.P(14, 74), p.P(86, 74), p.R(2))
+    for x in (30, 44, 58, 72):
+        pygame.draw.circle(p.s, LINE, p.P(x, 79), p.R(2.2))                   # portholes
+    xs = [4 + i * 2 for i in range(47)]
+    waves = [(x, 88 + 3 * math.sin(x / 5.0)) for x in xs] + [(96, 98), (4, 98)]
+    p.poly((80, 150, 230), waves, o=2)
+
+
+def _candle(p, day):
+    glow = pygame.Surface(p.s.get_size(), pygame.SRCALPHA)                     # soft light around the flame
+    for r, alpha in ((22, 45), (16, 75), (11, 110)):
+        pygame.draw.circle(glow, (255, 230, 140, alpha), p.P(50, 26), p.R(r))
+    p.s.blit(glow, (0, 0))
+    p.ellipse((235, 190, 80), 16, 82, 68, 13)                                  # the holder
+    p.rect((252, 246, 228), 37, 44, 26, 44, radius=3)                          # the candle
+    p.poly((252, 246, 228), [(37, 46), (44, 46), (44, 56), (40.5, 60), (37, 56)], o=0)   # a drip
+    pygame.draw.circle(p.s, (252, 246, 228), p.P(40.5, 57), p.R(3.5))
+    pygame.draw.line(p.s, LINE, p.P(50, 44), p.P(50, 38), p.R(2.5))            # wick
+    p.poly((255, 160, 40), [(50, 12), (57, 26), (55, 34), (50, 38), (45, 34), (43, 26)], o=2)   # the flame
+    p.poly((255, 240, 150), [(50, 22), (53, 30), (50, 35), (47, 30)], o=0)
+
+
+def _medal(p, day):
+    stripes = ((60, 90, 180), (250, 250, 250), (220, 60, 60), (250, 250, 250), (60, 90, 180))
+    p.rect(LINE, 34, 4, 32, 44, o=0)
+    for i, c in enumerate(stripes):                                           # the ribbon
+        pygame.draw.rect(p.s, c, pygame.Rect(*p.P(36.5 + i * 5.4, 6.5), p.R(5.6), p.R(42)))
+    p.poly((235, 190, 70), [(44, 44), (56, 44), (56, 54), (44, 54)], o=2)      # the loop
+    p.circle((240, 195, 60), 50, 68, 25)                                       # the medal
+    p.circle((250, 215, 100), 50, 68, 19, o=1.5)
+    p.poly((240, 180, 40), _star_pts(50, 69, 15, inner=0.45), o=1.8)
+
+
+def _stocking(p, day):
+    red = (215, 50, 55)
+    leg = [(34, 22), (64, 22), (64, 56), (80, 62), (90, 72), (88, 84), (78, 90), (62, 90), (46, 84), (36, 72), (34, 58)]
+    p.poly(red, leg)
+    toe = [(76, 62), (80, 62), (90, 72), (88, 84), (78, 90), (72, 90), (70, 76)]
+    pygame.draw.polygon(p.s, (70, 160, 90), [p.P(*q) for q in toe])
+    pygame.draw.lines(p.s, LINE, True, [p.P(*q) for q in leg], p.R(2.5))
+    pygame.draw.line(p.s, LINE, p.P(76, 62), p.P(70, 76), p.R(2))
+    pygame.draw.line(p.s, LINE, p.P(70, 76), p.P(74, 90), p.R(2))
+    for x, y in ((44, 40), (54, 50), (46, 66), (58, 76)):
+        p.poly((255, 255, 255), _star_pts(x, y, 4, inner=0.45), o=0)           # snowflakes
+    p.rect((252, 252, 248), 28, 8, 42, 16, radius=6)                           # the white cuff
+    for x in range(33, 68, 7):
+        pygame.draw.circle(p.s, (225, 228, 232), p.P(x, 16), p.R(2))
+    p.line(LINE, (66, 10), (78, 2), 4)                                         # hanging loop
+    p.line((215, 50, 55), (66, 10), (78, 2), 2)
+
+
+def _ring(size, k, cx, cy, r, w=7, o=2.5):
+    surf = pygame.Surface(size, pygame.SRCALPHA)
+    q = _Pen(surf, k)
+    pygame.draw.circle(surf, LINE, q.P(cx, cy), q.R(r + w / 2 + o))
+    pygame.draw.circle(surf, (240, 195, 60), q.P(cx, cy), q.R(r + w / 2))
+    pygame.draw.circle(surf, (255, 230, 140), q.P(cx - 2, cy - 2), q.R(r + w / 2 - 2.5), q.R(2))   # shine
+    pygame.draw.circle(surf, LINE, q.P(cx, cy), q.R(r - w / 2))
+    pygame.draw.circle(surf, (0, 0, 0, 0), q.P(cx, cy), q.R(r - w / 2 - o))
+    return surf
+
+
+def _rings(p, day):
+    size = p.s.get_size()
+    left, right = _ring(size, p.k, 36, 60, 24), _ring(size, p.k, 64, 60, 24)
+    p.s.blit(left, (0, 0))
+    p.s.blit(right, (0, 0))
+    x, y = p.P(42, 26)
+    p.s.blit(left, (x, y), pygame.Rect(x, y, p.R(16), p.R(24)))               # the left ring passes over at the top: linked
+    p.poly((200, 235, 255), [(56, 30), (72, 30), (76, 24), (64, 14), (52, 24)], o=2)   # the diamond
+    pygame.draw.line(p.s, (255, 255, 255), p.P(58, 24), p.P(64, 18), p.R(2))
+
+
 DRAW = {"cake": _cake, "tree": _tree, "egg": _egg, "fireworks": _fireworks, "flag": _flag, "turkey": _turkey, "pumpkin": _pumpkin,
-        "heart": _heart, "shamrock": _shamrock, "flower": _flower, "tie": _tie, "house": _house, "star": _star, "calendar": _calendar}
+        "heart": _heart, "shamrock": _shamrock, "flower": _flower, "tie": _tie, "house": _house, "star": _star, "calendar": _calendar,
+        "clock": _clock, "partyhat": _partyhat, "dove": _dove, "tophat": _tophat, "poppy": _poppy, "tools": _tools,
+        "rocker": _rocker, "ship": _ship, "candle": _candle, "medal": _medal, "stocking": _stocking, "rings": _rings}
