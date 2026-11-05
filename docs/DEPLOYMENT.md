@@ -107,11 +107,13 @@ the Judicom's info screen, which shows the next three with a countdown ("Christm
 `Easter | Easter` (every year, moving), or `2026-11-08 10:30 | Visit from Ann` (once; the time is optional).  It starts with the US
 federal holidays and the common family ones (Easter, Mother's Day, Father's Day, Halloween, ...): delete any that are not wanted.  The Judicom fetches it with
 the caller list every 10 minutes; format details at the top of `software/judicom/events.py`.
-Each event on the screen gets a little cartoon chosen from words in its name (`software/judicom/event_icons.py`): birthday -> cake,
-Christmas -> tree, Easter -> egg, Independence Day / 4th of July / New Year -> fireworks, Flag / Memorial / Veterans / Presidents ->
-flag, Thanksgiving -> turkey, Halloween -> pumpkin, Valentine / anniversary / wedding / Grandparents -> heart, St. Patrick -> shamrock,
-Mother -> flower, Father -> tie, Visit -> house, King / Juneteenth / Labor / Columbus -> star; anything else a calendar page with
-the day on it.
+Each event on the screen gets a little cartoon chosen from words in its name (`software/judicom/event_icons.py`), and every holiday
+on the list has its own: New Year's Eve -> clock at midnight, New Year's Day -> party hat, Martin Luther King Jr. -> dove,
+Valentine -> heart, Presidents -> stovepipe hat, St. Patrick -> shamrock, Easter -> egg, Mother -> flower, Memorial -> poppy,
+Flag -> flag, Juneteenth -> star, Father -> tie, Independence / 4th of July -> fireworks, Labor -> hammer and wrench,
+Grandparents -> rocking chair, Columbus -> ship, Halloween -> pumpkin, All Saints -> candle, Veterans -> medal,
+Thanksgiving -> turkey, Christmas Eve -> stocking, Christmas -> tree.  Any birthday -> cake, anniversary / wedding -> two rings,
+Visit -> house; anything else a calendar page with the day on it.
 
 ### Judi's photos
 
