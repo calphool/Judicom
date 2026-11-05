@@ -284,6 +284,20 @@ def render_events(header, rows):
     return "\n".join(out).rstrip("\n") + "\n"
 
 
+def with_blank_rows(rows, at_end=2):
+    """The rows to show: a blank row for a new event at the end of each section (so a holiday can go with the holidays) and a
+    couple more at the very end.  Each blank row knows its section's heading, for its hint."""
+    out, section = [], ""
+    for r in rows:
+        if r["kind"] == "heading":
+            if out and out[-1]["kind"] != "heading":
+                out.append({"kind": "new", "when": "", "what": "", "section": section})
+            section = r["what"]
+        out.append(r)
+    out += [{"kind": "new", "when": "", "what": "", "section": section} for _ in range(at_end)]
+    return out
+
+
 def next_dates(rows, now):
     """For each event row: 'December 25 (51 days to go)' or '' (a one-off that is over, or not readable)."""
     out = []
@@ -493,6 +507,7 @@ def create_app(s=None):
             rows = form_rows(request.form, ("kind", "when", "what"))
             clean, errors = check_events(rows)
             if errors:
+                rows = with_blank_rows(rows)
                 return render_template("events.html", rows=rows, errors=errors, next=next_dates(rows, datetime.datetime.now()),
                                        coming=[]), 400
             text = render_events(header, clean)
@@ -505,6 +520,7 @@ def create_app(s=None):
             return redirect(url_for("events"))
         now = datetime.datetime.now()
         evs = [e for e in (check_event(r["when"], r["what"])[0] for r in rows if r["kind"] == "event") if e]
+        rows = with_blank_rows(rows)
         return render_template("events.html", rows=rows, errors=[], next=next_dates(rows, now),
                                coming=events_mod.upcoming(evs, now, 3))
 
@@ -684,16 +700,16 @@ The two people on the <b>left</b> and <b>right</b> buttons are the ones she can 
 {% if coming %}<div class="card"><b>On Judi's screen now:</b><ul>{% for u in coming %}<li>{{ u.title }}: {{ u.when }} ({{ u.countdown }})</li>{% endfor %}</ul></div>{% endif %}
 <div class="card help">How to write <b>When</b>: <b>12-25</b> every year &middot; <b>2026-11-08 10:30</b> once (the time is optional: 10:30, 2 PM) &middot;
 <b>4th Thursday of November</b> or <b>last Monday of May</b> &middot; <b>Easter</b> &middot; <b>Sunday after 1st Monday of September</b>.
-A one-time event drops off by itself when its day is over.  Grey rows are headings, just for you.</div>
+A one-time event drops off by itself when its day is over.  Grey rows are headings, just for you; each section ends with a blank row for adding one there.</div>
 <form method="post" class="card"><input type="hidden" name="token" value="{{ token }}">
 <table><tr><th>When</th><th>What</th><th class="hide-small">Next</th><th>Remove</th></tr>
-{% for r in rows %}{% set i = loop.index %}<tr class="{{ 'heading' if r.kind == 'heading' }}">
+{% for r in rows %}{% set i = loop.index %}{% if r.kind == 'new' %}<tr class="new">
+<td><input type="hidden" name="kind-{{ i }}" value="event"><input type="text" name="when-{{ i }}" placeholder="new: when"></td><td><input type="text" name="what-{{ i }}" placeholder="{{ ('add to ' ~ r.section) if r.section else 'what' }}"></td><td class="hide-small"></td><td></td></tr>
+{% else %}<tr class="{{ 'heading' if r.kind == 'heading' }}">
 {% if r.kind == 'heading' %}<td colspan="2"><input type="hidden" name="kind-{{ i }}" value="heading"><input type="text" name="what-{{ i }}" value="{{ r.what }}"></td><td class="hide-small"></td>
 {% else %}<td><input type="hidden" name="kind-{{ i }}" value="event"><input type="text" name="when-{{ i }}" value="{{ r.when }}"></td><td><input type="text" name="what-{{ i }}" value="{{ r.what }}"></td>
 <td class="when hide-small">{{ next[loop.index0] }}</td>{% endif %}
-<td><input type="checkbox" name="remove-{{ i }}" value="1" title="remove"></td></tr>{% endfor %}
-{% for j in range(4) %}{% set i = rows|length + loop.index %}<tr class="new">
-<td><input type="hidden" name="kind-{{ i }}" value="event"><input type="text" name="when-{{ i }}" placeholder="new: when"></td><td><input type="text" name="what-{{ i }}" placeholder="what"></td><td class="hide-small"></td><td></td></tr>{% endfor %}
+<td><input type="checkbox" name="remove-{{ i }}" value="1" title="remove"></td></tr>{% endif %}{% endfor %}
 </table><div class="row"><button>Save events</button><a href="{{ url_for('events') }}">Undo my edits</a></div></form>{% endblock %}""",
 
     "people.html": """{% extends "base.html" %}{% set title = "Caller pictures" %}{% block body %}<h1>Caller pictures</h1>

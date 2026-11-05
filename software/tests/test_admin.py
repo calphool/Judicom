@@ -173,6 +173,21 @@ class Site(unittest.TestCase):
         self.assertEqual(len(parse(text, problems.append)), 3)
         self.assertEqual(problems, [])
 
+    def test_a_new_holiday_can_go_with_the_holidays(self):
+        (self.j / "events.txt").write_text("# Judi's events.\n\n# ---- holidays\n12-25 | Christmas\n\n# ---- family\n04-22 | Amy's birthday\n")
+        page = self.get("/events").get_data(as_text=True)
+        self.assertIn('placeholder="add to holidays"', page)
+        self.assertLess(page.index('placeholder="add to holidays"'), page.index('value="family"'))   # a blank row before "family"
+        form = {}
+        for k, v in re.findall(r'name="((?:kind|when|what)-\d+)"(?: value="([^"]*)")?', page):
+            form[k] = v
+        blank = re.search(r'name="what-(\d+)" placeholder="add to holidays"', page).group(1)
+        form["when-" + blank], form["what-" + blank] = "12-18", "Ugly Sweater Day"
+        self.assertEqual(self.post("/events", form).status_code, 302)
+        text = (self.j / "events.txt").read_text()
+        self.assertLess(text.index("Ugly Sweater Day"), text.index("# ---- family"))
+        self.assertGreater(text.index("Ugly Sweater Day"), text.index("Christmas"))
+
     def test_a_bad_date_is_shown_and_nothing_is_saved(self):
         r = self.post("/events", self.events_form([("event", "12-25", "Christmas"), ("event", "Dec 25th", "Oops")]))
         self.assertEqual(r.status_code, 400)
