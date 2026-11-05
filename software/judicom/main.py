@@ -106,8 +106,9 @@ def snapshots(folder, buttons):
     import pygame
     from .call_view import CallView
     from .display import Display
+    from .faces import Faces
     display = Display(headless=True)
-    view = CallView(buttons)
+    view = CallView(buttons, Faces())
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     left = next(iter(buttons.values()))
@@ -172,7 +173,8 @@ def main(argv=None):
         from .calls import Baresip
         calls = Baresip(log=log)
     phone = Phone(Machine(buttons, clock=clock, log=log), controls, calls, sounds, photos, contacts, log)
-    call_view = CallView(buttons)
+    from .faces import Faces
+    call_view = CallView(buttons, Faces(log=log))
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
         ", turned 90 degrees" if display.rotate else "", args.folder, source, sounds.describe()))
     log("Pretend phone software: y = answer, f = fail, e = they hang up, i = incoming call (right button's person), "

@@ -69,8 +69,17 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
 - The Judicom fetches the same file itself every 10 minutes (section 3), with its own key.  That key's line in
   `/home/pi/.ssh/authorized_keys` only lets it read this list and the events list (below):
   `restrict,command="/home/pi/judicom/serve_list.sh" ssh-ed25519 AAAA... judicom-contacts-sync`
-  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events` or `verses`, and refuses anything
-  else).
+  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events`, `verses`, `people-list` or
+  `people`, and refuses anything else).
+
+### Pictures of the people
+
+`/home/pi/judicom/people/` on the NAS: one picture per person in the caller list, named as in the list (`Frank.png`, `Ann.jpg`,
+`Aunt Sue.jpg`; capitals do not matter).  The Judicom shows it in place of the handset while calling that person, talking with
+them, or when they ring.  **Square, 800 x 800 pixels, head and shoulders filling most of it** (a profile picture is ideal); at least
+400 x 400; .png, .jpg or .jpeg; under 5 MB.  A picture that is not square is cropped from the middle.  No picture: the handset, as
+before.  The Judicom checks the folder with the caller list (every 10 minutes) and copies only what changed; removing a picture
+here removes it there.  Not in the Jellyfin photo folder: the faces would turn up in the slideshow.
 
 ### Judi's events
 
@@ -215,6 +224,7 @@ someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 
 | `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
 | `~/events.txt` | **fetched from the NAS** with the caller list | a copy of Judi's events list, for the info screen |
 | `~/verses.txt` | **fetched from the NAS** with the caller list | a copy of Judi's verse list, for the verse screen |
+| `~/people/` | **copied from the NAS** with the caller list | a copy of `/home/pi/judicom/people/`: the people pictures for the call screens (section 2).  Only changed pictures are fetched (compared by sha256); at most 5 MB each and 50 MB altogether |
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
 | `~/photos/` | **copied from the NAS** by the `judicom-photo-sync` timer (2 min after boot, then every hour) | a copy of `/mnt/8tbdrive/Photos/Judi`, **pictures it can show (.jpg .jpeg .png .bmp) and .meta captions only**: videos and other formats the mail importer saves there stay on the NAS (Jellyfin), so they cannot fill the card.  Pictures removed there go here too.  Nothing is changed if the NAS can't be reached, its folder has no pictures (drive not mounted?), copying the new photos would leave less than 4 GB free on the card (`PHOTO_KEEP_FREE`; a "nearly full" warning in the log), or more than half of the pictures would go (`python3 -m judicom.photo_sync --force` by hand if that is meant).  Fetch now: `sudo systemctl start judicom-photo-sync`; see first: `python3 -m judicom.photo_sync --dry-run`; log: `journalctl -u judicom-photo-sync` |
 | `~/.ssh/judicom_photos` | `ssh-keygen -t ed25519 -N "" -C judicom-photo-sync -f ~/.ssh/judicom_photos` | the key that copies the photos; its public half goes on the NAS (section 2) |
