@@ -6,7 +6,7 @@ when the handset is lifted or a call comes in.
     python3 -m judicom.main --snapshots DIR    save a PNG of every phone screen into DIR, then stop (no screen needed)
 
 Calls go through baresip (start it first: see judicom/calls.py); if it is not running, or cannot reach the PBX, the phone still
-works and a button shows "Sorry, the phone is not working right now" straight away.  --no-calls leaves baresip alone.  These keys pretend to be the phone software (useful on a PC):
+works and a button shows "The phone is not working." straight away.  --no-calls leaves baresip alone.  These keys pretend to be the phone software (useful on a PC):
 y = they answer   f = the call fails   e = they hang up
 i = an incoming call from the person on the right button   u = an incoming call from a number that is not in the contacts file.
 Other keys: space = next photo, q or Esc = quit.  Keys are typed in the terminal that started the program, or in the window.

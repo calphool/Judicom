@@ -13,8 +13,8 @@
   NO_ANSWER       "No answer." and who it was
   ENDED           "Call just ended with Ann (daughter)"
   PLEASE_HANG_UP  yellow all over: "Please put the handset back on the phone."
-  OUT_OF_ORDER    the handset, greyed, and "Sorry, the phone is not working right now. Something is wrong with it, and it is being
-                  worked on." (a button pressed while the phone cannot reach the PBX)
+  OUT_OF_ORDER    the handset, greyed, and "The phone is not working.  It is being fixed."  (a button pressed while the phone
+                  cannot reach the PBX)
 
 With a picture of the person (faces.Faces: "Ann.png" in config.PEOPLE_DIR), DIALING, CALLING, ONGOING and INCOMING show their face
 in place of the handset: in a frame, with the same rings spreading out while it rings, a green border while talking, and gently
@@ -162,8 +162,8 @@ class CallView:
         """Calm, not alarming: the same teal, the handset faded, and plain words."""
         surf.fill(BG)
         tmp = pygame.Surface((W, 700), pygame.SRCALPHA)
-        y = draw.block(tmp, "Sorry, the phone is not working right now.", "bold", 64, INK, 0)
-        y = draw.block(tmp, "Something is wrong with it, and it is being worked on.", "reg", 46, SOFT, y + 30)
+        y = draw.block(tmp, "The phone is not working.", "bold", 72, INK, 0)
+        y = draw.block(tmp, "It is being fixed.", "reg", 52, SOFT, y + 24)
         words = tmp.subsurface((0, 0, W, max(1, min(y, tmp.get_height())))).copy()
         group = 290 + 56 + words.get_height()
         y0 = max(24, (H - group) // 2 - 30)
