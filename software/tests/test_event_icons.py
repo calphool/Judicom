@@ -39,6 +39,19 @@ class Choosing(unittest.TestCase):
         self.assertEqual(len(set(kinds)), len(holidays))
         self.assertNotIn("calendar", kinds)
 
+    def test_the_familys_made_up_days_each_have_their_own_picture(self):
+        days = ("Ugly Sweater Day", "Run It Up the Flagpole Day", "Teach Yourself Morse Code Day", "Absolutely Nothing Day",
+                "Answer Your Cat's Questions Day", "Backwards Day", "Go To Work Naked Day", "Make A Grouch Happy Day",
+                "Dog Biscuit Appreciation Day", "International Day Of Sleep", "The Ides of March", "International Goof Off Day",
+                "Make Up Your Own Holiday Day", "April Fool's Day", "Okay To Tell A Lie Day", "Lawyer Appreciation Day",
+                "Wear Pajamas Today Day", "Pretend You Are An Astronaut Day", "No Pants Day", "Lost Sock Remembrance Day",
+                "Dance Like A Chicken Day", "Talk Like A Star War Character Day", "Put Something Funny Under Your Pillow Day")
+        kinds = [event_icons.icon_for(d) for d in days]
+        self.assertEqual(len(set(kinds)), len(days), kinds)
+        self.assertNotIn("calendar", kinds)
+        holidays = {event_icons.icon_for(h) for h in ("Flag Day", "Christmas Eve", "Juneteenth", "Memorial Day")}
+        self.assertFalse(holidays & set(kinds))                                  # and none borrowed from a real holiday
+
     def test_a_birthday_on_christmas_is_still_a_cake(self):
         self.assertEqual(event_icons.icon_for("Christmas birthday party"), "cake")
 

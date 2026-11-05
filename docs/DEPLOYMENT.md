@@ -112,7 +112,7 @@ on the list has its own: New Year's Eve -> clock at midnight, New Year's Day -> 
 Valentine -> heart, Presidents -> stovepipe hat, St. Patrick -> shamrock, Easter -> egg, Mother -> flower, Memorial -> poppy,
 Flag -> flag, Juneteenth -> star, Father -> tie, Independence / 4th of July -> fireworks, Labor -> hammer and wrench,
 Grandparents -> rocking chair, Columbus -> ship, Halloween -> pumpkin, All Saints -> candle, Veterans -> medal,
-Thanksgiving -> turkey, Christmas Eve -> stocking, Christmas -> tree, Ugly Sweater -> sweater.  Any birthday -> cake, anniversary / wedding -> two rings,
+Thanksgiving -> turkey, Christmas Eve -> stocking, Christmas -> tree, Ugly Sweater -> sweater.  The family's own made-up days (Morse Code, Dog Biscuit, No Pants, ...) each have one too: the list is at the top of `event_icons.py`.  Any birthday -> cake, anniversary / wedding -> two rings,
 Visit -> house; anything else a calendar page with the day on it.
 
 ### Judi's photos
