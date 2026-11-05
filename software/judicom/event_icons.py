@@ -7,7 +7,7 @@
     Independence Day, 4th of July -> fireworks Labor Day -> a hammer and wrench         Grandparents' Day -> a rocking chair
     Columbus Day -> a sailing ship             Halloween -> a pumpkin                   All Saints Day -> a lit candle
     Veterans Day -> a medal                    Thanksgiving -> a turkey                 Christmas Eve -> a stocking
-    Christmas -> a tree
+    Christmas -> a tree                        Ugly Sweater Day -> a Christmas sweater
     any birthday -> a cake       an anniversary or wedding -> two rings      Visit from ... -> a house
     anything else -> a calendar page with the day of the month on it
 
@@ -22,6 +22,7 @@ import pygame
 
 ICONS = [                                   # (words, any of which in the title picks it, icon); the first match wins
     (("birthday",), "cake"),
+    (("sweater",), "sweater"),
     (("christmas eve", "xmas eve"), "stocking"),
     (("christmas", "xmas"), "tree"),
     (("new year's eve", "new years eve", "new year eve"), "clock"),
@@ -492,6 +493,33 @@ def _stocking(p, day):
     p.line((215, 50, 55), (66, 10), (78, 2), 2)
 
 
+def _sweater(p, day):
+    red, green, white = (205, 45, 55), (40, 140, 80), (250, 250, 250)
+    body = [(30, 14), (42, 12), (50, 18), (58, 12), (70, 14), (92, 30), (96, 64), (82, 66), (78, 44), (76, 90), (24, 90),
+            (22, 44), (18, 66), (4, 64), (8, 30)]
+    p.poly(red, body)
+    for y0 in (26, 70):                                                        # zigzag bands
+        pygame.draw.lines(p.s, white, False, [p.P(25 + i * 5, y0 + (4 if i % 2 else 0)) for i in range(11)], p.R(3))
+    pygame.draw.lines(p.s, green, False, [p.P(25 + i * 5, 80 + (4 if i % 2 else 0)) for i in range(11)], p.R(3))
+    for a, b in (((7, 50), (19, 52)), ((93, 50), (81, 52))):                  # stripes on the sleeves
+        pygame.draw.line(p.s, white, p.P(*a), p.P(*b), p.R(3))
+    p.poly(green, [(50, 34), (60, 54), (55, 54), (63, 66), (37, 66), (45, 54), (40, 54)], o=1.8)   # a little tree on the front
+    p.poly((255, 214, 60), _star_pts(50, 33, 5, inner=0.45), o=1.2)
+    for x, y in ((47, 50), (54, 59), (45, 62)):
+        pygame.draw.circle(p.s, (255, 214, 60), p.P(x, y), p.R(1.8))
+    for x, y in ((30, 40), (70, 40), (32, 58), (68, 58)):                      # snowflakes
+        for a in (0, 60, 120):
+            r = math.radians(a)
+            pygame.draw.line(p.s, white, p.P(x - math.cos(r) * 4, y - math.sin(r) * 4), p.P(x + math.cos(r) * 4, y + math.sin(r) * 4), p.R(1.6))
+    pygame.draw.lines(p.s, LINE, True, [p.P(*q) for q in body], p.R(2.5))
+    p.poly((170, 30, 42), [(40, 12), (50, 22), (60, 12), (56, 11), (50, 16), (44, 11)], o=1.8)    # the ribbed collar
+    for a, b in (((22, 44), (22, 88)), ((78, 44), (78, 88))):                  # arm seams
+        pygame.draw.line(p.s, (160, 30, 40), p.P(*a), p.P(*b), p.R(1.5))
+    p.rect((170, 30, 42), 24, 86, 52, 6, o=2)                                   # ribbed hem
+    p.poly((170, 30, 42), [(4.5, 58), (18.5, 60), (18, 66), (4, 64)], o=1.8)   # cuffs
+    p.poly((170, 30, 42), [(95.5, 58), (81.5, 60), (82, 66), (96, 64)], o=1.8)
+
+
 def _ring(size, k, cx, cy, r, w=7, o=2.5):
     surf = pygame.Surface(size, pygame.SRCALPHA)
     q = _Pen(surf, k)
@@ -517,4 +545,4 @@ def _rings(p, day):
 DRAW = {"cake": _cake, "tree": _tree, "egg": _egg, "fireworks": _fireworks, "flag": _flag, "turkey": _turkey, "pumpkin": _pumpkin,
         "heart": _heart, "shamrock": _shamrock, "flower": _flower, "tie": _tie, "house": _house, "star": _star, "calendar": _calendar,
         "clock": _clock, "partyhat": _partyhat, "dove": _dove, "tophat": _tophat, "poppy": _poppy, "tools": _tools,
-        "rocker": _rocker, "ship": _ship, "candle": _candle, "medal": _medal, "stocking": _stocking, "rings": _rings}
+        "rocker": _rocker, "ship": _ship, "candle": _candle, "medal": _medal, "stocking": _stocking, "rings": _rings, "sweater": _sweater}

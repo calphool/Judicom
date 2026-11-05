@@ -287,12 +287,12 @@ def render_events(header, rows):
 def with_blank_rows(rows, at_end=2):
     """The rows to show: a blank row for a new event at the end of each section (so a holiday can go with the holidays) and a
     couple more at the very end.  Each blank row knows its section's heading, for its hint."""
-    out, section = [], ""
+    out, section = [], ""                                       # (the hint leaves out any "(...)" in the heading)
     for r in rows:
         if r["kind"] == "heading":
             if out and out[-1]["kind"] != "heading":
                 out.append({"kind": "new", "when": "", "what": "", "section": section})
-            section = r["what"]
+            section = r["what"].split("(")[0].strip()
         out.append(r)
     out += [{"kind": "new", "when": "", "what": "", "section": section} for _ in range(at_end)]
     return out

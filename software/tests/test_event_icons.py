@@ -25,6 +25,7 @@ class Choosing(unittest.TestCase):
                             ("Clark and Judi's anniversary", "rings"), ("St. Patrick's Day", "shamrock"), ("Mother's Day", "flower"),
                             ("Father's Day", "tie"), ("Visit from Amy", "house"), ("Martin Luther King Jr. Day", "dove"),
                             ("Juneteenth", "star"), ("Labor Day", "tools"), ("Columbus Day", "ship"), ("All Saints Day", "candle"),
+                            ("Ugly Sweater Day", "sweater"), ("Ugly Christmas Sweater Day", "sweater"),
                             ("Dentist", "calendar"), ("", "calendar")):
             with self.subTest(title=title):
                 self.assertEqual(event_icons.icon_for(title), kind)
