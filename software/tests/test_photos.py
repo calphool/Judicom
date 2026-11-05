@@ -123,6 +123,17 @@ class NiceDate(unittest.TestCase):
         self.assertEqual(nice_date("2019-13"), "2019-13")
 
 
+class YearsAgo(unittest.TestCase):
+    def test_by_calendar_year(self):
+        import datetime
+        today = datetime.date(2026, 11, 5)
+        for taken, want in (("2019-06-14", "7 years ago"), ("6/14/19", "7 years ago"), ("December 2025", "1 year ago"),
+                            ("2025", "1 year ago"), ("Christmas 1998", "28 years ago"), ("2026-03", ""), ("2026", ""),
+                            ("2027", ""), ("summer at the lake", ""), ("", ""), ("room 1205", "")):
+            with self.subTest(taken=taken):
+                self.assertEqual(Caption(taken=taken).years_ago(today), want)
+
+
 class Captions(Folder):
     def test_labelled_lines(self):
         c = parse_caption("people: Clark and Amy\nrelationship: Your husband and your daughter\ntaken: 2019-06-14\n")
