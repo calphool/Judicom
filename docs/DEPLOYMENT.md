@@ -55,6 +55,24 @@ The two messages are `custom/judicom-protected.wav` and `custom/judicom-unavaila
 `/var/lib/asterisk/sounds/custom/` (a Docker volume).  Make them with `deploy/prompts/make_prompts.sh <contact number>` (Piper
 text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy them in with `docker cp` (the script says how).
 
+### The housekeeping website
+
+**http://naspi.local:8080** at home, **http://100.64.0.1:8080** over Tailscale (e.g. from a phone away from home).  Pages:
+**Callers** (who may ring Judi, names, the two buttons; applied to Asterisk at once), **Events**, **Caller pictures** (any picture,
+cropped square from the middle and made 800 x 800 PNG, named after the caller) and **Photos** (the slideshow: upload with a
+caption, edit captions, remove).  It edits exactly the files described below, so editing them by hand still works too.
+
+- No password (by choice).  It only answers the home network, Tailscale and the NAS itself, only under the NAS's own names and
+  addresses, and every change needs the page's own form token, so a web page elsewhere cannot change the caller list.
+- A list with a mistake in it (a number without its area code, two people on one button, a date it cannot read) is shown with the
+  problem and not saved.  Each saved list's previous version is kept in `/home/pi/judicom/history/` (newest 30 each).
+- Removed pictures are moved to `/mnt/8tbdrive/.judicom-deleted/` (`caller pictures/`, `photos/`), not erased.
+- Uploaded photos bigger than 3000 pixels are shrunk (and turned upright); others are stored as they came.
+- Code: `deploy/nas/admin/judicom_admin.py` (Flask + Pillow, both from Debian), run from a clone of this repository at
+  `/home/pi/Judicom` by `judicom-admin.service` (as pi; `Nice=10`, `MemoryMax=400M` to stay out of Jellyfin's way).
+  Install: `git clone https://github.com/calphool/Judicom.git ~/Judicom && bash ~/Judicom/deploy/nas/admin/install_admin.sh`.
+  Update: `cd ~/Judicom && git pull && sudo systemctl restart judicom-admin`.  Log: `journalctl -u judicom-admin`.
+
 ### Judi's caller list
 
 `/home/pi/judicom/contacts.txt` on the NAS is the only list to edit: same format as `software/contacts.example.txt`
@@ -301,7 +319,7 @@ if something ever does hang, wait for the guard (35 minutes) or unplug the Judic
 
 ## 4. Adding someone who may call Judi
 
-Add a line `<number> | <name> | <relationship>` to `/home/pi/judicom/contacts.txt` on the NAS.  Within 10 minutes they can ring
+Easiest: the **Callers** page of the housekeeping website (section 2).  By hand: add a line `<number> | <name> | <relationship>` to `/home/pi/judicom/contacts.txt` on the NAS.  Within 10 minutes they can ring
 through, and within 10 minutes their name shows on the Judicom.  For both at once:
 
     python3 /home/pi/judicom/apply_contacts.py                  # on the NAS
