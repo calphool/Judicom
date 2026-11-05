@@ -76,7 +76,7 @@ BARESIP_CTRL = ("127.0.0.1", 4444)   # baresip's ctrl_tcp_listen (in ~/.baresip/
 LIFTED_SECONDS = 60.0         # handset up, no button pressed: after this long the yellow "please hang up" screen (dial tone stops)
 RING_OUT_SECONDS = 30.0       # calling someone who does not pick up: give up after this long -> "No answer."
 NO_ANSWER_SECONDS = 10.0      # the "No answer." screen
-OUT_OF_ORDER_SECONDS = 15.0   # "Sorry, the phone is not working right now": a button pressed while the phone cannot reach the PBX
+OUT_OF_ORDER_SECONDS = 15.0   # "The phone is not working.": a button pressed while the phone cannot reach the PBX
 CALL_ENDED_SECONDS = 10.0     # the "Call just ended with ..." screen
 DIGIT_ON, DIGIT_OFF = 0.08, 0.06   # each touch-tone digit sounds this long, with this much quiet after it (about a fast dialer's pace)
 

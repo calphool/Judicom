@@ -16,7 +16,7 @@ THE MODES (what the screen shows)
                Only then is the number given to the phone software.  A button with no tones goes straight to CALLING.
   CALLING      "Calling Amy (daughter)..."          -> ONGOING when answered; NO_ANSWER after RING_OUT_SECONDS or if the call fails
   NO_ANSWER    "No answer."  for NO_ANSWER_SECONDS  -> LIFTED if the handset is still up, else IDLE
-  OUT_OF_ORDER "Sorry, the phone is not working right now ... it is being worked on."  for OUT_OF_ORDER_SECONDS, then like
+  OUT_OF_ORDER "The phone is not working.  It is being fixed."  for OUT_OF_ORDER_SECONDS, then like
                NO_ANSWER.  Shown instead of dialing when a button is pressed while phone_ok() says the phone cannot make calls
                (baresip not running, or not registered with the PBX: no network, NAS down), and instead of "No answer." when a
                call fails or rings out and phone_ok() has meanwhile turned False.
