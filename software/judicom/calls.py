@@ -85,6 +85,12 @@ class Baresip:
     def connected(self):
         return self.sock is not None
 
+    @property
+    def ready(self):
+        """Can a call be made now?  False while baresip is not running or says it is not registered with the PBX (no network,
+        Tailscale down, the NAS or Asterisk down).  Not known yet (just started) counts as ready."""
+        return self.sock is not None and self.registered is not False
+
     def _ensure(self):
         if self.sock is not None:
             return True
@@ -113,6 +119,7 @@ class Baresip:
             except OSError:
                 pass
         self.sock = None
+        self.registered = None                              # a restarted baresip says again
         self._pending.clear()
         self._retry_at = self.clock() + RECONNECT_SECONDS
         self.log("lost baresip (%s)" % why)
@@ -247,6 +254,8 @@ class Baresip:
 
 class NoCalls:
     """Stands in for baresip (--no-calls, or a PC): says what it would have done.  The keys y / f / e / i / u pretend."""
+
+    ready = True
 
     def __init__(self, log):
         self.log = log

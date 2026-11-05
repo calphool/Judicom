@@ -135,6 +135,12 @@ at about 9 am while it stays offline, and once when it is back (with how long it
 - `python3 ~/judicom/watch_judicom.py --status` (what it sees now), `--test` (send a test email); log `~/judicom/watch.log`.
 - It cannot tell when only the phone program on the Judicom has crashed while baresip still runs (systemd restarts it anyway).
 
+On the Judicom itself: while baresip is not running or not registered with the PBX (no network, Tailscale down, NAS or Asterisk
+down), a button does not dial; the screen says "Sorry, the phone is not working right now.  Something is wrong with it, and it is
+being worked on." for 15 seconds (`OUT_OF_ORDER_SECONDS`).  baresip notices a lost PBX at its next registration, within about 1.5
+minutes (`regint=60` plus the 32 s SIP timeout); a call tried before that may still end in "No answer.".
+Callers meanwhile hear the "not available" message from the PBX.  It is back to normal by itself once baresip registers again.
+
 ### Call history
 
 Asterisk writes one line per call (and per leg of a call) to `/var/log/asterisk/cdr-csv/Master.csv` in the container (a Docker

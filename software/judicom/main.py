@@ -5,8 +5,8 @@ when the handset is lifted or a call comes in.
     python3 -m judicom.main --demo --window    on a PC: l = lift / hang up the handset, 1 / 2 = left / right button
     python3 -m judicom.main --snapshots DIR    save a PNG of every phone screen into DIR, then stop (no screen needed)
 
-Calls go through baresip (start it first: see judicom/calls.py); if it is not running, the phone still works and a call ends in
-"No answer." straight away.  --no-calls leaves baresip alone.  These keys pretend to be the phone software (useful on a PC):
+Calls go through baresip (start it first: see judicom/calls.py); if it is not running, or cannot reach the PBX, the phone still
+works and a button shows "Sorry, the phone is not working right now" straight away.  --no-calls leaves baresip alone.  These keys pretend to be the phone software (useful on a PC):
 y = they answer   f = the call fails   e = they hang up
 i = an incoming call from the person on the right button   u = an incoming call from a number that is not in the contacts file.
 Other keys: space = next photo, q or Esc = quit.  Keys are typed in the terminal that started the program, or in the window.
@@ -114,7 +114,8 @@ def snapshots(folder, buttons):
     left = next(iter(buttons.values()))
     shots = [("1_lifted", Mode.LIFTED, None), ("2_calling", Mode.CALLING, left), ("3_ongoing", Mode.ONGOING, left),
              ("4_no_answer", Mode.NO_ANSWER, left), ("5_ended", Mode.ENDED, left), ("6_incoming", Mode.INCOMING, Party("Hannah", "granddaughter")),
-             ("7_incoming_unknown", Mode.INCOMING, Party(dial="312-555-0199")), ("8_please_hang_up", Mode.PLEASE_HANG_UP, None)]
+             ("7_incoming_unknown", Mode.INCOMING, Party(dial="312-555-0199")), ("8_please_hang_up", Mode.PLEASE_HANG_UP, None),
+             ("9_out_of_order", Mode.OUT_OF_ORDER, left)]
     for name, mode, party in shots:
         view.draw(display.logical, mode, party, 0.35)
         pygame.image.save(display.logical, str(folder / (name + ".png")))
@@ -172,7 +173,8 @@ def main(argv=None):
     else:
         from .calls import Baresip
         calls = Baresip(log=log)
-    phone = Phone(Machine(buttons, clock=clock, log=log), controls, calls, sounds, photos, contacts, log)
+    phone = Phone(Machine(buttons, clock=clock, log=log, phone_ok=lambda: calls.ready), controls, calls, sounds, photos, contacts,
+                  log)
     from .faces import Faces
     call_view = CallView(buttons, Faces(log=log))
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
