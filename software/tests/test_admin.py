@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 try:
     import flask  # noqa: F401
@@ -60,6 +61,7 @@ class Site(unittest.TestCase):
         apply.write_text("#!/bin/sh\necho applied >> %s\n" % self.applied)
         apply.chmod(0o755)
         s = admin.Settings(judicom_dir=self.j, photos_dir=self.photos, trash_dir=self.trash, apply=[str(apply)])
+        self.settings = s
         self.app = admin.create_app(s)
         self.client = self.app.test_client()
 
@@ -278,6 +280,58 @@ class Site(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Image.open(io.BytesIO(r.data)).size, (360, 180))
         self.assertEqual(self.get("/photos/img/missing.jpg").status_code, 404)
+
+    # ---- See Judicom Now
+    def fake_judicom(self, code):
+        """Stands in for the ssh command: `code` is Python; `looks` is the file it marks each time it is run."""
+        script = self.j / "fake_judicom.py"
+        self.looks = self.j / "looks"
+        script.write_text("import sys\nopen(%r, 'a').write('x')\n%s\n" % (str(self.looks), code))
+        self.settings.screen = [sys.executable, str(script)]
+
+    def test_the_page_is_on_the_menu_and_shows_the_picture(self):
+        self.assertIn('href="/screen"', self.get("/").get_data(as_text=True))
+        page = self.get("/screen").get_data(as_text=True)
+        self.assertIn("See Judicom Now", page)
+        self.assertIn('fetch("/screen.png"', page)
+
+    def test_the_picture_comes_from_the_judicom_and_is_never_kept_by_the_browser(self):
+        self.fake_judicom("sys.stdout.buffer.write(b'\\x89PNG picture')")
+        r = self.get("/screen.png")
+        self.assertEqual((r.status_code, r.mimetype, r.data), (200, "image/png", b"\x89PNG picture"))
+        self.assertEqual(r.headers["Cache-Control"], "no-store")
+
+    def test_two_viewers_at_once_share_one_look(self):
+        self.fake_judicom("sys.stdout.buffer.write(b'\\x89PNG')")
+        self.get("/screen.png")
+        self.get("/screen.png")
+        self.assertEqual(self.looks.read_text(), "x")
+
+    def test_a_look_that_has_gone_stale_is_taken_again(self):
+        self.fake_judicom("sys.stdout.buffer.write(b'\\x89PNG')")
+        self.get("/screen.png")
+        with mock.patch.object(admin, "SCREEN_FRESH", 0):
+            self.get("/screen.png")
+        self.assertEqual(self.looks.read_text(), "xx")
+
+    def test_a_judicom_that_does_not_answer_is_said_plainly_and_tried_again(self):
+        self.fake_judicom("sys.exit(255)")
+        self.assertEqual(self.get("/screen.png").status_code, 503)
+        self.assertEqual(self.get("/screen.png").status_code, 503)
+        self.assertEqual(self.looks.read_text(), "xx")              # a failure is not remembered
+
+    def test_something_that_is_not_a_picture_is_not_passed_on(self):
+        self.fake_judicom("print('Welcome to the Judicom')")
+        self.assertEqual(self.get("/screen.png").status_code, 503)
+
+    def test_a_missing_ssh_is_not_a_crash(self):
+        self.settings.screen = [str(self.j / "no_such_program")]
+        self.assertEqual(self.get("/screen.png").status_code, 503)
+
+    def test_addresses_from_outside_cannot_see_the_screen(self):
+        self.fake_judicom("sys.stdout.buffer.write(b'\\x89PNG')")
+        self.assertEqual(self.get("/screen.png", environ_base={"REMOTE_ADDR": "8.8.8.8"}).status_code, 403)
+        self.assertFalse(self.looks.exists())
 
 
 if __name__ == "__main__":
