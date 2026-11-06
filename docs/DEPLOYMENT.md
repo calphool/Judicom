@@ -316,14 +316,14 @@ stalls while the card is frozen, which on 2026-11-04 left the Judicom frozen unt
 
     bash ~/Judicom/deploy/judicom/backup_judicom.sh --trial     # measures the speed and the image size; tries the freeze and
                                                                 # the watchdog; the phone is off for about a minute
-    bash ~/Judicom/deploy/judicom/backup_judicom.sh             # the backup: the phone is off for about 6 minutes, 15 at most
+    bash ~/Judicom/deploy/judicom/backup_judicom.sh             # the backup: the phone is off for about 6 minutes, 25 at most
 
 It stops the phone and the syncs, moves the system log to memory, and runs `backup_stream.sh` as root: it freezes the main
 partition (`fsfreeze`) and writes the start of the card and the boot partition (dd) plus the main partition's used blocks
 (free space as zeros) to the NAS through zstd.  It unfreezes whenever it ends (done, error, Ctrl-C), a watchdog
-inside it ends the copy after 15 minutes (under the 30 that set off the offline alert), and a separate guard unfreezes after
-20 minutes even if it were killed.  Every 30 seconds it notes in `/run/judicom-backup-progress.log` (in memory, kept until the
-next backup or reboot) what the card has given, what has gone out over Wi-Fi and what the copying programs are doing, so a stuck
+inside it ends the copy after 25 minutes (under the 30 that set off the offline alert), and a separate guard unfreezes after
+28 minutes even if it were killed.  Every 30 seconds it notes in `/run/judicom-backup-progress.log` (in memory, kept until the
+next backup or reboot) what the card has given, what has gone out over Wi-Fi and what each thread of the copying programs is doing (and, when the card has stopped being read, where each is waiting in the kernel), so a stuck
 copy shows which stage stopped.  In a terminal, step 2 shows a progress bar of how far through the main partition the copy is (it
 stays at 0% for the first half minute, the boot area, and speeds up in the free space near the end); if the spinner turns but the
 MB stand still, the copy is stuck.  It starts the phone again itself as soon as the card is unfrozen.  The main partition is read by `copy_used_blocks.py`: the used blocks
@@ -331,7 +331,7 @@ MB stand still, the copy is stuck.  It starts the phone again itself as soon as 
 superblocks).  Not e2image itself: its "is it mounted?" check creates `/.ismount-test-file`, which waits forever on a frozen root
 (found with strace on 2026-11-04; a loop device does not hide the mount, device-mapper refuses a mounted partition).  The NAS keeps the upload as a hidden unfinished file until `commit`: only if its SHA-256 matches what the Judicom
 sent and it unpacks does it get its real name (so a cut-off upload never looks like a backup).  While frozen nothing can start `sudo` (it writes a session record):
-if something ever does hang, wait for the guard (20 minutes) or unplug the Judicom (a frozen card is in a clean state).
+if something ever does hang, wait for the guard (28 minutes) or unplug the Judicom (a frozen card is in a clean state).
 
 - On the NAS: `/mnt/2tbdrive/judicom-backups/judicom-<date-time>.img.zst` (+ `.sha256`), the newest 5 kept.  The Judicom's key
   `~/.ssh/judicom_backup` may only store, commit and discard (speed test): `restrict,command="/home/pi/judicom/receive_backup.sh" ...`

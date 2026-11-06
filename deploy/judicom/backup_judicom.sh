@@ -4,8 +4,8 @@
 #     bash ~/Judicom/deploy/judicom/backup_judicom.sh             the backup
 # ONLY AT HOME: the copy goes over the home network to the NAS (found as naspi.local, which only answers at home).  Never over Tailscale: Tailscale itself stalls
 # while the card is frozen (2026-11-04).
-# The phone is off for a few minutes, 15 at most (callers hear "Judi can't come to the phone").  The frozen part is backup_stream.sh: it
-# unfreezes whenever it ends, a watchdog ends it after 15 minutes, and a guard unfreezes after 20 minutes whatever happens.
+# The phone is off for a few minutes, 25 at most (callers hear "Judi can't come to the phone").  The frozen part is backup_stream.sh: it
+# unfreezes whenever it ends, a watchdog ends it after 25 minutes, and a guard unfreezes after 28 minutes whatever happens.
 # The result: /mnt/2tbdrive/judicom-backups/judicom-<date>.img.zst on the NAS, checked against the SHA-256 of what was read.
 # To put a backup on a new card: docs/DEPLOYMENT.md, "Backup of the SD card".
 set -euo pipefail
@@ -90,7 +90,7 @@ if [ "$MODE" = trial ]; then
   echo "2. How big the image would be (reading the card, nothing frozen yet; a few minutes) ..."
   t0=$(date +%s%N)
   bytes=$( { sudo dd if="$DEV" bs=4M iflag=count_bytes count=$((start2 * 512)) status=none; sudo python3 -B "$HERE/copy_used_blocks.py" "${DEV}p2"; } \
-           | zstd -T0 -1 -q | wc -c )
+           | zstd --single-thread -1 -q | wc -c )
   t1=$(date +%s%N)
   read_s=$(( (t1 - t0) / 1000000000 ))
   minutes=$(python3 -c "print(round(max($read_s, $bytes / 1e6 / $speed) / 60 + 0.5, 1))")
@@ -113,7 +113,7 @@ if [ "$MODE" = trial ]; then
   if stream trial-watchdog > /dev/null 2>"$work/wd.err"; then echo "   the watchdog did not act?" >&2; exit 1; fi
   [ -f "$work/timeout" ] && [ -f "$work/unfrozen" ] && echo "   stopped by the watchdog and unfrozen: OK" || { cat "$work/wd.err" >&2; exit 1; }
   restart
-  echo "6. Phone started again.  Trial done: if the estimate above is well under 15 minutes, the backup can go ahead."
+  echo "6. Phone started again.  Trial done: if the estimate above is well under 25 minutes, the backup can go ahead."
   exit 0
 fi
 
@@ -122,7 +122,7 @@ stop
 echo "2. Freezing the card and sending it to the NAS (a few minutes; the phone starts again as soon as the card is unfrozen) ..."
 if [ -t 1 ]; then show_meter "$work/position" & meter=$!; fi
 set +e
-stream backup "$SERVICES $TIMERS" | zstd -T0 -1 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
+stream backup "$SERVICES $TIMERS" | zstd --single-thread -1 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
 codes=("${PIPESTATUS[@]}")
 set -e
 stop_meter
@@ -130,7 +130,7 @@ sleep 2
 echo "3. The phone: $([ -f "$work/restarted" ] && echo "started again" || echo "starting it again ...")"
 restart
 if [ "${codes[0]}" != 0 ] || [ "${codes[3]}" != 0 ] || [ ! -s "$work/name" ] || [ ! -s "$work/sum" ]; then
-  [ -f "$work/timeout" ] && echo "The copy took longer than 15 minutes and was stopped; the card was unfrozen." >&2
+  [ -f "$work/timeout" ] && echo "The copy took longer than 25 minutes and was stopped; the card was unfrozen." >&2
   echo "The backup did not complete (exit codes: ${codes[*]}).  The card is unfrozen and the phone running again." >&2
   echo "(What reached the NAS stays a hidden, unfinished file there: it is never taken for a backup.)" >&2
   echo "How far it got, until the next backup or reboot: /run/judicom-backup-progress.log" >&2
