@@ -10,7 +10,7 @@
     Christmas -> a tree                        Ugly Sweater Day -> a Christmas sweater
     any birthday -> a cake       an anniversary or wedding -> two rings      Visit from ... -> a house
     and the family's own made-up days: Flagpole -> a flag going up, Morse code -> a telegraph key, Absolutely Nothing -> a hammock,
-    Cat's Questions -> a cat, Backwards -> an arrow pointing back, Go To Work Naked -> a barrel, Grouch -> a grumpy smile,
+    Cat's Questions -> a cat, Backwards -> an arrow pointing back, Go To Work Naked -> a barrel, Grouch -> a grump being hugged,
     Dog Biscuit -> a bone, Sleep -> a moon, Ides of March -> a laurel wreath, Goof Off -> a paper airplane,
     Make Up Your Own Holiday -> a light bulb, April Fool -> a jester's hat, Tell A Lie -> a long nose, Lawyer -> scales,
     Pajamas -> a pajama top, Astronaut -> a rocket, No Pants -> boxer shorts, Lost Sock -> an odd sock,
@@ -724,14 +724,21 @@ def _barrel(p, day):
 
 
 def _grouch(p, day):
-    p.circle((255, 210, 70), 50, 52, 40)
-    for a, b in (((26, 33), (42, 35)), ((74, 33), (58, 35))):                    # bushy grouchy eyebrows ...
+    p.circle((255, 210, 70), 50, 44, 31)
+    for a, b in (((29, 28), (44, 35)), ((71, 28), (56, 35))):                    # bushy eyebrows, pulled down: still a grouch ...
         p.line((120, 80, 50), a, b, 7)
-    for x in (36, 64):
-        pygame.draw.circle(p.s, LINE, p.P(x, 46), p.R(4.5))
-    for x in (24, 76):
-        pygame.draw.circle(p.s, (245, 150, 120), p.P(x, 60), p.R(6))
-    pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(28, 44), p.R(44), p.R(34)), math.pi + 0.35, 2 * math.pi - 0.35, p.R(4.5))   # ... a big smile
+    for x in (39, 61):
+        pygame.draw.circle(p.s, LINE, p.P(x, 43), p.R(4))
+    mouth = [(50 + 13 * math.cos(a / 8 * math.pi), 67 - 9 * math.sin(a / 8 * math.pi)) for a in range(9)]
+    for a, b in zip(mouth, mouth[1:]):
+        p.line(LINE, a, b, 4)
+    for side in (1, -1):                                                         # ... and two arms round him all the same
+        arm = [(side * 38 * math.cos(math.radians(a)) + 50, 46 + 38 * math.sin(math.radians(a))) for a in range(-10, 81, 4)]
+        for color, width in ((LINE, 15), ((70, 130, 210), 10)):
+            for a, b in zip(arm, arm[1:]):
+                p.line(color, a, b, width)
+        p.circle((250, 205, 170), *arm[-1], 7)
+    p.poly((235, 60, 80), _heart_pts(84, 14, 12), o=0)
 
 
 def _bone(p, day):
@@ -1209,15 +1216,16 @@ def _beanie(p, day):
 
 
 def _wolf(p, day):
-    p.circle((250, 240, 190), 58, 40, 32)                                          # a full moon
-    for x, y, r in ((48, 30, 6), (70, 50, 5), (62, 26, 3.5), (52, 54, 3)):
+    p.circle((250, 240, 190), 66, 34, 30)                                          # a full moon
+    for x, y, r in ((74, 22, 6), (82, 44, 5), (66, 52, 3.5)):
         pygame.draw.circle(p.s, (230, 218, 160), p.P(x, y), p.R(r))
-    wolf = [(4, 96), (6, 86), (14, 80), (18, 62), (22, 48), (24, 36), (22, 26), (26, 16), (30, 24), (36, 20), (46, 8),
-            (48, 12), (42, 26), (38, 36), (40, 52), (46, 70), (48, 86), (52, 96)]
-    p.poly((110, 118, 140), wolf)                                                  # a wolf, nose up, howling
-    pygame.draw.circle(p.s, LINE, p.P(31, 26), p.R(1.6))
-    for i, (x, y) in enumerate(((54, 6), (62, 4), (70, 6))):                       # the "ow-ooo"
-        pygame.draw.arc(p.s, (255, 255, 255), pygame.Rect(*p.P(x - 4, y - 2), p.R(8), p.R(8)), math.pi * 0.2, math.pi * 0.8, p.R(2))
+    p.poly((96, 78, 66), [(0, 98), (8, 88), (30, 84), (62, 84), (84, 90), (96, 98)])                # the hill he sits on
+    grey = (128, 136, 156)
+    p.poly(grey, [(20, 88), (10, 90), (3, 82), (2, 72), (9, 78), (20, 78)])        # his tail
+    p.poly(grey, [(20, 88), (20, 70), (25, 54), (27, 40), (24, 28), (20, 12), (33, 21), (39, 19), (56, 3), (60, 7), (47, 21),
+                  (43, 25), (58, 19), (56, 27), (46, 36), (45, 50), (49, 70), (51, 84), (57, 85), (57, 90), (38, 90), (37, 76), (32, 90)])
+    p.poly((226, 228, 232), [(46, 36), (45, 50), (47, 62), (39, 54), (37, 40)], o=0)       # a pale chest
+    p.line(LINE, (33, 27), (39, 25), 3)                                            # his eye, shut tight
 
 
 def _deviledegg(p, day):
