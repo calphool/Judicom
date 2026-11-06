@@ -74,13 +74,16 @@ caption, edit captions, remove).  It edits exactly the files described below, so
   Update: `cd ~/Judicom && git pull && sudo systemctl restart judicom-admin`.  Log: `journalctl -u judicom-admin`.
 
 **See Judicom Now** shows what the Judicom's screen is showing, looked at again every 10 seconds while the page is in view (it
-stops when the tab is hidden, so an idle page costs the Judicom nothing). The NAS asks over Tailscale with its own key, which can
-only run `software/tools/screen_grab.py`:
+stops when the tab is hidden, so an idle page costs the Judicom nothing). It also sends Judi a message: a speech bubble with the
+face of someone in the caller list and three beeps on the ringer speaker, until she touches the screen, presses a button or lifts
+the handset (`software/judicom/messages.py`; calls come first, and at night it waits for the morning). The page shows when she has
+read it. Messages wait in `/home/joe/messages/` and read ones go to `read/` there. The NAS asks over Tailscale with its own key,
+which can only run `software/tools/nas_request.py` (the picture, a message, and which messages have been read):
 
 - On the NAS: `ssh-keygen -t ed25519 -N "" -C judicom-screen -f ~/.ssh/judicom_screen`, then
   `ssh-keyscan -t ed25519 100.64.0.2 >> ~/.ssh/known_hosts`.
 - On the Judicom, in `/home/joe/.ssh/authorized_keys`:
-  `restrict,command="/usr/bin/nice -n 10 /usr/bin/python3 /home/joe/Judicom/software/tools/screen_grab.py -" ssh-ed25519 AAAA... judicom-screen`
+  `restrict,command="/usr/bin/nice -n 10 /usr/bin/python3 /home/joe/Judicom/software/tools/nas_request.py" ssh-ed25519 AAAA... judicom-screen`
 - On the Judicom, reading the screen needs root, so `/etc/sudoers.d/judicom-screen` (mode 440) allows that one command:
   `joe ALL=(root) NOPASSWD: /usr/bin/python3 /home/joe/Judicom/software/tools/screen_grab.py -`
 

@@ -100,6 +100,9 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/layout.py       where the photo goes so the caption covers as little of it as possible  (no pygame)
     judicom/photo_view.py   the photo screen: fitting, caption band, cross-fade               (pygame)
     judicom/display.py      opens the screen; turns the upright picture 90 degrees onto the panel
+    judicom/messages.py     messages from the housekeeping website: waiting, showing, read                (no pygame)
+    judicom/message_view.py the speech bubble screen                                                  (pygame)
+    judicom/touch.py        the touch screen: finds it, reads fingers and taps
     judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
     judicom/home.py         what shows when no call is on: photos; every 5 photos the info, verse or weather screen in turn;

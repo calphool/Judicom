@@ -2,6 +2,7 @@
 Skipped where Flask or Pillow is not installed.   Run from the software folder:   python3 -m unittest -v"""
 import importlib.util
 import io
+import json
 import re
 import sys
 import tempfile
@@ -332,6 +333,114 @@ class Site(unittest.TestCase):
         self.fake_judicom("sys.stdout.buffer.write(b'\\x89PNG')")
         self.assertEqual(self.get("/screen.png", environ_base={"REMOTE_ADDR": "8.8.8.8"}).status_code, 403)
         self.assertFalse(self.looks.exists())
+
+    # ---- sending Judi a message
+    def fake_nas_request(self, message=0, messages="{}"):
+        """Stands in for ssh and nas_request.py: keeps what it was sent in `received`."""
+        script = self.j / "fake_request.py"
+        self.received = self.j / "received"
+        script.write_text("import sys\nif sys.argv[1:] == ['message']:\n"
+                          "    open(%r, 'wb').write(sys.stdin.buffer.read())\n"
+                          "    if %r: sys.exit('nas_request: 20 messages are already waiting for Judi')\n"
+                          "    print('ok')\n"
+                          "else:\n    print(%r)\n" % (str(self.received), message, messages))
+        self.settings.screen = [sys.executable, str(script)]
+
+    def send(self, sender="Amy", text="Hi Mom"):
+        return self.post("/screen/message", {"from": sender, "text": text})
+
+    def sent_rows(self):
+        return self.get("/screen/sent").get_json()
+
+    def test_the_form_offers_only_the_people_in_the_caller_list(self):
+        page = self.get("/screen").get_data(as_text=True)
+        names = re.findall(r"<option(?: selected)?>([^<]+)</option>", page)
+        self.assertEqual(names, [c["name"] for c in admin.read_callers(self.settings)])
+        self.assertTrue(names)
+
+    def first_caller(self):
+        return admin.read_callers(self.settings)[0]["name"]
+
+    def test_a_message_goes_to_the_judicom(self):
+        self.fake_nas_request()
+        r = self.send(self.first_caller())
+        self.assertEqual(r.status_code, 302)
+        got = json.loads(self.received.read_text())
+        self.assertEqual((got["from"], got["text"]), (self.first_caller(), "Hi Mom"))
+        self.assertRegex(got["id"], r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
+
+    def test_someone_not_in_the_caller_list_cannot_be_the_sender(self):
+        self.fake_nas_request()
+        r = self.send("The Bank")
+        self.assertIn("Choose who the message is from", r.get_data(as_text=True))
+        self.assertFalse(self.received.exists())
+
+    def test_empty_and_too_long_are_refused_and_what_was_typed_is_kept(self):
+        self.fake_nas_request()
+        self.assertIn("Type a message first", self.send(self.first_caller(), "   ").get_data(as_text=True))
+        r = self.send(self.first_caller(), "x" * 201)
+        self.assertIn("too long", r.get_data(as_text=True))
+        self.assertIn("x" * 201, r.get_data(as_text=True))
+        self.assertFalse(self.received.exists())
+
+    def test_emoji_are_taken_out_and_the_sender_is_told(self):
+        self.fake_nas_request()
+        r = self.post("/screen/message", {"from": self.first_caller(), "text": "Hi \U0001F60A Mom"}, follow_redirects=True)
+        self.assertEqual(json.loads(self.received.read_text())["text"], "Hi Mom")
+        self.assertIn("without the emoji", r.get_data(as_text=True))
+
+    def test_a_judicom_that_does_not_answer_is_said_and_what_was_typed_is_kept(self):
+        self.fake_judicom("sys.exit(255)")
+        r = self.send(self.first_caller(), "Hello there")
+        self.assertIn("did not take the message", r.get_data(as_text=True))
+        self.assertIn("Hello there", r.get_data(as_text=True))
+        self.assertEqual(self.sent_rows(), [])
+
+    def test_the_old_key_that_only_sends_pictures_counts_as_not_sent(self):
+        self.fake_judicom("sys.stdout.buffer.write(b'\\x89PNG')")
+        self.assertIn("did not take the message", self.send(self.first_caller()).get_data(as_text=True))
+
+    def test_a_refusal_gives_the_judicom_s_reason(self):
+        self.fake_nas_request(message=1)
+        self.assertIn("20 messages are already waiting", self.send(self.first_caller()).get_data(as_text=True))
+
+    def test_without_the_token_nothing_is_sent(self):
+        self.fake_nas_request()
+        r = self.post("/screen/message", {"from": self.first_caller(), "text": "Hi"}, token=False)
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(self.received.exists())
+
+    def test_it_says_waiting_and_then_when_it_was_read(self):
+        self.fake_nas_request()
+        self.send(self.first_caller())
+        self.assertEqual(self.sent_rows()[0]["status"], "Waiting for Judi")
+        message_id = json.loads(self.received.read_text())["id"]
+        today = admin.datetime.datetime.now().replace(hour=15, minute=12, second=0, microsecond=0)
+        self.fake_nas_request(messages=json.dumps({message_id: today.isoformat()}))
+        with mock.patch.object(admin, "SCREEN_EVERY", 0):
+            self.assertEqual(self.sent_rows()[0]["status"], "Read at 03:12 PM".replace("03", "3"))
+
+    def test_once_all_are_read_the_judicom_is_left_alone(self):
+        self.fake_nas_request()
+        self.send(self.first_caller())
+        message_id = json.loads(self.received.read_text())["id"]
+        self.fake_nas_request(messages=json.dumps({message_id: "2026-11-05T09:05:00"}))
+        with mock.patch.object(admin, "SCREEN_EVERY", 0):
+            self.assertEqual(self.sent_rows()[0]["status"], "Read at 9:05 AM on Nov 05")
+            self.settings.screen = [str(self.j / "no_such_program")]
+            self.assertEqual(self.sent_rows()[0]["status"], "Read at 9:05 AM on Nov 05")
+
+    def test_a_judicom_that_cannot_say_leaves_it_waiting(self):
+        self.fake_nas_request()
+        self.send(self.first_caller())
+        self.settings.screen = [str(self.j / "no_such_program")]
+        with mock.patch.object(admin, "SCREEN_EVERY", 0):
+            self.assertEqual(self.sent_rows()[0]["status"], "Waiting for Judi")
+
+    def test_a_message_is_written_safely_into_the_page(self):
+        self.fake_nas_request()
+        r = self.send(self.first_caller(), "x" * 300 + "</textarea><script>alert(1)</script>")
+        self.assertNotIn("<script>alert(1)", r.get_data(as_text=True))
 
 
 if __name__ == "__main__":

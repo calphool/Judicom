@@ -22,6 +22,9 @@ PEOPLE_MAX_FILE = 5 * 1024 * 1024     # a bigger picture is not copied from the 
 PEOPLE_MAX_TOTAL = 50 * 1024 * 1024   # nor more than this altogether
 FACE_PX = 400                         # the picture's size on the call screens
 
+# Messages from the housekeeping website (judicom/messages.py) wait here until Judi has read them.
+MESSAGES_DIR = Path(os.environ.get("JUDICOM_MESSAGES", "/home/joe/messages"))
+
 # ---- the screen -------------------------------------------------------------------------------------------------------------
 # Everything is drawn upright at this size.  The panel is mounted sideways, so judicom/display.py turns the picture 90 degrees.
 SCREEN_W, SCREEN_H = 600, 1024
@@ -91,6 +94,7 @@ RINGER_CARD = "Headphones"    # ALSA card id of the 3.5 mm jack (see `aplay -l`)
 DIAL_TONE_LEVEL = 0.12        # each of the two dial tone notes, as a fraction of full scale
 DIGIT_LEVEL = 0.15            # each of the two notes of a touch-tone digit
 RING_LEVEL = 0.6              # the ringer (kept below full scale so the amplifier is not driven hard)
+BEEP_LEVEL = 0.5              # the three beeps of a new message, on the ringer speaker
 
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
 INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or
