@@ -131,8 +131,8 @@ class Verses(Base):
 
     def test_the_verse_page_is_drawn_once(self):
         self.make(2)
-        self.home._special()
-        self.home._special()                                   # info, then a verse
+        self.home._next_screen()
+        self.home._next_screen()                                   # info, then a verse
         self.assertEqual(self.home.mode, self.VERSE)
         self.assertTrue(self.home.needs_redraw())
         self.home._drawn = self.home._signature()
@@ -256,15 +256,15 @@ class WeatherTurn(Base):
     def test_the_weather_screen_lasts_its_time_and_space_ends_it(self):
         from judicom.home import WEATHER
         self.make(0, True)
-        self.home._special()
-        self.home._special()
-        self.assertEqual((self.home.mode, self.home.report), (WEATHER, self.report))
+        self.home._next_screen()
+        self.home._next_screen()
+        self.assertEqual((self.home.mode, self.home.screen.report), (WEATHER, self.report))
         self.run_for(29)
         self.assertEqual(self.home.mode, WEATHER)
         self.run_for(1.5)
         self.assertEqual(self.home.mode, PHOTOS)
-        self.home._special()
-        self.home._special()
+        self.home._next_screen()
+        self.home._next_screen()
         self.home.next()
         self.assertEqual(self.home.mode, PHOTOS)
 
@@ -279,6 +279,49 @@ class Redraw(Base):
         self.assertFalse(self.home.needs_redraw())
         self.clock.t += 31
         self.assertTrue(self.home.needs_redraw())
+
+
+class Drawing(Base):
+    """Each screen drawn through Home, as main.py does it (needs pygame: skipped without it)."""
+
+    def test_every_screen_draws(self):
+        try:
+            import os
+            os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+            import pygame
+        except ImportError:
+            self.skipTest("pygame is not installed")
+        pygame.display.init()
+        pygame.font.init()
+        self.addCleanup(pygame.quit)
+        from judicom import draw, events, verse_view
+        from judicom.config import SCREEN_H, SCREEN_W
+        from judicom.home import VERSE, WEATHER
+        from judicom.weather import Report
+        self.addCleanup(draw.reset)                      # (before pygame.quit: a font kept past it crashes the next tests)
+        self.addCleanup(verse_view.reset)
+
+        class Events:
+            def refresh(self):
+                return False
+
+            def upcoming(self, now):
+                return events.upcoming(events.parse("12-25 | Christmas"), now, 5)
+
+        report = Report(48, 54, 45, "cloud", "Cloudy", 0.0)
+        self.home = Home(self.photos, Events(), WeatherTurn.FakeWeather(report), now=self.clock.now, clock=self.clock, every=5,
+                         awake_file=None, verses=Verses.FakeVerses(1))
+        surf = pygame.Surface((SCREEN_W, SCREEN_H))
+        for want in (INFO, VERSE, WEATHER):
+            self.home._next_screen()
+            self.assertEqual(self.home.mode, want)
+            surf.fill((0, 0, 0))
+            self.home.draw(surf)
+            self.assertFalse(self.home.needs_redraw())
+            self.assertGreater(len({tuple(surf.get_at((x, y))) for x in range(0, SCREEN_W, 20) for y in range(0, SCREEN_H, 20)}), 3)
+        self.home._go(NIGHT)
+        self.home.draw(surf)
+        self.assertFalse(self.home.needs_redraw())
 
 
 if __name__ == "__main__":
