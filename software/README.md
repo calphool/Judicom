@@ -91,6 +91,7 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     python3 tools/handset_echo_test.py      what the handset microphone hears, played back in its speaker for 30 s
     python3 tools/touch_draw.py             draw on the screen with your fingers; a button or the handset ends it (it
                                             stops the phone program while it runs and starts it again after)
+    python3 tools/screen_grab.py            what the screen is showing now, upright, in ~/screen.png (nothing is stopped)
 
 ## Files
 

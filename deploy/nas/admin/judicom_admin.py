@@ -6,6 +6,8 @@
     Events          birthdays, holidays and visits for the info screen  (/home/pi/judicom/events.txt)
     Caller pictures the faces on the call screens: cropped square from the middle and made 800 x 800 PNG  (/home/pi/judicom/people)
     Photos          the slideshow, with captions  (/mnt/8tbdrive/Photos/Judi, shared with Jellyfin; very big photos are shrunk)
+    See Judicom Now what its screen is showing, looked at again every 10 seconds while the page is in view  (asked for over
+                    SSH with a key that can do nothing else: docs/DEPLOYMENT.md)
 
 The Judicom fetches the lists and caller pictures every 10 minutes and the photos every hour.
 
@@ -28,6 +30,8 @@ import secrets
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -44,6 +48,9 @@ PICTURE_EXTS = (".jpg", ".jpeg", ".png")
 FACE_PX = 800
 PHOTO_MAX_PX = 3000                 # a photo bigger than this (longest side) is shrunk to it when uploaded
 HISTORY_KEEP = 30
+SCREEN_EVERY = 10                   # seconds between looks at the Judicom's screen, while someone has the page in view
+SCREEN_FRESH = 5                    # a look this recent is shared, so two people watching do not double the work on the Judicom
+SCREEN_TIMEOUT = 25                 # seconds; a look takes about 3
 NETS = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                                           "100.64.0.0/10", "fd7a:115c:a1e0::/48", "fe80::/10")]
 HOSTS = {"naspi", "naspi.local", "naspi-1", "localhost"}
@@ -56,6 +63,8 @@ class Settings:
     trash_dir: Path = Path("/mnt/8tbdrive/.judicom-deleted")
     apply: list = field(default_factory=lambda: ["/usr/bin/python3", "/home/pi/judicom/apply_contacts.py"])
     hosts: set = field(default_factory=lambda: set(HOSTS))
+    screen: list = field(default_factory=lambda: ["/usr/bin/ssh", "-i", "/home/pi/.ssh/judicom_screen", "-o", "BatchMode=yes",
+                                                  "-o", "ConnectTimeout=5", "joe@100.64.0.2"])
 
     @property
     def contacts(self):
@@ -435,6 +444,15 @@ def write_caption(photo, people, relationship, taken):
 
 
 # ------------------------------------------------------------------ the web site --------------------------------------------
+def judicom_screen(command):
+    """The PNG the Judicom sends back, or None if it does not (it is off, its Tailscale is down, it is not showing a picture)."""
+    try:
+        result = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=SCREEN_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return result.stdout if result.returncode == 0 and result.stdout.startswith(b"\x89PNG") else None
+
+
 def allowed_address(addr):
     try:
         ip = ipaddress.ip_address((addr or "").split("%")[0])
@@ -461,6 +479,8 @@ def create_app(s=None):
     app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024       # a batch of phone photos
     app.jinja_loader = DictLoader(TEMPLATES)
     token = secrets.token_urlsafe(24)
+    screen_lock = threading.Lock()
+    last_look = {"png": None, "at": 0.0}
 
     @app.before_request
     def guard():
@@ -474,7 +494,8 @@ def create_app(s=None):
     @app.context_processor
     def common():
         return {"token": token, "nav": [("home", "Home"), ("callers", "Callers"), ("events", "Events"),
-                                        ("people", "Caller pictures"), ("photos", "Photos")]}
+                                        ("people", "Caller pictures"), ("photos", "Photos"),
+                                        ("screen", "See Judicom Now")]}
 
     @app.errorhandler(403)
     def forbidden(e):
@@ -653,6 +674,22 @@ def create_app(s=None):
     def photos_img(name):
         return send_file(thumbnail(s, file_in(s.photos_dir, name), 360), mimetype="image/jpeg", max_age=0)
 
+    # ---- what the Judicom is showing
+    @app.route("/screen")
+    def screen():
+        return render_template("screen.html", title="See Judicom Now", every=SCREEN_EVERY)
+
+    @app.route("/screen.png")
+    def screen_png():
+        with screen_lock:                                  # one look at a time; whoever waited shares the answer
+            if time.monotonic() - last_look["at"] >= SCREEN_FRESH or last_look["png"] is None:
+                last_look["png"] = judicom_screen(s.screen)
+                last_look["at"] = time.monotonic()
+            png = last_look["png"]
+        if png is None:
+            return "The Judicom is not answering.", 503, {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}
+        return png, {"Content-Type": "image/png", "Cache-Control": "no-store"}
+
     def file_in(folder, name):
         """The picture called name in folder, or 404 (no paths, no hidden files, nothing else)."""
         for p in picture_files(folder):
@@ -690,6 +727,36 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
 <main>{% for cat, m in get_flashed_messages(with_categories=true) %}<div class="msg {{ cat }}">{{ m }}</div>{% endfor %}
 {% if errors %}<ul class="errors">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
 {% block body %}{% endblock %}</main></body></html>""",
+
+    "screen.html": """{% extends "base.html" %}{% block body %}<h1>See Judicom Now</h1>
+<p class="help" id="status">Asking the Judicom...</p>
+<img id="shot" alt="What the Judicom's screen is showing" style="display:block;width:100%;max-width:450px;aspect-ratio:600/1024;margin:0 auto;border-radius:8px;background:#dde4e4">
+<script>
+(function () {
+  var shot = document.getElementById("shot"), status = document.getElementById("status"), timer, url;
+  function look() {
+    clearTimeout(timer);
+    if (document.hidden) return;                       // nobody is watching: leave the Judicom alone until they come back
+    fetch("{{ url_for('screen_png') }}", {cache: "no-store"}).then(function (r) {
+      if (!r.ok) throw new Error("no answer");
+      return r.blob();
+    }).then(function (picture) {
+      if (url) URL.revokeObjectURL(url);
+      url = URL.createObjectURL(picture);
+      shot.src = url;
+      shot.style.opacity = 1;
+      status.textContent = "Updated at " + new Date().toLocaleTimeString() + ". Looks again every {{ every }} seconds.";
+    }).catch(function () {
+      shot.style.opacity = 0.4;
+      status.textContent = "The Judicom is not answering. Trying again every {{ every }} seconds.";
+    }).then(function () {
+      timer = setTimeout(look, {{ every }} * 1000);
+    });
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) look(); });
+  look();
+})();
+</script>{% endblock %}""",
 
     "message.html": """{% extends "base.html" %}{% block body %}<h1>{{ title }}</h1><div class="card">{{ text }}</div>{% endblock %}""",
 

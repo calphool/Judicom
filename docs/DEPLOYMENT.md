@@ -73,6 +73,17 @@ caption, edit captions, remove).  It edits exactly the files described below, so
   Install: `git clone https://github.com/calphool/Judicom.git ~/Judicom && bash ~/Judicom/deploy/nas/admin/install_admin.sh`.
   Update: `cd ~/Judicom && git pull && sudo systemctl restart judicom-admin`.  Log: `journalctl -u judicom-admin`.
 
+**See Judicom Now** shows what the Judicom's screen is showing, looked at again every 10 seconds while the page is in view (it
+stops when the tab is hidden, so an idle page costs the Judicom nothing). The NAS asks over Tailscale with its own key, which can
+only run `software/tools/screen_grab.py`:
+
+- On the NAS: `ssh-keygen -t ed25519 -N "" -C judicom-screen -f ~/.ssh/judicom_screen`, then
+  `ssh-keyscan -t ed25519 100.64.0.2 >> ~/.ssh/known_hosts`.
+- On the Judicom, in `/home/joe/.ssh/authorized_keys`:
+  `restrict,command="/usr/bin/nice -n 10 /usr/bin/python3 /home/joe/Judicom/software/tools/screen_grab.py -" ssh-ed25519 AAAA... judicom-screen`
+- On the Judicom, reading the screen needs root, so `/etc/sudoers.d/judicom-screen` (mode 440) allows that one command:
+  `joe ALL=(root) NOPASSWD: /usr/bin/python3 /home/joe/Judicom/software/tools/screen_grab.py -`
+
 ### Judi's caller list
 
 `/home/pi/judicom/contacts.txt` on the NAS is the only list to edit: same format as `software/contacts.example.txt`
