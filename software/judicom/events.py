@@ -28,6 +28,7 @@ import re
 from dataclasses import dataclass
 
 from . import config
+from .watched_file import WatchedFile
 
 
 @dataclass(frozen=True)
@@ -236,29 +237,17 @@ class EventList:
         self.path = str(config.EVENTS_FILE if path is None else path)
         self.log = log or (lambda msg: None)
         self.events: list[Event] = []
-        self._stamp = "unread"
+        self._file = WatchedFile(self.path, self.log)
         self.refresh()
 
     def refresh(self) -> bool:
-        import os
-        try:
-            st = os.stat(self.path)
-            stamp = (st.st_mtime_ns, st.st_size)
-        except OSError:
-            stamp = None
-        if stamp == self._stamp:
+        """Read the file again if it changed (no file: no events).  True if it did."""
+        changed, text = self._file.read()
+        if not changed:
             return False
-        self._stamp = stamp
-        if stamp is None:
-            self.events = []
-            return True
-        try:
-            with open(self.path, encoding="utf-8", errors="replace") as fh:
-                self.events = parse(fh.read(), self.log)
-        except OSError as exc:
-            self.log("cannot read %s: %s" % (self.path, exc))
-            return False
-        self.log("Events: %d from %s" % (len(self.events), self.path))
+        self.events = [] if text is None else parse(text, self.log)
+        if text is not None:
+            self.log("Events: %d from %s" % (len(self.events), self.path))
         return True
 
     def upcoming(self, now: datetime.datetime, count: int = config.INFO_EVENTS) -> list[Upcoming]:

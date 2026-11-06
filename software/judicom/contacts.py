@@ -22,9 +22,9 @@ the PBX's list never keeps anyone from getting through.
 
 If the file is missing, the buttons from config.BUTTONS are used (a PC demo), and incoming calls show only the number.
 """
-import os
 
 from . import config
+from .watched_file import WatchedFile
 from .machine import Party, buttons_from_config
 from .sound import dialable
 
@@ -86,35 +86,20 @@ class Contacts:
         self.path = str(config.CONTACTS_FILE if path is None else path)
         self.log = log or (lambda msg: None)
         self._people, self._buttons = {}, {}
-        self._stamp = None
-        self._missing_reported = False
+        self._file = WatchedFile(self.path, self.log)
         self.refresh()
 
     def refresh(self):
         """Read the file again if it changed (or appeared, or disappeared).  True if something changed."""
-        try:
-            st = os.stat(self.path)
-            stamp = (st.st_mtime_ns, st.st_size)
-        except OSError:
-            stamp = None
-        if stamp == self._stamp and (stamp is not None or self._missing_reported):
+        changed, text = self._file.read()
+        if not changed:
             return False
-        self._stamp = stamp
-        if stamp is None:
-            if not self._missing_reported:
-                self.log("No contacts file at %s: the buttons use the demo people in config.py, and incoming calls show only the "
-                         "number.  (See contacts.example.txt.)" % self.path)
-            self._missing_reported = True
+        if text is None:
+            self.log("No contacts file at %s: the buttons use the demo people in config.py, and incoming calls show only the "
+                     "number.  (See contacts.example.txt.)" % self.path)
             changed = bool(self._people or self._buttons)
             self._people, self._buttons = {}, {}
             return changed
-        self._missing_reported = False
-        try:
-            with open(self.path, encoding="utf-8", errors="replace") as fh:
-                text = fh.read()
-        except OSError as exc:
-            self.log("Cannot read %s: %s (keeping what was read before)" % (self.path, exc))
-            return False
         self._people, self._buttons = parse(text, self.log)
         missing = [k for k in BUTTON_KEYS if k not in self._buttons]
         self.log("Contacts: %d people from %s%s" % (len(self._people), self.path,
@@ -123,7 +108,7 @@ class Contacts:
 
     def buttons(self):
         """The people on the two buttons: from the file; without a file, the demo people in config.BUTTONS."""
-        if self._stamp is None:
+        if self._file.missing:
             return buttons_from_config()
         return dict(self._buttons)
 

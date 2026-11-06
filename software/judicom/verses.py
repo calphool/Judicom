@@ -13,12 +13,12 @@ verse number there, as a Bible page does.  Lines starting with # and empty lines
 from __future__ import annotations
 
 import argparse
-import os
 import random
 import re
 from dataclasses import dataclass
 
 from . import config
+from .watched_file import WatchedFile
 
 
 @dataclass(frozen=True)
@@ -71,27 +71,16 @@ class VerseDeck:
         self.verses: list[Verse] = []
         self._deck: list[Verse] = []
         self._last = None
-        self._stamp = "unread"
+        self._file = WatchedFile(self.path, self.log)
         self.refresh()
 
     def refresh(self) -> bool:
-        try:
-            st = os.stat(self.path)
-            stamp = (st.st_mtime_ns, st.st_size)
-        except OSError:
-            stamp = None
-        if stamp == self._stamp:
+        """Read the file again if it changed (no file: no verses).  True if it did."""
+        changed, text = self._file.read()
+        if not changed:
             return False
-        self._stamp = stamp
-        if stamp is None:
-            self.verses = []
-        else:
-            try:
-                with open(self.path, encoding="utf-8", errors="replace") as fh:
-                    self.verses = parse(fh.read(), self.log)
-            except OSError as exc:
-                self.log("cannot read %s: %s" % (self.path, exc))
-                return False
+        self.verses = [] if text is None else parse(text, self.log)
+        if text is not None:
             self.log("Verses: %d from %s" % (len(self.verses), self.path))
         self._deck = [v for v in self._deck if v in self.verses]       # a changed list: what is left of the round, still in it
         return True
