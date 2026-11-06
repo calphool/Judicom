@@ -533,6 +533,36 @@ class Screen(unittest.TestCase):
         message_view.show(s, *args, **kw)
         return s
 
+    def test_the_hint_breathes_from_resting_to_brightest_and_back(self):
+        from judicom import message_view as view
+        seen = [view.pulse(i * view.HINT_SECONDS / 200) for i in range(201)]
+        self.assertEqual((seen[0], max(seen), min(seen), seen[-1]), (0, view.HINT_BOB, 0, 0))
+        self.assertEqual(seen[100], view.HINT_BOB)
+        self.assertTrue(all(abs(a - b) <= 1 for a, b in zip(seen, seen[1:])))
+
+    def test_the_hint_is_drawn_again_without_touching_the_rest_of_the_screen(self):
+        from judicom import message_view as view
+        message = Message("20261106-120000-abcdef", "Amy", "word " * 40)
+        resting, bright = self.surface(message), self.surface(message)
+        view.show_hint(bright, 0, view.HINT_BOB)
+        top = pygame.Rect(0, 0, 600, view.HINT_TOP)
+        self.assertEqual(pygame.image.tobytes(resting.subsurface(top), "RGB"), pygame.image.tobytes(bright.subsurface(top), "RGB"))
+        self.assertNotEqual(pygame.image.tobytes(resting, "RGB"), pygame.image.tobytes(bright, "RGB"))
+
+    def test_the_hint_comes_back_to_exactly_what_it_was(self):
+        from judicom import message_view as view
+        message = Message("20261106-120000-abcdef", "Amy", "Hi Mom")
+        first, again = self.surface(message, more=1), self.surface(message, more=1)
+        view.show_hint(again, 1, view.HINT_BOB)
+        view.show_hint(again, 1, 0)
+        self.assertEqual(pygame.image.tobytes(first, "RGB"), pygame.image.tobytes(again, "RGB"))
+
+    def test_the_longest_bubble_stays_above_the_strip_that_is_drawn_again(self):
+        from judicom import message_view as view
+        size, lines = view.fitted("word " * 40)
+        self.assertLessEqual(view.BUBBLE_TOP + len(lines) * int(size * view.SPACING) + 2 * view.PAD, view.HINT_TOP)
+        self.assertGreaterEqual(view.HINT_Y - view.HINT_BOB, view.HINT_TOP)
+
     def test_short_words_are_bigger_than_long_ones(self):
         from judicom import message_view
         self.assertGreater(message_view.fitted("Hi Mom!")[0], message_view.fitted("word " * 40)[0])

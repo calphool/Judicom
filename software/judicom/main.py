@@ -217,6 +217,7 @@ def main(argv=None):
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))              # a clean stop when a service is stopped
     terminal = TerminalKeys() if TerminalKeys.available() else None
     frames = pygame.time.Clock()
+    hint_level = None
     try:
         while True:
             keys = (terminal.poll() if terminal else []) + window_keys(pygame.event.get())
@@ -225,9 +226,14 @@ def main(argv=None):
             changed = phone.step(keys)
             mode = phone.machine.mode
             if phone.message:
+                level = message_view.pulse(time.monotonic())
                 if changed:
-                    message_view.show(display.logical, phone.message, faces, postbox.more)
+                    message_view.show(display.logical, phone.message, faces, postbox.more, level)
                     display.present()
+                elif level != hint_level:
+                    message_view.show_hint(display.logical, postbox.more, level)
+                    display.present()
+                hint_level = level
             elif mode == Mode.IDLE:
                 if changed or photos.needs_redraw():
                     photos.draw(display.logical)
