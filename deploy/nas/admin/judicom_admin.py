@@ -284,6 +284,30 @@ def render_events(header, rows):
     return "\n".join(out).rstrip("\n") + "\n"
 
 
+def sorted_by_date(rows, year):
+    """The rows with each section's events in calendar order, as they fall in the given year (Thanksgiving, Easter and the
+    like are worked out for that year).  A one-time event goes by its own date; one that cannot be read goes to the end of
+    its section.  The headings stay where they are."""
+    def key(r):
+        ev, _ = check_event(r["when"], r["what"])
+        d = None
+        if ev is not None:
+            d = datetime.date(ev.year, ev.month, ev.day) if ev.year is not None else ev.date_in(year)
+            if d is None:                                   # a 5th weekday that is not there this year: about its month's end
+                d = datetime.date(year, ev.month, 28)
+        t = ev.time if ev is not None and ev.time else datetime.time(0)
+        return (d is None, d or datetime.date.max, t)
+    out, section = [], []
+    for r in rows + [{"kind": "heading"}]:
+        if r["kind"] == "heading":
+            out += sorted(section, key=key)                  # (a stable sort: same-day events keep their order)
+            section = []
+            out.append(r)
+        else:
+            section.append(r)
+    return out[:-1]
+
+
 def with_blank_rows(rows, at_end=2):
     """The rows to show: a blank row for a new event at the end of each section (so a holiday can go with the holidays) and a
     couple more at the very end.  Each blank row knows its section's heading, for its hint."""
@@ -510,6 +534,8 @@ def create_app(s=None):
                 rows = with_blank_rows(rows)
                 return render_template("events.html", rows=rows, errors=errors, next=next_dates(rows, datetime.datetime.now()),
                                        coming=[]), 400
+            if request.form.get("sort"):
+                clean = sorted_by_date(clean, datetime.date.today().year)
             text = render_events(header, clean)
             if text == read(s.events):
                 flash("No changes.")
@@ -710,7 +736,9 @@ A one-time event drops off by itself when its day is over.  Grey rows are headin
 {% else %}<td><input type="hidden" name="kind-{{ i }}" value="event"><input type="text" name="when-{{ i }}" value="{{ r.when }}"></td><td><input type="text" name="what-{{ i }}" value="{{ r.what }}"></td>
 <td class="when hide-small">{{ next[loop.index0] }}</td>{% endif %}
 <td><input type="checkbox" name="remove-{{ i }}" value="1" title="remove"></td></tr>{% endif %}{% endfor %}
-</table><div class="row"><button>Save events</button><a href="{{ url_for('events') }}">Undo my edits</a></div></form>{% endblock %}""",
+</table><div class="row"><button>Save events</button><button name="sort" value="1">Sort by date and save</button>
+<a href="{{ url_for('events') }}">Undo my edits</a></div></form>
+<p class="help">Sort puts each section in calendar order (January first); days like Thanksgiving or Easter go by this year's date.</p>{% endblock %}""",
 
     "people.html": """{% extends "base.html" %}{% set title = "Caller pictures" %}{% block body %}<h1>Caller pictures</h1>
 <p class="help">The face shown while Judi calls someone, talks with them, or when they ring.  Any picture works: it is cropped to a
