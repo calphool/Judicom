@@ -90,7 +90,7 @@ if [ "$MODE" = trial ]; then
   echo "2. How big the image would be (reading the card, nothing frozen yet; a few minutes) ..."
   t0=$(date +%s%N)
   bytes=$( { sudo dd if="$DEV" bs=4M iflag=count_bytes count=$((start2 * 512)) status=none; sudo python3 -B "$HERE/copy_used_blocks.py" "${DEV}p2"; } \
-           | zstd --single-thread -1 -q | wc -c )
+           | zstd --single-thread --no-asyncio -1 -q | wc -c )
   t1=$(date +%s%N)
   read_s=$(( (t1 - t0) / 1000000000 ))
   minutes=$(python3 -c "print(round(max($read_s, $bytes / 1e6 / $speed) / 60 + 0.5, 1))")
@@ -122,7 +122,7 @@ stop
 echo "2. Freezing the card and sending it to the NAS (a few minutes; the phone starts again as soon as the card is unfrozen) ..."
 if [ -t 1 ]; then show_meter "$work/position" & meter=$!; fi
 set +e
-stream backup "$SERVICES $TIMERS" | zstd --single-thread -1 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
+stream backup "$SERVICES $TIMERS" | zstd --single-thread --no-asyncio -1 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
 codes=("${PIPESTATUS[@]}")
 set -e
 stop_meter
