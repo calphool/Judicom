@@ -86,7 +86,7 @@ AMBER, GREEN, ROSE = (255, 196, 64), (112, 214, 144), (240, 150, 150)
 YELLOW, DARK = (255, 214, 10), (30, 30, 30)    # the "please hang up" screen
 
 # ---- sounds -----------------------------------------------------------------------------------------------------------------
-# The dial tone goes to the handset (the USB sound device, found by itself); the ringer to the Pi's headphone jack -> LM386 -> speaker.
+# The dial tone goes to the handset (the USB sound device, found by itself); the ringer to the Pi's headphone jack -> PAM8403 -> speaker.
 RINGER_CARD = "Headphones"    # ALSA card id of the 3.5 mm jack (see `aplay -l`)
 DIAL_TONE_LEVEL = 0.12        # each of the two dial tone notes, as a fraction of full scale
 DIGIT_LEVEL = 0.15            # each of the two notes of a touch-tone digit

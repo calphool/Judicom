@@ -20,7 +20,7 @@ The endpoint is currently assumed to be a **Pi 3 B+**, replacing earlier Pi 3 A+
 | Handset | Vintage AT&T Merlin handset, model/transducers to be inspected | Ordered; connector pinout and internal construction unverified |
 | Handset audio | USB full-duplex audio interface, with suitable mic bias and receiver drive if required | Proposed |
 | Ringtone speaker | 4 Ω, 3 W speaker; approximately 53 × 53 × 25 mm | Available; final mounting TBD |
-| Ringtone amplifier | LM386 module driven from Pi's 3.5 mm analog output | Proposed; gain, noise and output level to test |
+| Ringtone amplifier | PAM8403 (class-D) amplifier module driven from Pi's 3.5 mm analog output | Proposed; gain, noise and output level to test |
 | Microphone prototype | INMP441 I²S microphone | Previously functional; likely to be retired for handset design |
 | Enclosure | Custom 3D-printed enclosure designed in FreeCAD | In development; mounting geometry may change |
 | Power | External regulated 5 V supply and internal distribution | Final supply rating and wiring TBD |
@@ -29,7 +29,7 @@ The endpoint is currently assumed to be a **Pi 3 B+**, replacing earlier Pi 3 A+
 
 ```text
 Merlin handset mic/receiver <-> compatible analog interface <-> USB sound device <-> Pi 3 B+
-Pi 3 B+ analog 3.5 mm output -> LM386 amplifier -> external ringtone speaker
+Pi 3 B+ analog 3.5 mm output -> PAM8403 amplifier -> external ringtone speaker
 ```
 
 Do **not** assume the original Merlin microphone is an electret capsule, that its receiver is suitable for direct connection to a USB adapter, or that the handset's four contacts have a standard pinout. Identify the actual handset and measure its circuits first. Do not connect an unknown transducer directly to a powered mic input.
@@ -49,7 +49,7 @@ The Pi 3 B+ analog jack is a four-pole A/V connector; confirm the correct audio 
 - [ ] Identify Merlin handset variant and connector contact mapping.
 - [ ] Determine microphone type, bias requirements, and receiver impedance.
 - [ ] Test clean, full-duplex USB handset audio under ALSA.
-- [ ] Test independent ringtone routing through the analog output and LM386.
+- [ ] Test independent ringtone routing through the analog output and the PAM8403.
 - [ ] Measure operating and peak 5 V current draw with display, Pi, amplifier, and button LEDs.
 - [ ] Verify GPIO pins, switch logic, LED resistors/drivers, and boot behavior.
 - [ ] Confirm final FreeCAD dimensions, mounting holes, and cable clearances.

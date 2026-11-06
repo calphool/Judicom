@@ -26,7 +26,7 @@ The endpoint is designed to communicate with the NAS over a private network. The
 |---|---|---|
 | Judicom endpoint | Raspberry Pi 3 Model B+; Python / Pygame; 7-inch 1024×600 HDMI display; physical buttons | Target platform; integration ongoing |
 | Handset audio | Merlin handset via USB audio interface | Proposed; handset electrical characteristics TBD |
-| Ringtone | Separate speaker driven by 3.5 mm output through an LM386 amplifier | Proposed |
+| Ringtone | Separate speaker driven by 3.5 mm output through a PAM8403 (class-D) amplifier | Proposed |
 | NAS | Raspberry Pi 4 Model B Rev 1.5; Debian Linux, Docker, storage, network services | Existing; configuration to inventory |
 | Asterisk | Asterisk 22 in Docker on NAS | Running; VoIP.ms registration previously confirmed |
 | SIP service | VoIP.ms, Chicago server | Registration confirmed; inbound call path needs validation |
