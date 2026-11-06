@@ -101,6 +101,7 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
     judicom/home.py         what shows when no call is on: photos; every 5 photos the info, verse or weather screen in turn;
                             9 pm - 6 am the night clock
+    judicom/screens.py      the screens that take turns between photos (info, verse, weather): one way for each  (no pygame)
     judicom/info_view.py    the info screen (day, date, time, next events with countdowns) and the night clock (pygame)
     judicom/weather_view.py the weather screen: today and the next 5 days                              (pygame)
     judicom/event_icons.py  the little pictures beside the events (a cake, a tree, a turkey ...)    (pygame)
@@ -110,6 +111,7 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/weather.py      Oskaloosa's weather and forecast from Open-Meteo, fetched every 30 min      (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
+    judicom/watched_file.py reads the contacts / events / verses file again only when it changes     (no pygame)
     judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)
     judicom/photo_sync.py   copies the photos from the NAS (/mnt/8tbdrive/Photos/Judi), every hour  (no pygame)
     judicom/sound.py        dial tone and ringer, looped through aplay                        (no pygame)
