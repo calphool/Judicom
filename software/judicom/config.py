@@ -93,9 +93,10 @@ DIGIT_LEVEL = 0.15            # each of the two notes of a touch-tone digit
 RING_LEVEL = 0.6              # the ringer (kept below full scale so the amplifier is not driven hard)
 
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
-INFO_EVERY_PHOTOS = 5         # after this many photos, the info screen (date, time, weather, upcoming events) ...
-INFO_SECONDS = 30.0           # ... for this long, then the photos again
-INFO_EVENTS = 3               # how many upcoming events it shows
+INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or
+INFO_SECONDS = 30.0           # the weather ... the info screen for this long, then the photos again
+INFO_EVENTS = 5               # how many upcoming events it shows (fewer when long names leave no room)
+WEATHER_SECONDS = 30.0        # the weather screen (today and the next days), for this long
 NIGHT_FROM = (21, 0)          # the night clock (a dark screen with only the time and date) from 9:00 pm ...
 NIGHT_TO = (6, 0)             # ... to 6:00 am.  Calls work as always; afterwards the night clock comes back.
 # To see the photos and the info screen at night (setting it up, showing it to someone): create this file
@@ -105,7 +106,7 @@ NIGHT_PAUSE_FILE = Path(os.environ.get("JUDICOM_AWAKE", "/home/joe/judicom-awake
 NIGHT_PAUSE_HOURS = 2.0
 # Judi's events: a copy of /home/pi/judicom/events.txt on the NAS (judicom.sync fetches it with the caller list).
 EVENTS_FILE = Path(os.environ.get("JUDICOM_EVENTS", "/home/joe/events.txt"))
-# The weather (Open-Meteo: free, no account), fetched every 30 minutes; not shown when it is more than 3 hours old.
+# The weather screen (Open-Meteo: free, no account), fetched every 30 minutes; left out when it is more than 3 hours old.
 WEATHER_PLACE = "Springfield"
 WEATHER_LAT, WEATHER_LON = 39.80, -89.65
 WEATHER_TIMEZONE = "America/Chicago"
@@ -115,8 +116,9 @@ NIGHT_INK, NIGHT_SOFT = (104, 104, 104), (78, 78, 78)    # the night clock's dim
 CARD = (52, 90, 100)          # the info screen's lighter teal panels
 
 # ---- the verse screen ------------------------------------------------------------------------------------------------------
-# It takes turns with the info screen (every INFO_EVERY_PHOTOS photos, one or the other), for VERSE_SECONDS.  The verses: a copy
-# of /home/pi/judicom/verses.txt on the NAS (judicom.sync fetches it with the caller list); see judicom/verses.py.
+# It takes its turn with the info and weather screens (after every INFO_EVERY_PHOTOS photos, the next of the three), for
+# VERSE_SECONDS.  The verses: a copy of /home/pi/judicom/verses.txt on the NAS (judicom.sync fetches it with the caller
+# list); see judicom/verses.py.
 VERSE_SECONDS = 30.0
 VERSES_FILE = Path(os.environ.get("JUDICOM_VERSES", "/home/joe/verses.txt"))
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
