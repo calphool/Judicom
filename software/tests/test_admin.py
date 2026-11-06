@@ -188,6 +188,21 @@ class Site(unittest.TestCase):
         self.assertLess(text.index("Ugly Sweater Day"), text.index("# ---- family"))
         self.assertGreater(text.index("Ugly Sweater Day"), text.index("Christmas"))
 
+    def test_sort_puts_each_section_in_calendar_order(self):
+        rows = [("heading", "", "holidays"), ("event", "12-25", "Christmas"), ("event", "Easter", "Easter"),
+                ("event", "4th Thursday of November", "Thanksgiving"), ("event", "01-01", "New Year's Day"),
+                ("event", "Friday after 4th Thursday of November", "Black Friday"),
+                ("heading", "", "family"), ("event", "04-22", "Amy's birthday"), ("event", "2026-03-01 2 PM", "Visit"),
+                ("event", "02-10", "Joe's birthday")]
+        form = self.events_form(rows)
+        form["sort"] = "1"
+        self.assertEqual(self.post("/events", form).status_code, 302)
+        titles = [l.split("|")[-1].strip() for l in (self.j / "events.txt").read_text().splitlines() if l and not l.startswith("#")]
+        self.assertEqual(titles, ["New Year's Day", "Easter", "Thanksgiving", "Black Friday", "Christmas",
+                                  "Joe's birthday", "Visit", "Amy's birthday"])
+        text = (self.j / "events.txt").read_text()
+        self.assertLess(text.index("Christmas"), text.index("# ---- family"))       # nothing moves to another section
+
     def test_a_bad_date_is_shown_and_nothing_is_saved(self):
         r = self.post("/events", self.events_form([("event", "12-25", "Christmas"), ("event", "Dec 25th", "Oops")]))
         self.assertEqual(r.status_code, 400)
