@@ -4,8 +4,8 @@
 #     bash ~/Judicom/deploy/judicom/backup_judicom.sh             the backup
 # ONLY AT HOME: the copy goes over the home network to the NAS (192.168.1.2).  Never over Tailscale: Tailscale itself stalls
 # while the card is frozen (2026-11-04).
-# The phone is off for a few minutes (callers hear "Judi can't come to the phone").  The frozen part is backup_stream.sh: it
-# unfreezes whenever it ends, a watchdog ends it after 30 minutes, and a guard unfreezes after 35 minutes whatever happens.
+# The phone is off for a few minutes, 15 at most (callers hear "Judi can't come to the phone").  The frozen part is backup_stream.sh: it
+# unfreezes whenever it ends, a watchdog ends it after 15 minutes, and a guard unfreezes after 20 minutes whatever happens.
 # The result: /mnt/2tbdrive/judicom-backups/judicom-<date>.img.zst on the NAS, checked against the SHA-256 of what was read.
 # To put a backup on a new card: docs/DEPLOYMENT.md, "Backup of the SD card".
 set -euo pipefail
@@ -95,7 +95,7 @@ if [ "$MODE" = trial ]; then
   if stream trial-watchdog > /dev/null 2>"$work/wd.err"; then echo "   the watchdog did not act?" >&2; exit 1; fi
   [ -f "$work/timeout" ] && [ -f "$work/unfrozen" ] && echo "   stopped by the watchdog and unfrozen: OK" || { cat "$work/wd.err" >&2; exit 1; }
   restart
-  echo "6. Phone started again.  Trial done: if the estimate above is well under 30 minutes, the backup can go ahead."
+  echo "6. Phone started again.  Trial done: if the estimate above is well under 15 minutes, the backup can go ahead."
   exit 0
 fi
 
@@ -110,9 +110,10 @@ sleep 2
 echo "3. The phone: $([ -f "$work/restarted" ] && echo "started again" || echo "starting it again ...")"
 restart
 if [ "${codes[0]}" != 0 ] || [ "${codes[3]}" != 0 ] || [ ! -s "$work/name" ] || [ ! -s "$work/sum" ]; then
-  [ -f "$work/timeout" ] && echo "The copy took longer than 30 minutes and was stopped; the card was unfrozen." >&2
+  [ -f "$work/timeout" ] && echo "The copy took longer than 15 minutes and was stopped; the card was unfrozen." >&2
   echo "The backup did not complete (exit codes: ${codes[*]}).  The card is unfrozen and the phone running again." >&2
   echo "(What reached the NAS stays a hidden, unfinished file there: it is never taken for a backup.)" >&2
+  echo "How far it got, until the next backup or reboot: /run/judicom-backup-progress.log" >&2
   exit 1
 fi
 name=$(cat "$work/name"); sum=$(cat "$work/sum")

@@ -6,9 +6,12 @@
 #     backup_stream.sh DEVICE START_SECTOR_OF_PARTITION_2 STATE_DIR [backup|trial|trial-read|trial-watchdog] ["UNITS TO START"]
 #
 # SAFETY: the partition is unfrozen whenever this script ends, however it ends (done, error, Ctrl-C, killed by TERM).
-#   - a watchdog started BEFORE the freeze ends the copy after MAX_SECONDS (30 min), so this script always ends;
+#   - a watchdog started BEFORE the freeze ends the copy after MAX_SECONDS (15 min), so this script always ends;
 #   - a separate guard unfreezes after GUARD_SECONDS even if this script itself were killed with -9.
 # Nothing in here writes to the frozen partition: no sudo, no logging; STATE_DIR must be in memory (/run/user/...).
+# PROGRESS (in memory too, kept until the next backup or reboot): every PROGRESS_EVERY seconds what the card has given, what has
+# gone out over Wi-Fi, what is still waiting to go to the NAS, and what the copying programs are doing.  So a slow or stuck copy
+# shows which stage stopped (on 2026-11-06 one stalled after 347 MB and nothing recorded why).
 #   trial            freeze for 10 seconds, send nothing, unfreeze          (to see that freezing and unfreezing work)
 #   trial-read       freeze, read 200 MB of the main partition with the copier, unfreeze (3-minute watchdog)
 # The main partition is read by copy_used_blocks.py (used blocks from dumpe2fs, free ones as zeros: what e2image -ra makes).
@@ -24,11 +27,26 @@ COPIER="${COPIER:-python3 -B $(cd "$(dirname "$0")" && pwd)/copy_used_blocks.py}
 SYSTEMCTL="${SYSTEMCTL:-systemctl}"
 JOURNALCTL="${JOURNALCTL:-journalctl}"
 BOOT="${BOOT:-/boot/firmware}"
-MAX_SECONDS="${MAX_SECONDS:-1800}"           # the copy gives up after 30 minutes (a whole copy takes about 10-14) ...
-GUARD_SECONDS="${GUARD_SECONDS:-2100}"       # ... and the partition is unfrozen after 35 minutes whatever happens
+MAX_SECONDS="${MAX_SECONDS:-900}"            # the copy gives up after 15 minutes (a good one took about 6 on 2026-11-04) ...
+GUARD_SECONDS="${GUARD_SECONDS:-1200}"       # ... and the partition is unfrozen after 20 minutes whatever happens
+PROGRESS="${PROGRESS:-/run/judicom-backup-progress.log}"
+PROGRESS_EVERY="${PROGRESS_EVERY:-30}"
 [ "$MODE" = trial-watchdog ] && MAX_SECONDS="${TRIAL_MAX_SECONDS:-15}"
 [ "$MODE" = trial-read ] && MAX_SECONDS="${TRIAL_READ_MAX_SECONDS:-180}"
 export PYTHONDONTWRITEBYTECODE=1                 # python must not try to write .pyc files onto the frozen card
+
+progress() {       # reads only; ends by itself if this script is gone
+  local card sent mem waiting
+  while kill -0 $$ 2>/dev/null; do
+    read -r _ _ card _ < "/sys/block/${DEV##*/}/stat"
+    read -r sent < /sys/class/net/wlan0/statistics/tx_bytes
+    mem=$(awk '/^MemAvailable/ { print int($2 / 1024) }' /proc/meminfo)
+    waiting=$(ss -tn state established dst 192.168.1.2 2>/dev/null | awk 'NR > 1 { total += $2 } END { print total + 0 }')
+    echo "$(date +%T)  card read $((card / 2048)) MB  wifi sent $((sent / 1048576)) MB  waiting to send $waiting bytes  free memory $mem MB"
+    ps -eo stat=,pid=,wchan:24=,comm= | awk '$1 ~ /^D/ || $4 ~ /^(dd|python3|zstd|tee|sha256sum|ssh)$/ { print "    " $0 }'
+    sleep "$PROGRESS_EVERY"
+  done
+}
 
 frozen=0
 unfreeze() {
@@ -51,6 +69,8 @@ finish() {
   unfreeze
   [ -n "${watchdog:-}" ] && kill "$watchdog" 2>/dev/null
   [ -n "${guard:-}" ] && kill "$guard" 2>/dev/null
+  [ -n "${reporter:-}" ] && kill "$reporter" 2>/dev/null
+  echo "$(date +%T)  $MODE ended with code $code" >> "$PROGRESS"
   exit "$code"
 }
 trap finish EXIT
@@ -61,6 +81,11 @@ trap 'echo "stopped" > "$STATE/stopped"; exit 130' INT TERM HUP PIPE
   </dev/null >/dev/null 2>&1 &
 guard=$!
 echo "$guard" > "$STATE/guard"
+
+# its output goes to the log, never to standard output: that is the image, and it would stay open for as long as this runs
+echo "$(date +%T)  $MODE started" > "$PROGRESS"
+progress </dev/null >>"$PROGRESS" 2>&1 &
+reporter=$!
 
 $REMOUNT_BOOT,ro "$BOOT" 2>/dev/null || echo "(the boot partition stays writable; nothing writes to it)" >&2
 $FSFREEZE -f / || { echo "could not freeze the main partition" >&2; exit 1; }
