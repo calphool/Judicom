@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-list_audio.py - enumerate every audio device on the Judicom's Raspberry Pi.
+list_audio_devices.py - enumerate every audio device on the Judicom's Raspberry Pi.
  
-Run:   python3 list_audio.py            list everything
-       python3 list_audio.py --probe    also test which sample rates / channel counts each device accepts
+Run:   python3 list_audio_devices.py            list everything
+       python3 list_audio_devices.py --probe    also test which sample rates / channel counts each device accepts
  
 It looks at the system two ways, so you can see whether a problem is in ALSA (the OS) or in the Python layer:
   1. ALSA itself: /proc/asound/cards, aplay -l, arecord -l  (no Python audio library needed)
