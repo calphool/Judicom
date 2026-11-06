@@ -84,8 +84,9 @@ which can only run `software/tools/nas_request.py` (the picture, a message, and 
   `ssh-keyscan -t ed25519 judicom >> ~/.ssh/known_hosts`.
 - On the Judicom, in `/home/joe/.ssh/authorized_keys`:
   `restrict,command="/usr/bin/nice -n 10 /usr/bin/python3 /home/joe/Judicom/software/tools/nas_request.py" ssh-ed25519 AAAA... judicom-screen`
-- On the Judicom, reading the screen needs root, so `/etc/sudoers.d/judicom-screen` (mode 440) allows that one command:
-  `joe ALL=(root) NOPASSWD: /usr/bin/python3 /home/joe/Judicom/software/tools/screen_grab.py -`
+- On the Judicom, reading the screen needs root, so a copy of `screen_grab.py` that only root can change goes in
+  `/usr/local/lib/judicom/`, and sudo may run that copy and nothing else of it (never the one in the repo, which `joe` can edit).
+  After changing `screen_grab.py`: `sudo install -m 755 software/tools/screen_grab.py /usr/local/lib/judicom/`.
 
 ### Judi's caller list
 

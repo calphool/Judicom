@@ -12,8 +12,9 @@ It takes the picture the graphics hardware is sending to the panel, not one the 
 or restarted, the phone program does not need to know, and the picture is the truth even if the program has hung.
 
 /dev/fb0 does not help: it is only the text console, and SDL draws past it through KMS/DRM.  So this asks the kernel which
-buffer is on the screen and reads that.  Being allowed to is for root alone, so it runs itself again through sudo -n for the
-reading, and the file is written by you.
+buffer is on the screen and reads that.  Being allowed to is for root alone, so the reading is done by a copy of this file that
+only root can change (INSTALLED, through sudo -n), and the file is written by you.  sudo must never run the copy in the repo: joe
+can edit that one, so it would be root for anyone who is joe.  After changing this file, copy it there again (docs/DEPLOYMENT.md).
 
 That buffer is not in plain rows: the Pi's GPU keeps it in "T-format" tiles (untile() below; its order was measured on the
 Judicom on 2026-11-06).  The picture is also lying on its side, the quarter turn of judicom/display.py, which is turned back
@@ -30,6 +31,7 @@ from io import BytesIO
 from pathlib import Path
 
 CARD = "/dev/dri/card0"
+INSTALLED = "/usr/local/lib/judicom/screen_grab.py"
 DEFAULT_FILE = "~/screen.png"
 
 # The kernel's DRM calls (include/uapi/drm/drm.h, drm_mode.h): number, and the layout of the structure each one fills in.
@@ -125,8 +127,8 @@ def as_png(data, width, height, fourcc, modifier):
 
 
 def png_through_sudo():
-    """Runs this file again as root, which gives back the PNG."""
-    result = subprocess.run(["sudo", "-n", sys.executable, str(Path(__file__).resolve()), "-"], stdout=subprocess.PIPE)
+    """Runs the installed copy as root, which gives back the PNG.  -I: Python takes nothing from this folder or the environment."""
+    result = subprocess.run(["sudo", "-n", "/usr/bin/python3", "-I", INSTALLED, "-"], stdout=subprocess.PIPE)
     if result.returncode:
         sys.exit("Could not read the screen (it needs root, through sudo -n).")
     return result.stdout
