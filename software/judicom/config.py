@@ -39,7 +39,7 @@ BG = (36, 66, 74)             # the teal of the boot splash
 INK, SOFT = (246, 246, 240), (182, 202, 206)
 
 # ---- the phone: switches ----------------------------------------------------------------------------------------------------
-# GPIO numbers (BCM).  Every switch connects its pin to ground; the Pi's internal pull-ups are used.  Same pins as tests/gpio_test.py.
+# GPIO numbers (BCM).  Every switch connects its pin to ground; the Pi's internal pull-ups are used.  Same pins as tools/gpio_test.py.
 HOOK_NC_PINS = (17, 27)       # the hook switch's two normally-closed contacts
 HOOK_NO_PINS = (22,)          # ... and its normally-open contact.  The three vote, so one bad contact cannot fake a lift or a hang-up.
 HOOK_PRESSED_ON_HOOK = True   # True: the handset resting in the cradle presses the switch.  False if it is the other way round.

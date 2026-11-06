@@ -77,6 +77,19 @@ top of `judicom/photos.py`.
 
     python3 -m unittest -v                    # the picture-drawing tests are skipped if pygame is not installed
 
+To try the whole program on a PC, without the phone's hardware:  `python3 -m judicom.main --demo --window`.
+
+## Hardware checks (`tools/`)
+
+Small programs run by hand on the Judicom while building or fixing it (not part of the tests):
+
+    python3 tools/gpio_test.py              the five switches (hook contacts, buttons), live on the screen for 30 s
+    python3 tools/list_audio_devices.py     every sound device, as ALSA and as Python see it (--probe: what each accepts)
+    python3 tools/speaker_tone_test.py      a melody in the handset speaker; the keys change its loudness, to find the level
+    python3 tools/play_ringtone.py          the ringtone (~/phone_ring.wav, made if missing) on the ringer speaker
+    python3 tools/mic_meter.py              live microphone level meters, in an SSH terminal
+    python3 tools/handset_echo_test.py      what the handset microphone hears, played back in its speaker for 30 s
+
 ## Files
 
     judicom/config.py       settings: photo folder, seconds per picture, colours
@@ -86,12 +99,15 @@ top of `judicom/photos.py`.
     judicom/display.py      opens the screen; turns the upright picture 90 degrees onto the panel
     judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
-    judicom/home.py         what shows when no call is on: photos, every 5 photos the info screen, 9 pm - 6 am the night clock
-    judicom/info_view.py    the info screen (day, date, time, weather, next events with countdowns) and the night clock (pygame)
+    judicom/home.py         what shows when no call is on: photos; every 5 photos the info, verse or weather screen in turn;
+                            9 pm - 6 am the night clock
+    judicom/info_view.py    the info screen (day, date, time, next events with countdowns) and the night clock (pygame)
+    judicom/weather_view.py the weather screen: today and the next 5 days                              (pygame)
+    judicom/event_icons.py  the little pictures beside the events (a cake, a tree, a turkey ...)    (pygame)
     judicom/verse_view.py   the verse screen: a verse on a page like an old Bible (EB Garamond, judicom/fonts)    (pygame)
     judicom/verses.py       Judi's verse list (KJV) and the shuffled deck                                 (no pygame)
     judicom/events.py       Judi's events list (birthdays, holidays, visits) and the countdowns           (no pygame)
-    judicom/weather.py      Oskaloosa's weather from Open-Meteo, fetched in the background every 30 min  (no pygame)
+    judicom/weather.py      Oskaloosa's weather and forecast from Open-Meteo, fetched every 30 min      (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)
