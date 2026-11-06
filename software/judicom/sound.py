@@ -1,4 +1,4 @@
-"""The dial tone and the dialing digits (in the handset), and the ringer (the speaker in the base).  The dial tone and the ringer loop
+"""The dial tone and the dialing digits (in the handset), and the ringer and a message's beeps (the speaker in the base).  The dial tone and the ringer loop
 until they are switched off; the digits play once.
 
     sounds = Sounds(log)                       # finds the two sound cards; a missing card is reported once and stays quiet
@@ -27,6 +27,7 @@ RING_WARBLE_HZ = 20.0            # ... this many times a second ("brrring")
 RING_ON, RING_OFF = 2.0, 4.0     # seconds of ringing, then of silence (the North American cadence)
 CHUNK = 3200                     # bytes written at a time (0.1 s; under the 4096-byte pipe limit, so never a short write)
 LEAD_SECONDS = 0.3               # silence written before any sound: USB adapters swallow the very start
+BEEP_HZ, BEEPS, BEEP_ON, BEEP_OFF = 1000.0, 3, 0.15, 0.15     # a new message: three short beeps
 DIALING_TAIL = 0.4               # after the last digit: aplay's buffer drains and the card is let go before the call opens it
 
 # Touch-tone (DTMF): each key is one low note (its row) and one high note (its column) together.
@@ -60,6 +61,13 @@ def ring_pcm(level=config.RING_LEVEL, rate=RATE):
         else:
             out.append(0)
     return _to_bytes(out)
+
+
+def beeps_pcm(level=config.BEEP_LEVEL, rate=RATE):
+    """The three beeps of a new message, played once."""
+    on, off, fade = int(BEEP_ON * rate), int(BEEP_OFF * rate), int(0.01 * rate)           # 10 ms fades: no clicks
+    one = [int(32767 * level * min(1.0, i / fade, (on - i) / fade) * math.sin(2 * math.pi * BEEP_HZ * i / rate)) for i in range(on)]
+    return _to_bytes((one + [0] * off) * BEEPS)
 
 
 def dialable(digits):
@@ -185,7 +193,7 @@ class Sounds:
     def __init__(self, log=None, enabled=True, handset_card=None, ringer_card=None, make_loop=Loop):
         self.log = log or (lambda msg: None)
         self.make_loop = make_loop
-        self.dial = self.ring = self.digits = Silent()
+        self.dial = self.ring = self.digits = self.beeps = Silent()
         self.handset_card = self.ringer_card = None
         if enabled:
             self.handset_card = handset_card or find_usb_card()
@@ -194,6 +202,7 @@ class Sounds:
                 self.dial = make_loop(self.handset_card, dial_tone_pcm(), "dial tone", self.log)
             if self.ringer_card:
                 self.ring = make_loop(self.ringer_card, ring_pcm(), "ringer", self.log)
+                self.beeps = make_loop(self.ringer_card, beeps_pcm(), "message beeps", self.log, repeat=False)
         self._want = (False, False, "")
 
     def describe(self):
@@ -220,13 +229,20 @@ class Sounds:
         if want[0]:
             self.dial.start()
         if want[1]:
+            self.beeps.stop()                           # the ringer needs the card
             self.ring.start()
         if digits_changed and want[2]:
             self.digits.start()
         self.log("      dial tone %s, ringer %s%s" % ("ON" if want[0] else "off", "ON" if want[1] else "off",
                                                     ", dialing %s" % want[2] if want[2] else ""))
 
+    def beep(self):
+        """The three beeps of a new message (not over the ringer: a call matters more)."""
+        if not self._want[1]:
+            self.beeps.start()
+
     def close(self):
         self.dial.stop()
         self.ring.stop()
+        self.beeps.stop()
         self.digits.stop()

@@ -6,8 +6,10 @@
     Events          birthdays, holidays and visits for the info screen  (/home/pi/judicom/events.txt)
     Caller pictures the faces on the call screens: cropped square from the middle and made 800 x 800 PNG  (/home/pi/judicom/people)
     Photos          the slideshow, with captions  (/mnt/8tbdrive/Photos/Judi, shared with Jellyfin; very big photos are shrunk)
-    See Judicom Now what its screen is showing, looked at again every 10 seconds while the page is in view  (asked for over
-                    SSH with a key that can do nothing else: docs/DEPLOYMENT.md)
+    See Judicom Now what its screen is showing, looked at again every 10 seconds while the page is in view, and a message to
+                    send her: a speech bubble with the face of someone in the caller list, and three beeps.  The page says
+                    when she has read it.  (Both over SSH with a key that can do nothing else: docs/DEPLOYMENT.md;
+                    what was sent: /home/pi/judicom/sent_messages.json)
 
 The Judicom fetches the lists and caller pictures every 10 minutes and the photos every hour.
 
@@ -25,6 +27,7 @@ import argparse
 import datetime
 import io
 import ipaddress
+import json
 import os
 import secrets
 import subprocess
@@ -35,13 +38,14 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from flask import Flask, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 from jinja2 import DictLoader
 from PIL import Image, ImageOps
 from werkzeug.utils import secure_filename
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "software"))
 from judicom import events as events_mod  # noqa: E402
+from judicom import messages as messages_mod  # noqa: E402
 from judicom import photos as photos_mod  # noqa: E402
 
 PICTURE_EXTS = (".jpg", ".jpeg", ".png")
@@ -51,6 +55,7 @@ HISTORY_KEEP = 30
 SCREEN_EVERY = 10                   # seconds between looks at the Judicom's screen, while someone has the page in view
 SCREEN_FRESH = 5                    # a look this recent is shared, so two people watching do not double the work on the Judicom
 SCREEN_TIMEOUT = 25                 # seconds; a look takes about 3
+SENT_KEEP = 20                      # messages remembered, and shown on the page: the newest 5
 NETS = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                                           "100.64.0.0/10", "fd7a:115c:a1e0::/48", "fe80::/10")]
 HOSTS = {"naspi", "naspi.local", "naspi-1", "localhost"}
@@ -65,6 +70,10 @@ class Settings:
     hosts: set = field(default_factory=lambda: set(HOSTS))
     screen: list = field(default_factory=lambda: ["/usr/bin/ssh", "-i", "/home/pi/.ssh/judicom_screen", "-o", "BatchMode=yes",
                                                   "-o", "ConnectTimeout=5", "joe@100.64.0.2"])
+
+    @property
+    def sent(self):
+        return self.judicom_dir / "sent_messages.json"
 
     @property
     def contacts(self):
@@ -453,6 +462,45 @@ def judicom_screen(command):
     return result.stdout if result.returncode == 0 and result.stdout.startswith(b"\x89PNG") else None
 
 
+def send_message(command, sender, text):
+    """Hands a message to the Judicom.  (its id, None), or (None, why not)."""
+    message_id = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-") + secrets.token_hex(3)
+    body = json.dumps({"id": message_id, "from": sender, "text": text}).encode()
+    try:
+        result = subprocess.run(command + ["message"], input=body, capture_output=True, timeout=SCREEN_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired):
+        return None, "The Judicom is not answering, so the message was not sent."
+    if result.returncode == 0 and result.stdout.strip() == b"ok":
+        return message_id, None
+    said = result.stderr.decode(errors="replace").strip().splitlines()
+    if result.returncode == 1 and said and said[-1].startswith("nas_request: "):
+        return None, "The Judicom refused the message: %s." % said[-1][len("nas_request: "):]
+    return None, "The Judicom did not take the message, so it was not sent."
+
+
+def judicom_statuses(command):
+    """{message id: when it was read, or None}, or None if the Judicom does not say."""
+    try:
+        result = subprocess.run(command + ["messages"], stdin=subprocess.DEVNULL, capture_output=True, timeout=SCREEN_TIMEOUT)
+        return json.loads(result.stdout) if result.returncode == 0 else None
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return None
+
+
+def read_sent(s):
+    try:
+        return json.loads(read(s.sent) or "[]")
+    except ValueError:
+        return []
+
+
+def read_at_words(when):
+    """'2026-11-06T15:12:00' -> 'Read at 3:12 PM', with the day if that was not today."""
+    moment = datetime.datetime.fromisoformat(when)
+    words = "Read at " + moment.strftime("%I:%M %p").lstrip("0")
+    return words if moment.date() == datetime.date.today() else words + " on " + moment.strftime("%b %d")
+
+
 def allowed_address(addr):
     try:
         ip = ipaddress.ip_address((addr or "").split("%")[0])
@@ -481,6 +529,8 @@ def create_app(s=None):
     token = secrets.token_urlsafe(24)
     screen_lock = threading.Lock()
     last_look = {"png": None, "at": 0.0}
+    sent_lock = threading.Lock()
+    last_asked = {"at": 0.0}
 
     @app.before_request
     def guard():
@@ -677,7 +727,50 @@ def create_app(s=None):
     # ---- what the Judicom is showing
     @app.route("/screen")
     def screen():
-        return render_template("screen.html", title="See Judicom Now", every=SCREEN_EVERY)
+        return screen_page(sender=request.args.get("from", ""))
+
+    def screen_page(sender="", text="", errors=None):
+        return render_template("screen.html", title="See Judicom Now", every=SCREEN_EVERY, callers=caller_names(), sender=sender,
+                               text=text, errors=errors, max_text=messages_mod.MAX_TEXT)
+
+    def caller_names():
+        return list(dict.fromkeys(c["name"] for c in read_callers(s) if c["name"]))
+
+    @app.route("/screen/message", methods=["POST"])
+    def screen_message():
+        sender, typed = request.form.get("from", ""), request.form.get("text", "")
+        text = messages_mod.clean_text(typed)
+        if sender not in caller_names():
+            problem = "Choose who the message is from."
+        elif not text:
+            problem = "Type a message first."
+        elif len(text) > messages_mod.MAX_TEXT:
+            problem = "That is too long for the screen: %d characters at most." % messages_mod.MAX_TEXT
+        else:
+            message_id, problem = send_message(s.screen, sender, text)
+        if problem:
+            return screen_page(sender, typed, [problem])
+        with sent_lock:
+            rows = read_sent(s) + [{"id": message_id, "from": sender, "text": text, "read_at": None}]
+            write_atomically(s.sent, json.dumps(rows[-SENT_KEEP:]).encode())
+        last_asked["at"] = 0.0
+        flash("Sent." if text == " ".join(typed.split()) else "Sent, without the emoji (the Judicom cannot show them).")
+        return redirect(url_for("screen", **{"from": sender}))
+
+    @app.route("/screen/sent")
+    def screen_sent():
+        """What was sent lately and whether Judi has read it.  The Judicom is only asked while something is unread."""
+        with sent_lock:
+            rows = read_sent(s)
+            if any(r["read_at"] is None for r in rows) and time.monotonic() - last_asked["at"] >= SCREEN_EVERY:
+                last_asked["at"] = time.monotonic()
+                known = judicom_statuses(s.screen)
+                if known is not None:
+                    for r in rows:
+                        r["read_at"] = r["read_at"] or known.get(r["id"])
+                    write_atomically(s.sent, json.dumps(rows).encode())
+        return jsonify([{"from": r["from"], "text": r["text"],
+                         "status": read_at_words(r["read_at"]) if r["read_at"] else "Waiting for Judi"} for r in rows[-5:][::-1]])
 
     @app.route("/screen.png")
     def screen_png():
@@ -729,6 +822,14 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
 {% block body %}{% endblock %}</main></body></html>""",
 
     "screen.html": """{% extends "base.html" %}{% block body %}<h1>See Judicom Now</h1>
+<form class="card" method="post" action="{{ url_for('screen_message') }}"><input type="hidden" name="token" value="{{ token }}">
+<b>Send Judi a message</b>
+<p class="help">It appears on her screen in a speech bubble with three beeps, and stays until she touches the screen, presses a button or lifts the handset. During a call it waits until the call is over, and between 9 PM and 6 AM until the morning.</p>
+<textarea name="text" rows="3" maxlength="{{ max_text }}" required style="width:100%;padding:7px 8px;font:inherit;border:1px solid var(--line);border-radius:6px" placeholder="Your message, up to {{ max_text }} characters">{{ text }}</textarea>
+<div class="row"><label for="from">From</label><select id="from" name="from" required style="width:auto;flex:1 1 160px"><option value="">Choose a face</option>
+{% for name in callers %}<option{{ " selected" if name == sender else "" }}>{{ name }}</option>{% endfor %}</select><button>Send</button></div>
+</form>
+<div class="card" id="sent" hidden><b>Sent lately</b><table id="sent-rows"></table></div>
 <p class="help" id="status">Asking the Judicom...</p>
 <img id="shot" alt="What the Judicom's screen is showing" style="display:block;width:100%;max-width:450px;aspect-ratio:600/1024;margin:0 auto;border-radius:8px;background:#dde4e4">
 <script>
@@ -749,9 +850,20 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
     }).catch(function () {
       shot.style.opacity = 0.4;
       status.textContent = "The Judicom is not answering. Trying again every {{ every }} seconds.";
-    }).then(function () {
+    }).then(sent).then(function () {
       timer = setTimeout(look, {{ every }} * 1000);
     });
+  }
+  function sent() {
+    return fetch("{{ url_for('screen_sent') }}", {cache: "no-store"}).then(function (r) { return r.json(); }).then(function (rows) {
+      var table = document.getElementById("sent-rows");
+      table.textContent = "";
+      rows.forEach(function (row) {
+        var tr = table.insertRow();
+        [row.from, row.text, row.status].forEach(function (words) { tr.insertCell().textContent = words; });
+      });
+      document.getElementById("sent").hidden = !rows.length;
+    }).catch(function () {});
   }
   document.addEventListener("visibilitychange", function () { if (!document.hidden) look(); });
   look();
