@@ -42,7 +42,7 @@ progress() {       # reads only; ends by itself if this script is gone
     read -r _ _ card _ < "/sys/block/${DEV##*/}/stat"
     read -r sent < /sys/class/net/wlan0/statistics/tx_bytes
     mem=$(awk '/^MemAvailable/ { print int($2 / 1024) }' /proc/meminfo)
-    waiting=$(ss -tn state established dst 192.168.1.2 2>/dev/null | awk 'NR > 1 { total += $2 } END { print total + 0 }')
+    waiting=$(ss -tn state established '( dport = :22 )' 2>/dev/null | awk 'NR > 1 { total += $2 } END { print total + 0 }')
     echo "$(date +%T)  card read $((card / 2048)) MB  wifi sent $((sent / 1048576)) MB  waiting to send $waiting bytes  free memory $mem MB"
     ps -eo stat=,pid=,wchan:24=,comm= | awk '$1 ~ /^D/ || $4 ~ /^(dd|python3|zstd|tee|sha256sum|ssh)$/ { print "    " $0 }'
     sleep "$PROGRESS_EVERY"

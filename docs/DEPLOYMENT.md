@@ -38,7 +38,7 @@ reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 
 | File | What it does |
 |---|---|
-| `pjsip.conf` | two transports: home network `192.168.1.2:5060` (VoIP.ms) and Tailscale `100.64.0.1:5060` (the Judicom); includes the next two |
+| `pjsip.conf` | two transports: home network (VoIP.ms) and Tailscale (the Judicom), both port 5060; put the NAS's two addresses in place of `NAS_HOME_ADDRESS` and `NAS_TAILSCALE_ADDRESS`; includes the next two |
 | `voipms.conf` | the VoIP.ms registration and endpoint; incoming calls land in context `from-voipms`.  From `voipms.conf.example` |
 | `judicom.conf` | the Judicom's account (endpoint `judicom`, Tailscale only); its calls land in `from-judicom`.  From `judicom.conf.example` |
 | `voipms-test.conf` | `from-judicom`: test numbers 100 (melody) and 101 (records 5 s and plays it back), and 10-digit North American numbers out through VoIP.ms (nothing else can be dialled out).  `from-voipms`: hands every call to `judicom-inbound` |
@@ -57,7 +57,7 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
 
 ### The housekeeping website
 
-**http://naspi.local:8080** at home, **http://100.64.0.1:8080** over Tailscale (e.g. from a phone away from home).  Pages:
+**http://naspi.local:8080** at home, **http://naspi-1:8080** over Tailscale (e.g. from a phone away from home).  Pages:
 **Callers** (who may ring Judi, names, the two buttons; applied to Asterisk at once), **Events**, **Caller pictures** (any picture,
 cropped square from the middle and made 800 x 800 PNG, named after the caller) and **Photos** (the slideshow: upload with a
 caption, edit captions, remove).  It edits exactly the files described below, so editing them by hand still works too.
@@ -81,7 +81,7 @@ read it. Messages wait in `/home/joe/messages/` and read ones go to `read/` ther
 which can only run `software/tools/nas_request.py` (the picture, a message, and which messages have been read):
 
 - On the NAS: `ssh-keygen -t ed25519 -N "" -C judicom-screen -f ~/.ssh/judicom_screen`, then
-  `ssh-keyscan -t ed25519 100.64.0.2 >> ~/.ssh/known_hosts`.
+  `ssh-keyscan -t ed25519 judicom >> ~/.ssh/known_hosts`.
 - On the Judicom, in `/home/joe/.ssh/authorized_keys`:
   `restrict,command="/usr/bin/nice -n 10 /usr/bin/python3 /home/joe/Judicom/software/tools/nas_request.py" ssh-ed25519 AAAA... judicom-screen`
 - On the Judicom, reading the screen needs root, so `/etc/sudoers.d/judicom-screen` (mode 440) allows that one command:
@@ -200,7 +200,7 @@ Back up the file first (`cp -p x.conf x.conf.before-<what>-<date>`), edit, then:
 ### Checks
 
     docker exec asterisk-test asterisk -rx "pjsip show registrations"   # voipms ... Registered
-    docker exec asterisk-test asterisk -rx "pjsip show contacts"        # judicom/sip:...@100.64.0.2 = the Judicom is registered
+    docker exec asterisk-test asterisk -rx "pjsip show contacts"        # judicom/sip:...@(its Tailscale address) = the Judicom is registered
     docker exec asterisk-test asterisk -rx "dialplan show judicom-allowed"
     docker exec asterisk-test asterisk -rx "core show channels"         # calls up right now
 
@@ -231,7 +231,7 @@ untouched default; the rule has its own service instead:
 
 What gets through to Asterisk:
 - **VoIP.ms** (`208.100.60.6`) on the home network: the registration, and incoming calls to Judi's number.
-- **The Judicom**, over Tailscale (`tailscale0`, Asterisk's `100.64.0.1:5060`): Tailscale's own rules accept everything that comes
+- **The Judicom**, over Tailscale (`tailscale0`, Asterisk's port 5060 there): Tailscale's own rules accept everything that comes
   over Tailscale, so the rule above does not apply there.
 - Nobody else's SIP on the home network.  (The rule is IPv4 only; Asterisk listens on IPv4 only, so that is enough.)  The RTP
   (voice) ports are not filtered.
@@ -249,7 +249,7 @@ See the live rules: `sudo nft list table inet asterisk_test` (all of them: `sudo
 ## 3. The Judicom
 
 Raspberry Pi 3 B+, Raspberry Pi OS without a desktop, user `joe` (in the groups `video render input gpio audio`), Tailscale
-installed and logged in (address `100.64.0.2`), **time zone America/Chicago** (`sudo timedatectl set-timezone America/Chicago`:
+installed and logged in (its name there: `judicom`), **time zone America/Chicago** (`sudo timedatectl set-timezone America/Chicago`:
 the screen's clock and the 9 pm - 6 am night clock go by it).
 
 **What the screen shows** when no call is going on: the photos; after every 5 photos, for 30 s, the next of three screens in
@@ -305,8 +305,8 @@ restart works; its log also shows `module stdio.so: Operation not permitted` (no
 
 ### Reaching it
 
-On the home network: `ssh joe@judicom.local`.  Anywhere else, through Tailscale: `ssh joe@100.64.0.2` from a device on Tailscale,
-or through the NAS: `ssh -J pi@naspi.local joe@100.64.0.2`.
+On the home network: `ssh joe@judicom.local`.  Anywhere else, through Tailscale: `ssh joe@judicom` from a device on Tailscale,
+or through the NAS: `ssh -J pi@naspi.local joe@judicom`.
 
 ## Backup of the SD card
 

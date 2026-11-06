@@ -12,4 +12,4 @@ sudo systemctl enable --now judicom-admin.service
 sudo systemctl restart judicom-admin.service
 sleep 3
 systemctl --no-pager --lines=0 status judicom-admin.service | head -3
-echo "Open http://naspi.local:8080 (home) or http://100.64.0.1:8080 (Tailscale)."
+echo "Open http://naspi.local:8080 (home) or http://naspi-1:8080 (Tailscale)."

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The Judicom's housekeeping website, on the NAS:  http://naspi.local:8080   (also over Tailscale: http://100.64.0.1:8080)
+"""The Judicom's housekeeping website, on the NAS:  http://naspi.local:8080   (also over Tailscale: http://naspi-1:8080)
 
     Callers         who may ring Judi, the names on her screen and her two buttons  (/home/pi/judicom/contacts.txt; applied to
                     Asterisk at once with apply_contacts.py)
@@ -69,7 +69,7 @@ class Settings:
     apply: list = field(default_factory=lambda: ["/usr/bin/python3", "/home/pi/judicom/apply_contacts.py"])
     hosts: set = field(default_factory=lambda: set(HOSTS))
     screen: list = field(default_factory=lambda: ["/usr/bin/ssh", "-i", "/home/pi/.ssh/judicom_screen", "-o", "BatchMode=yes",
-                                                  "-o", "ConnectTimeout=5", "joe@100.64.0.2"])
+                                                  "-o", "ConnectTimeout=5", "joe@judicom"])
 
     @property
     def sent(self):
