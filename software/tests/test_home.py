@@ -218,6 +218,57 @@ class StayAwake(Base):
         self.assertEqual(self.home.mode, PHOTOS)
 
 
+class WeatherTurn(Base):
+    class FakeWeather:
+        def __init__(self, report):
+            self.report = report
+
+        def current(self):
+            return self.report
+
+    def make(self, verses, report):
+        from judicom.weather import Report
+        self.report = Report(48, 54, 45, "cloud", "Cloudy", 0.0) if report else None
+        self.home = Home(self.photos, now=self.clock.now, clock=self.clock, every=5, info_seconds=30, awake_file=None,
+                         verses=Verses.FakeVerses(verses), verse_seconds=30, weather=self.FakeWeather(self.report),
+                         weather_seconds=30)
+        self.home.start()
+
+    def test_info_verse_weather_in_turn(self):
+        from judicom.home import VERSE, WEATHER
+        self.make(5, True)
+        modes = self.run_for(6 * 110)
+        self.assertEqual([m for m in modes if m != PHOTOS][:6], [INFO, VERSE, WEATHER, INFO, VERSE, WEATHER])
+        self.assertEqual(modes[:6:2], [PHOTOS] * 3)                    # photos between each
+
+    def test_no_weather_report_it_is_left_out(self):
+        from judicom.home import VERSE
+        self.make(5, False)
+        seen = [m for m in self.run_for(4 * 110) if m != PHOTOS]
+        self.assertEqual(seen[:4], [INFO, VERSE, INFO, VERSE])
+
+    def test_no_verses_info_and_weather(self):
+        from judicom.home import WEATHER
+        self.make(0, True)
+        seen = [m for m in self.run_for(4 * 110) if m != PHOTOS]
+        self.assertEqual(seen[:4], [INFO, WEATHER, INFO, WEATHER])
+
+    def test_the_weather_screen_lasts_its_time_and_space_ends_it(self):
+        from judicom.home import WEATHER
+        self.make(0, True)
+        self.home._special()
+        self.home._special()
+        self.assertEqual((self.home.mode, self.home.report), (WEATHER, self.report))
+        self.run_for(29)
+        self.assertEqual(self.home.mode, WEATHER)
+        self.run_for(1.5)
+        self.assertEqual(self.home.mode, PHOTOS)
+        self.home._special()
+        self.home._special()
+        self.home.next()
+        self.assertEqual(self.home.mode, PHOTOS)
+
+
 class Redraw(Base):
     def test_info_and_night_redraw_once_a_minute(self):
         self.clock.wall = datetime.datetime(2026, 11, 3, 23, 0, 0)

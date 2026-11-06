@@ -238,8 +238,9 @@ Raspberry Pi 3 B+, Raspberry Pi OS without a desktop, user `joe` (in the groups 
 installed and logged in (address `100.64.0.2`), **time zone America/Chicago** (`sudo timedatectl set-timezone America/Chicago`:
 the screen's clock and the 9 pm - 6 am night clock go by it).
 
-**What the screen shows** when no call is going on: the photos; after every 5 photos the info screen for 30 s (day, date, time,
-Oskaloosa's weather from Open-Meteo, the next 3 events with countdowns); from 9 pm to 6 am the night clock (time and date, dim).
+**What the screen shows** when no call is going on: the photos; after every 5 photos, for 30 s, the next of three screens in
+turn: the info screen (day, date, time, the next 5 events with countdowns), a Bible verse, and the weather (Oskaloosa today and
+the next 5 days, from Open-Meteo; left out when there is no internet); from 9 pm to 6 am the night clock (time and date, dim).
 Settings at the end of `software/judicom/config.py`.  To see the photos and the info screen at night (setting up, showing
 someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 2 hours (or until `rm ~/judicom-awake`).
 

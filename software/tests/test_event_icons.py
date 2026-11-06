@@ -102,9 +102,67 @@ class Drawing(unittest.TestCase):
         now = datetime.datetime(2026, 11, 5, 10, 15)
         evs = events.parse("12-24 | Christmas Eve\n4th Thursday of November | Thanksgiving\n2026-11-20 | Dentist appointment")
         surf = pygame.Surface((SCREEN_W, SCREEN_H))
-        info_view.draw_info(surf, now, None, events.upcoming(evs, now, 3))
+        info_view.draw_info(surf, now, events.upcoming(evs, now, 3))
         strip = {tuple(surf.get_at((x, y)))[:3] for x in range(46, 130, 4) for y in range(300, SCREEN_H - 40, 4)}
         self.assertGreater(len(strip - {CARD}), 20)                          # pictures down the left of the events card
+
+
+    def test_the_info_screen_has_room_for_five_events(self):
+        from judicom import events, info_view
+        from judicom.config import CARD, SCREEN_H, SCREEN_W
+        now = datetime.datetime(2026, 11, 5, 10, 15)
+        evs = events.parse("11-11 | Veterans Day\n11-20 | Pie Day\n4th Thursday of November | Thanksgiving\n"
+                           "12-18 | Ugly Sweater Day\n12-25 | Christmas\n12-31 | New Year's Eve")
+        surf = pygame.Surface((SCREEN_W, SCREEN_H))
+        info_view.draw_info(surf, now, events.upcoming(evs, now, 5))
+        rows = [y for y in range(200, SCREEN_H - 30) if any(tuple(surf.get_at((x, y)))[:3] != CARD for x in range(48, 120, 6))]
+        icons = sum(1 for a, b in zip(rows, rows[1:]) if b - a > 8) + 1          # separate pictures down the left
+        self.assertEqual(icons, 5)
+
+
+@unittest.skipUnless(pygame, "pygame is not installed")
+class WeatherScreen(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.display.init()
+        pygame.font.init()
+        pygame.display.set_mode((10, 10))
+
+    @classmethod
+    def tearDownClass(cls):
+        from judicom import draw
+        draw.reset()
+        pygame.quit()
+
+    def report(self, days=5):
+        from judicom.weather import Day, Report
+        t = datetime.date(2026, 11, 5)
+        icons = ("partly", "sun", "rain", "storm", "snow")
+        return Report(31, 38, 22, "snow", "Light snow", 0.0, 70,
+                      tuple(Day(t + datetime.timedelta(days=i + 1), 40 + i, 20 + i, icons[i], "words", 10 * i) for i in range(days)))
+
+    def test_words(self):
+        from judicom import weather_view
+        self.assertEqual(weather_view.rain_words(70, "snow"), "70% chance of snow")
+        self.assertEqual(weather_view.rain_words(40, "rain"), "40% chance of rain")
+        self.assertEqual(weather_view.rain_words(10, "rain"), "")
+        self.assertEqual(weather_view.rain_words(None, "rain"), "")
+        today = datetime.date(2026, 11, 5)
+        self.assertEqual(weather_view.day_name(datetime.date(2026, 11, 6), today), "Tomorrow")
+        self.assertEqual(weather_view.day_name(datetime.date(2026, 11, 7), today), "Saturday")
+
+    def test_today_and_five_days(self):
+        from judicom import weather_view
+        from judicom.config import BG, SCREEN_H, SCREEN_W
+        for n in (5, 0):
+            with self.subTest(days=n):
+                surf = pygame.Surface((SCREEN_W, SCREEN_H))
+                weather_view.draw_weather(surf, datetime.datetime(2026, 11, 5, 10, 15), self.report(n))
+                lower = {tuple(surf.get_at((x, y)))[:3] for x in range(40, SCREEN_W - 40, 8) for y in range(560, SCREEN_H - 40, 8)}
+                if n:
+                    self.assertGreater(len(lower - {BG}), 10)            # the forecast card, with words and pictures
+                else:
+                    self.assertEqual(lower, {BG})                       # no forecast came: only today's card
 
 
 if __name__ == "__main__":

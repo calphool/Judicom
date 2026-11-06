@@ -47,8 +47,9 @@ When the device is in operation with a wifi connection, it periodically pings it
 the necessary connectivity.  Assuming it does, it first checks its local directory of photos and rsyncs 
 them from the PBX server to make sure they are up to date. Then it goes into "photo frame" mode.  In photo
 frame mode, it randomly selects a photo and displays it on the screen along with the associated meta data 
-for that photo for about 30 seconds.  Every fifth image, it switches to an info screen where it depicts the 
-current date, current time, current weather, and next event with a count down (birth dates, holidays, etc.)
+for that photo for about 30 seconds.  Every fifth image, it switches to the next of three screens in turn: 
+an info screen with the current date, current time, and the next events with a count down (birth dates, holidays, etc.); 
+a Bible verse; and a weather screen with today's weather and a 5 day forecast.
 
 When the handset is lifted from its cradle, the phone switches to "call mode."  In call mode, the HDMI screen 
 shows two arrows pointing down to the phone's two physical buttons, and the handset speaker plays a dialtone 
