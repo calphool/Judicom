@@ -320,7 +320,9 @@ partition (`fsfreeze`) and writes the start of the card and the boot partition (
 inside it ends the copy after 15 minutes (under the 30 that set off the offline alert), and a separate guard unfreezes after
 20 minutes even if it were killed.  Every 30 seconds it notes in `/run/judicom-backup-progress.log` (in memory, kept until the
 next backup or reboot) what the card has given, what has gone out over Wi-Fi and what the copying programs are doing, so a stuck
-copy shows which stage stopped.  It starts the phone again itself as soon as the card is unfrozen.  The main partition is read by `copy_used_blocks.py`: the used blocks
+copy shows which stage stopped.  In a terminal, step 2 shows a progress bar of how far through the main partition the copy is (it
+stays at 0% for the first half minute, the boot area, and speeds up in the free space near the end); if the spinner turns but the
+MB stand still, the copy is stuck.  It starts the phone again itself as soon as the card is unfrozen.  The main partition is read by `copy_used_blocks.py`: the used blocks
 (from `dumpe2fs`, read-only) as they are, the free ones as zeros, i.e. the image `e2image -ra` makes (plus the backup
 superblocks).  Not e2image itself: its "is it mounted?" check creates `/.ismount-test-file`, which waits forever on a frozen root
 (found with strace on 2026-11-04; a loop device does not hide the mount, device-mapper refuses a mounted partition).  The NAS keeps the upload as a hidden unfinished file until `commit`: only if its SHA-256 matches what the Judicom

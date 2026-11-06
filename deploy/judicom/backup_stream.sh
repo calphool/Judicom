@@ -34,6 +34,7 @@ PROGRESS_EVERY="${PROGRESS_EVERY:-30}"
 [ "$MODE" = trial-watchdog ] && MAX_SECONDS="${TRIAL_MAX_SECONDS:-15}"
 [ "$MODE" = trial-read ] && MAX_SECONDS="${TRIAL_READ_MAX_SECONDS:-180}"
 export PYTHONDONTWRITEBYTECODE=1                 # python must not try to write .pyc files onto the frozen card
+export COPY_POSITION="$STATE/position"           # how far the copier has got, for the progress bar in backup_judicom.sh
 
 progress() {       # reads only; ends by itself if this script is gone
   local card sent mem waiting
