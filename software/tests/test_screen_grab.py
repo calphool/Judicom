@@ -5,6 +5,7 @@ import struct
 import unittest
 from io import BytesIO
 from pathlib import Path
+from unittest import mock
 
 try:
     import numpy as np
@@ -88,6 +89,15 @@ class KernelStructures(unittest.TestCase):
 
     def test_the_call_number_for_reading_a_frame_buffer(self):
         self.assertEqual(screen_grab.ioctl_number(0xCE, screen_grab.FB2), 0xC06864CE)      # DRM_IOCTL_MODE_GETFB2
+
+
+
+class Root(unittest.TestCase):
+    def test_sudo_runs_the_copy_only_root_can_change_not_the_one_in_the_repo(self):
+        done = mock.Mock(returncode=0, stdout=b"png")
+        with mock.patch.object(screen_grab.subprocess, "run", return_value=done) as run:
+            self.assertEqual(screen_grab.png_through_sudo(), b"png")
+        self.assertEqual(run.call_args[0][0], ["sudo", "-n", "/usr/bin/python3", "-I", "/usr/local/lib/judicom/screen_grab.py", "-"])
 
 
 if __name__ == "__main__":
