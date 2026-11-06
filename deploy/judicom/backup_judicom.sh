@@ -54,8 +54,22 @@ restart() {
     stopped=0
   fi
 }
-cleanup() { restart; rm -rf "$work"; }
+meter=""
+stop_meter() { if [ -n "$meter" ]; then kill "$meter" 2>/dev/null || true; wait "$meter" 2>/dev/null || true; meter=""; echo; fi; }
+cleanup() { stop_meter; restart; rm -rf "$work"; }
 trap cleanup EXIT
+show_meter() {     # how far through the main partition the copier is (it keeps that in $1), on one line.  It stays at 0% for the
+  local position=$1 mb=0 total=0 a b pct bar spin='|/-\' i=0 began=$SECONDS     # first half minute, the boot area.  Touches nothing
+  while :; do                                                                   # on the frozen card.  If the spinner turns but the
+    if [ -r "$position" ] && read -r a b < "$position"; then mb=$a; total=$b; fi  # MB stand still, the copy is stuck.
+    pct=0
+    [ "$total" -eq 0 ] || pct=$(( mb * 100 / total ))
+    printf -v bar '%*s' $(( pct / 5 )) ''
+    printf '\r   %s [%-20s] %3d%%  %d of %d MB, %d:%02d ' "${spin:i++ % 4:1}" "${bar// /#}" "$pct" "$mb" "$total" \
+           $(( (SECONDS - began) / 60 )) $(( (SECONDS - began) % 60 ))
+    sleep 1
+  done
+}
 stop() {
   sudo systemctl stop $TIMERS $SERVICES
   sudo journalctl --relinquish-var                     # the log goes to memory while the card is frozen
@@ -102,10 +116,12 @@ fi
 echo "1. Stopping the phone and the syncs ..."
 stop
 echo "2. Freezing the card and sending it to the NAS (a few minutes; the phone starts again as soon as the card is unfrozen) ..."
+if [ -t 1 ]; then show_meter "$work/position" & meter=$!; fi
 set +e
 stream backup "$SERVICES $TIMERS" | zstd -T0 -1 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
 codes=("${PIPESTATUS[@]}")
 set -e
+stop_meter
 sleep 2
 echo "3. The phone: $([ -f "$work/restarted" ] && echo "started again" || echo "starting it again ...")"
 restart

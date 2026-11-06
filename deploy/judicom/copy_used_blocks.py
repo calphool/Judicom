@@ -9,6 +9,9 @@ Which blocks are free comes from `dumpe2fs` (read-only).  The partition is read 
 skipping windows with nothing in use, and the free blocks in each window are sent as zeros.  The output is SIZE_BYTES long (default: the size of DEVICE), so it
 also covers any space after the end of the file system (as zeros).  Reads go past the memory cache (it is dropped first), so
 nothing stale from earlier reads ends up in the image.  Only the standard library.
+
+If COPY_POSITION names a file (it must be in memory: the partition is frozen), how far it has got and the whole size, in MB, are
+kept in it, for the progress bar in backup_judicom.sh.  Not being able to write that file never stops the copy.
 """
 import os
 import re
@@ -58,7 +61,23 @@ def write_zeros(out, n, zeros):
         n -= k
 
 
-def copy(device, out, size_bytes=None, dumpe2fs_text=None):
+def position_keeper(path):
+    """A function note(position, total) that keeps them in `path` (bytes in, MB in the file), or does nothing if it cannot."""
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644) if path else None
+    except OSError:
+        fd = None
+
+    def note(position, total):
+        if fd is not None:
+            try:
+                os.pwrite(fd, b"%-12d %-12d\n" % (position >> 20, total >> 20), 0)      # always the same length: nothing left over
+            except OSError:
+                pass
+    return note
+
+
+def copy(device, out, size_bytes=None, dumpe2fs_text=None, note=lambda position, total: None):
     """Go through the partition in CHUNK-sized windows: a window with no used block is sent as zeros without being read; any
     other window is read in one go (long, sequential reads: SD cards are slow at many small ones) and its free blocks are set to
     zeros before it is sent.  The output is the same as copying only the used blocks."""
@@ -76,6 +95,7 @@ def copy(device, out, size_bytes=None, dumpe2fs_text=None):
         zeros = bytes(CHUNK)
         i = 0                                                         # the first used range that may still matter
         for pos in range(0, total, CHUNK):
+            note(pos, total)
             end = min(pos + CHUNK, total)
             while i < len(used) and used[i][1] <= pos:
                 i += 1
@@ -95,6 +115,7 @@ def copy(device, out, size_bytes=None, dumpe2fs_text=None):
             if cursor < end:
                 data[cursor - pos:] = zeros[:end - cursor]
             out.write(data)
+        note(total, total)
     finally:
         os.close(fd)
 
@@ -105,7 +126,7 @@ def main(argv=None):
         sys.exit(__doc__)
     out = sys.stdout.buffer
     try:
-        copy(args[0], out, int(args[1]) if len(args) > 1 else None)
+        copy(args[0], out, int(args[1]) if len(args) > 1 else None, note=position_keeper(os.environ.get("COPY_POSITION")))
         out.flush()
     except BrokenPipeError:
         sys.exit(141)
