@@ -1,9 +1,13 @@
 """The message screen: the sender's face at the top, and what they say in a speech bubble coming from it (judicom/messages.py).
 
     message_view.show(surface, message, faces, more)        # more: how many are waiting after this one
+    level = message_view.pulse(seconds)                     # the words at the bottom breathe: when this changes,
+    message_view.show_hint(surface, more, level)            # ... only they are drawn again
 
 The letters are as big as will fit, so a short message is very big.  Someone with no picture gets their first letter in a circle.
 """
+import math
+
 import pygame
 
 from . import draw
@@ -23,6 +27,11 @@ PAD = 34
 SIZES = range(68, 28, -2)          # the biggest letters first
 SPACING = 1.22
 TEXT_W = W - 2 * BUBBLE_X - 2 * PAD
+HINT_Y = H - 62
+HINT_TOP = BUBBLE_BOTTOM + 2       # the strip drawn again: below anything the bubble can reach
+HINT_GLOW = (255, 226, 130)        # the words go from SOFT to this and back
+HINT_BOB = 8                       # pixels they rise as they brighten: one for each level, so the steps cannot be seen
+HINT_SECONDS = 2.4                 # slow enough to be calm; the screen is drawn 2 * HINT_BOB times in this
 
 
 def fitted(text):
@@ -61,10 +70,21 @@ def show_bubble(surf, text):
         y += line
 
 
-def show(surf, message, faces=None, more=0):
+def pulse(t):
+    """Seconds -> how far through its breath the hint is: 0 (resting) to HINT_BOB (brightest)."""
+    return round(HINT_BOB * (0.5 - 0.5 * math.cos(2 * math.pi * t / HINT_SECONDS)))
+
+
+def show_hint(surf, more=0, level=0):
+    words = "Touch the screen for the next message" if more else "Touch the screen when you have read this"
+    color = tuple(a + (b - a) * level // HINT_BOB for a, b in zip(SOFT, HINT_GLOW))
+    surf.fill(BG, (0, HINT_TOP, W, H - HINT_TOP))
+    draw.centered(surf, draw.text(words, "reg", 28, color, max_w=W - 40), HINT_Y - level)
+
+
+def show(surf, message, faces=None, more=0, level=0):
     surf.fill(BG)
     draw.centered(surf, draw.text(message.sender, "bold", 54, INK, max_w=W - 40), 18)
     show_face(surf, message.sender, faces)
     show_bubble(surf, message.text)
-    hint = "Touch the screen for the next message" if more else "Touch the screen when you have read this"
-    draw.centered(surf, draw.text(hint, "reg", 28, SOFT, max_w=W - 40), H - 66)
+    show_hint(surf, more, level)
