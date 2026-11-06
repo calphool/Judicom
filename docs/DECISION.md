@@ -10,7 +10,7 @@ A short decision log. **Accepted** means chosen as the current baseline; it does
 | D-004 | Use Tailscale for private endpoint/NAS connectivity | Accepted | Avoid exposing endpoint services directly to the public internet |
 | D-005 | Favor physical buttons and a traditional Merlin handset | Accepted direction | Familiar operation and fewer on-screen interaction requirements |
 | D-006 | Investigate USB audio for the Merlin handset | Proposed | More portable and potentially simpler than I²S; verify transducer compatibility |
-| D-007 | Use separate ringtone speaker through Pi analog output and LM386 | Proposed | Separates ringtone playback from private handset audio |
+| D-007 | Use separate ringtone speaker through Pi analog output and a PAM8403 amplifier | Proposed | Separates ringtone playback from private handset audio |
 | D-008 | Defer video calling | Deferred | Reduce complexity and focus on reliable audio communication |
 | D-009 | Reconsider Orange Pi only for a later hardware revision | Deferred | Little benefit from migrating until the current hardware path is stable |
 

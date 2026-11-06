@@ -41,7 +41,7 @@ the NAS; see docs/DEPLOYMENT.md.
 The phone software (baresip) is not connected yet: "Calling..." turns into "No answer." after 30 s.  Keys pretend to be it:
 **y** = they answer, **f** = the call fails, **e** = they hang up, **i** = an incoming call (from the right button's
 person), **u** = an incoming call from a number that is not in the contacts file.  **space** = next photo, **q** = quit.
-The dial tone plays on the USB sound device (the handset), the ringer on the `Headphones` card (the jack -> LM386 -> speaker); a missing
+The dial tone plays on the USB sound device (the handset), the ringer on the `Headphones` card (the jack -> PAM8403 amplifier -> speaker); a missing
 card is reported at start and stays silent.  `--no-sound` turns both off, `--speed 10` runs the phone's timers faster.
 Pressing a button plays touch-tone digits in the handset first (about 2 s, the screen already says "Calling ..."), then the call goes
 out.  The digits are the person's number from the contacts file.
@@ -89,6 +89,8 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     python3 tools/play_ringtone.py          the ringtone (~/phone_ring.wav, made if missing) on the ringer speaker
     python3 tools/mic_meter.py              live microphone level meters, in an SSH terminal
     python3 tools/handset_echo_test.py      what the handset microphone hears, played back in its speaker for 30 s
+    python3 tools/touch_draw.py             draw on the screen with your fingers; a button or the handset ends it (it
+                                            stops the phone program while it runs and starts it again after)
 
 ## Files
 
