@@ -2,7 +2,7 @@
 # Backs up the Judicom's whole SD card to the NAS while it runs (no need to take the card out).   On the Judicom:
 #     bash ~/Judicom/deploy/judicom/backup_judicom.sh --trial     first: measures, and tries the freeze and its safety net
 #     bash ~/Judicom/deploy/judicom/backup_judicom.sh             the backup
-# ONLY AT HOME: the copy goes over the home network to the NAS (192.168.1.2).  Never over Tailscale: Tailscale itself stalls
+# ONLY AT HOME: the copy goes over the home network to the NAS (found as naspi.local, which only answers at home).  Never over Tailscale: Tailscale itself stalls
 # while the card is frozen (2026-11-04).
 # The phone is off for a few minutes, 15 at most (callers hear "Judi can't come to the phone").  The frozen part is backup_stream.sh: it
 # unfreezes whenever it ends, a watchdog ends it after 15 minutes, and a guard unfreezes after 20 minutes whatever happens.
@@ -13,7 +13,8 @@ trap 'echo "STOPPED at line $LINENO: $BASH_COMMAND" >&2' ERR
 MODE=backup
 case "${1:-}" in "") ;; --trial) MODE=trial ;; *) echo "usage: $0 [--trial]" >&2; exit 1 ;; esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
-NAS="pi@192.168.1.2"                   # the NAS on the home network
+NAS_IP=$(getent ahostsv4 naspi.local | awk 'NR == 1 { print $1 }' || true)     # its home address: the name answers only at home
+NAS="pi@$NAS_IP"
 KEY="$HOME/.ssh/judicom_backup"         # the NAS lets this key only store, commit and discard (receive_backup.sh)
 DEV=/dev/mmcblk0
 SERVICES="judicom-phone judicom-baresip"
@@ -22,6 +23,9 @@ SSH=(ssh -i "$KEY" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10 -
      -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=15 -o ServerAliveCountMax=4 "$NAS")
 
 [ "$(hostname)" = judicom ] || { echo "Run this on the Judicom." >&2; exit 1; }
+case "$NAS_IP" in
+  "" | 100.*) echo "naspi.local is not on the home network here (${NAS_IP:-no answer}).  This backup only runs at home.  Nothing done." >&2; exit 1 ;;
+esac
 [ -f "$KEY" ] || { echo "No backup key ($KEY): see docs/DEPLOYMENT.md." >&2; exit 1; }
 [ -f "$HERE/backup_stream.sh" ] || { echo "backup_stream.sh is missing next to this script." >&2; exit 1; }
 answer=$("${SSH[@]}" "commit none none" 2>&1 || true)

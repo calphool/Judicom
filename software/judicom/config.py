@@ -56,7 +56,7 @@ BUTTON_SETTLE = 0.05          # a button press counts after this long (contact b
 CONTACTS_FILE = Path(os.environ.get("JUDICOM_CONTACTS", "/home/joe/contacts.txt"))
 
 # The master list is on the NAS; judicom.sync copies it here every 10 minutes (over Tailscale, with a key that can only read it).
-SYNC_HOST = "pi@100.64.0.1"
+SYNC_HOST = "pi@naspi-1"
 SYNC_KEY = "/home/joe/.ssh/judicom_sync"
 # The photos come from /mnt/8tbdrive/Photos/Judi on the NAS (shared with Jellyfin); judicom.photo_sync copies them into PHOTO_DIR
 # every hour, with a key the NAS only lets read that folder.

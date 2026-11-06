@@ -10,7 +10,7 @@ direct_media=no
 rtp_symmetric=yes
 force_rport=yes
 rewrite_contact=yes
-media_address=100.64.0.1
+media_address=NAS_TAILSCALE_ADDRESS
 
 [judicom-auth]
 type=auth

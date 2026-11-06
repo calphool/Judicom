@@ -86,7 +86,7 @@ ADVICE = """What usually causes it, most likely first:
   - the Wi-Fi at the nursing home is down, or the Judicom was moved out of its reach
   - the Judicom was unplugged or switched off (or the power went off)
   - the Judicom's Tailscale connection is down
-If you can, check from a computer on Tailscale:  ssh joe@100.64.0.2   (or through the NAS: ssh -J pi@naspi.local joe@100.64.0.2)
+If you can, check from a computer on Tailscale:  ssh joe@judicom   (or through the NAS: ssh -J pi@naspi.local joe@judicom)
 Until it is back, callers hear "Judi can't come to the phone right now".
 """
 
