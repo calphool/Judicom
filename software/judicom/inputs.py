@@ -110,6 +110,10 @@ class Controls:
     def off_hook(self):
         return self._hook.value
 
+    def held(self):
+        """The names of the buttons down right now (settled), whatever has been reported."""
+        return {name for name, s in self._buttons.items() if s.value}
+
     def hook_votes(self):
         """(contacts saying the handset is up, number of contacts)."""
         votes = []
@@ -165,6 +169,9 @@ class KeyControls:
 
     def poll(self):
         return []
+
+    def held(self):
+        return set()
 
     def key(self, key):
         if key == "l":

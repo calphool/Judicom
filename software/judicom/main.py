@@ -10,12 +10,13 @@ works and a button shows "The phone is not working." straight away.  --no-calls 
 
 A message from the housekeeping website (judicom/messages.py) takes the screen from the photos, and gives it back when it has been
 read.  It is not one of the machine's modes: the machine goes on as ever, so a call or the handset simply takes the screen from it.
+The maintenance shell (judicom/maintenance.py) is the same kind of thing, and needs a touch screen and python3-pyte.
 
 These keys pretend to be the phone software (useful on a PC):
 y = they answer   f = the call fails   e = they hang up
 i = an incoming call from the person on the right button   u = an incoming call from a number that is not in the contacts file.
 Other keys: space = next photo, t = a touch of the screen, q or Esc = quit.  Keys are typed in the terminal that started the program, or in the window.
-Needs:  sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio alsa-utils
+Needs:  sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio python3-pyte alsa-utils
 """
 import argparse
 import datetime
@@ -31,6 +32,7 @@ from .machine import Machine, Mode, Party
 SIMULATED = {"y": ("answered",), "f": ("call_failed",), "e": ("remote_ended",)}
 UNKNOWN_NUMBER = "+15155550199"                 # the "u" key: a caller who is not in the contacts file
 CONTACTS_CHECK_SECONDS = 5.0                    # how often the contacts file is looked at for changes
+SHELL_DRAW_SECONDS = 0.1                        # the maintenance shell is drawn at most this often: the phone comes first
 
 
 class Phone:
@@ -38,9 +40,9 @@ class Phone:
     The program calls step() once a frame, then draws if step() says the screen changed."""
 
     def __init__(self, machine, controls, calls, sounds, photos, contacts=None, log=None, clock=time.monotonic, postbox=None,
-                 taps=None):
+                 taps=None, maintenance=None):
         self.machine, self.controls, self.calls, self.sounds, self.photos = machine, controls, calls, sounds, photos
-        self.contacts, self.clock, self.postbox, self.taps = contacts, clock, postbox, taps
+        self.contacts, self.clock, self.postbox, self.taps, self.maintenance = contacts, clock, postbox, taps, maintenance
         self.log = log or (lambda msg: None)
         self._version = None
         self._buttons_changed = False
@@ -65,12 +67,13 @@ class Phone:
 
     def step(self, keys=()):
         """keys: key names from keys.py.  Returns True when the mode or the party changed (the whole screen must be drawn)."""
-        touched = bool(self.taps and self.taps.poll())
+        taps = self.taps.poll() if self.taps else []
+        touched = bool(taps)
         for event in self.controls.poll() + self.calls.poll():
             self._handle(event)
         for key in keys:                                # in order: "lift, then next photo" must not change the photo
             touched = touched or key == "t"
-            if key == "next" and self.machine.mode == Mode.IDLE and not self.message:
+            if key == "next" and self.machine.mode == Mode.IDLE and not self.message and not self.shell_showing:
                 self.photos.next()
             sim = self.simulated(key)
             for event in self.controls.key(key) + ([sim] if sim else []):
@@ -81,17 +84,21 @@ class Phone:
         self._check_contacts()
         changed = self.machine.version != self._version or self._buttons_changed
         self._buttons_changed = False
+        idle, busy = self.machine.mode == Mode.IDLE, False
+        if self.maintenance is not None:
+            changed = self.maintenance.step(idle, not self.controls.off_hook, self.controls.held(), taps) or changed
+            busy = self.maintenance.busy
         if self.postbox is not None:
-            if touched:
+            if touched and not busy:
                 self.postbox.touched()
-            changed = self.postbox.tick(self.machine.mode == Mode.IDLE) or changed
+            changed = self.postbox.tick(idle and not busy) or changed
             if self.postbox.take_beep():
                 self.sounds.beep()
         if changed:
             self._version = self.machine.version
-            if self.machine.mode == Mode.IDLE and not self.message:
+            if idle and not self.message and not self.shell_showing:
                 self.photos.start()                     # back to the photos: a fresh picture, no fade from one that was not on screen
-        elif self.machine.mode == Mode.IDLE and not self.message:
+        elif idle and not self.message and not self.shell_showing:
             self.photos.tick()
         return changed
 
@@ -99,6 +106,11 @@ class Phone:
     def message(self):
         """The message on the screen, or None."""
         return self.postbox.showing if self.postbox is not None else None
+
+    @property
+    def shell_showing(self):
+        """The maintenance shell has the screen (it stays open behind a call, without it)."""
+        return self.maintenance is not None and self.maintenance.open and self.machine.mode == Mode.IDLE
 
     def _check_contacts(self):
         now = self.clock()
@@ -206,8 +218,17 @@ def main(argv=None):
     faces = Faces(log=log)
     postbox = Postbox(can_show=lambda: not photos.is_night(datetime.datetime.now()), log=log)
     taps = None if args.demo or args.window else Taps(log, flip=args.flip)
+    maintenance = shell_view = None
+    if taps is not None:
+        try:
+            from .maintenance import Maintenance
+            from .shell import Shell
+            from .shell_view import ShellView
+            maintenance, shell_view = Maintenance(sounds, lambda: Shell(log=log), log=log), ShellView()
+        except ImportError as exc:                       # the phone is what matters: it goes on without the shell
+            log("(no maintenance shell: %s - sudo apt install python3-pyte)" % exc)
     phone = Phone(Machine(buttons, clock=clock, log=log, phone_ok=lambda: calls.ready), controls, calls, sounds, photos, contacts,
-                  log, postbox=postbox, taps=taps)
+                  log, postbox=postbox, taps=taps, maintenance=maintenance)
     call_view = CallView(buttons, faces)
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
         ", turned 90 degrees" if display.rotate else "", args.folder, source, sounds.describe()))
@@ -218,6 +239,7 @@ def main(argv=None):
     terminal = TerminalKeys() if TerminalKeys.available() else None
     frames = pygame.time.Clock()
     hint_level = None
+    shell_drawn = 0.0
     try:
         while True:
             keys = (terminal.poll() if terminal else []) + window_keys(pygame.event.get())
@@ -225,7 +247,13 @@ def main(argv=None):
                 break
             changed = phone.step(keys)
             mode = phone.machine.mode
-            if phone.message:
+            if phone.shell_showing:
+                now = time.monotonic()
+                if changed or (maintenance.needs_draw and now - shell_drawn >= SHELL_DRAW_SECONDS):
+                    shell_view.draw(display.logical, maintenance.shell, maintenance.keyboard)
+                    display.present()
+                    shell_drawn = now
+            elif phone.message:
                 level = message_view.pulse(time.monotonic())
                 if changed:
                     message_view.show(display.logical, phone.message, faces, postbox.more, level)
@@ -246,6 +274,8 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        if maintenance:
+            maintenance.close()
         calls.close()
         if taps:
             taps.close()

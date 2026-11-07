@@ -259,7 +259,7 @@ the next 5 days, from Open-Meteo; left out when there is no internet); from 9 pm
 Settings at the end of `software/judicom/config.py`.  To see the photos and the info screen at night (setting up, showing
 someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 2 hours (or until `rm ~/judicom-awake`).
 
-    sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio alsa-utils baresip
+    sudo apt install python3-pygame python3-pil python3-gpiozero python3-lgpio python3-pyte alsa-utils baresip
     git clone https://github.com/calphool/Judicom.git ~/Judicom
 
 | File on the Judicom | From | Notes |
@@ -308,6 +308,25 @@ restart works; its log also shows `module stdio.so: Operation not permitted` (no
 
 On the home network: `ssh joe@judicom.local`.  Anywhere else, through Tailscale: `ssh joe@judicom` from a device on Tailscale,
 or through the NAS: `ssh -J pi@naspi.local joe@judicom`.
+
+## Maintenance shell
+
+A bash on the Judicom's own screen with a touch keyboard, for when SSH cannot help (a new Wi-Fi network, for instance).  With the
+handset on the hook and nothing else going on:
+
+1. Hold both buttons for 3 seconds until you hear a bong, then let go.
+2. Within 10 seconds tap the corners clockwise, starting top left.  Each one bongs higher, and the fourth opens the shell.
+
+A wrong tap, a wait of more than 10 seconds, the handset or a call ends the sequence without a sound.  `exit` goes back to the
+photos, and so do 10 minutes without a key, **even if a command is still running**: start anything long with `nohup`.
+
+- It is an ordinary bash as `joe`, so `sudo` asks for the password as usual.  What is typed is not logged.
+- The phone keeps working: a call or the handset takes the screen, and the shell is there again afterwards.  Messages wait.
+- It runs inside the phone program, so restarting `judicom-phone` closes it, and it is not there if the phone program is down.
+- Wi-Fi: `sudo nmcli device wifi list`, then `sudo nmcli --ask device wifi connect "NAME"` (`--ask` keeps the password off the
+  screen; `joe` needs `sudo` here because a shell started by a service has no login session to authorise the change).
+- It needs the touch screen and `python3-pyte`; without them the phone runs as usual and says so in its log.
+- The touch screen comes back by itself after a USB dropout, within about 5 seconds.
 
 ## Backup of the SD card
 

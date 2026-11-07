@@ -28,6 +28,7 @@ RING_ON, RING_OFF = 2.0, 4.0     # seconds of ringing, then of silence (the Nort
 CHUNK = 3200                     # bytes written at a time (0.1 s; under the 4096-byte pipe limit, so never a short write)
 LEAD_SECONDS = 0.3               # silence written before any sound: USB adapters swallow the very start
 BEEP_HZ, BEEPS, BEEP_ON, BEEP_OFF = 1000.0, 3, 0.15, 0.15     # a new message: three short beeps
+BONG_HZ, BONG_SECONDS = (392.0, 523.3, 659.3, 784.0, 1046.5), 0.5     # the maintenance sequence: armed, then the four corners
 DIALING_TAIL = 0.4               # after the last digit: aplay's buffer drains and the card is let go before the call opens it
 
 # Touch-tone (DTMF): each key is one low note (its row) and one high note (its column) together.
@@ -68,6 +69,14 @@ def beeps_pcm(level=config.BEEP_LEVEL, rate=RATE):
     on, off, fade = int(BEEP_ON * rate), int(BEEP_OFF * rate), int(0.01 * rate)           # 10 ms fades: no clicks
     one = [int(32767 * level * min(1.0, i / fade, (on - i) / fade) * math.sin(2 * math.pi * BEEP_HZ * i / rate)) for i in range(on)]
     return _to_bytes((one + [0] * off) * BEEPS)
+
+
+def bong_pcm(step, level=config.BONG_LEVEL, rate=RATE):
+    """One bong of the maintenance sequence: a bell that dies away, higher for each step."""
+    hz, n, fade = BONG_HZ[step], int(BONG_SECONDS * rate), int(0.005 * rate)
+    return _to_bytes([int(32767 * level * min(1.0, i / fade, (n - i) / fade) * math.exp(-5.0 * i / rate) *
+                          (0.75 * math.sin(2 * math.pi * hz * i / rate) + 0.25 * math.sin(4 * math.pi * hz * i / rate)))
+                      for i in range(n)])
 
 
 def dialable(digits):
@@ -194,6 +203,7 @@ class Sounds:
         self.log = log or (lambda msg: None)
         self.make_loop = make_loop
         self.dial = self.ring = self.digits = self.beeps = Silent()
+        self.bongs, self._bong = [], Silent()
         self.handset_card = self.ringer_card = None
         if enabled:
             self.handset_card = handset_card or find_usb_card()
@@ -203,6 +213,7 @@ class Sounds:
             if self.ringer_card:
                 self.ring = make_loop(self.ringer_card, ring_pcm(), "ringer", self.log)
                 self.beeps = make_loop(self.ringer_card, beeps_pcm(), "message beeps", self.log, repeat=False)
+                self.bongs = [make_loop(self.ringer_card, bong_pcm(step), "bong", self.log, repeat=False) for step in range(len(BONG_HZ))]
         self._want = (False, False, "")
 
     def describe(self):
@@ -230,6 +241,7 @@ class Sounds:
             self.dial.start()
         if want[1]:
             self.beeps.stop()                           # the ringer needs the card
+            self._bong.stop()
             self.ring.start()
         if digits_changed and want[2]:
             self.digits.start()
@@ -241,8 +253,18 @@ class Sounds:
         if not self._want[1]:
             self.beeps.start()
 
+    def bong(self, step):
+        """One bong of the maintenance sequence, cutting off the one before (not over the ringer: a call matters more)."""
+        if self._want[1] or step >= len(self.bongs):
+            return
+        self.beeps.stop()                               # one sound at a time on this card
+        self._bong.stop()
+        self._bong = self.bongs[step]
+        self._bong.start()
+
     def close(self):
         self.dial.stop()
         self.ring.stop()
         self.beeps.stop()
+        self._bong.stop()
         self.digits.stop()
