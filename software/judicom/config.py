@@ -96,6 +96,14 @@ DIGIT_LEVEL = 0.15            # each of the two notes of a touch-tone digit
 RING_LEVEL = 0.6              # the ringer (kept below full scale so the amplifier is not driven hard)
 BEEP_LEVEL = 0.5              # the three beeps of a new message, on the ringer speaker
 
+# ---- the maintenance shell (judicom/maintenance.py) -------------------------------------------------------------------------
+ARM_SECONDS = 3.0             # both buttons held this long, handset on the hook: a bong
+KNOCK_SECONDS = 10.0          # then each corner within this long of the last
+CORNER_PX = 170               # how far from the edges a tap still counts as in the corner
+SHELL_IDLE_SECONDS = 600.0    # back to the photos after this long without a key
+SHELL_COLUMNS, SHELL_ROWS = 60, 34                 # 10 x 19 pixels each, above the keyboard
+BONG_LEVEL = 0.4              # on the ringer speaker
+
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
 INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or
 INFO_SECONDS = 30.0           # the weather ... the info screen for this long, then the photos again

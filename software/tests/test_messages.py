@@ -498,7 +498,11 @@ class TouchPanel(unittest.TestCase):
 
     def test_a_tap_counts_once_however_long_the_finger_stays(self):
         taps = self.taps([{}, {0: (1, 1)}, {0: (2, 2)}, {}, {1: (3, 3)}])
-        self.assertEqual([taps.poll() for _ in range(5)], [False, True, False, False, True])
+        self.assertEqual([taps.poll() for _ in range(5)], [[], [(1, 1)], [], [], [(3, 3)]])
+
+    def test_a_second_finger_is_a_tap_of_its_own(self):
+        taps = self.taps([{0: (1, 1)}, {0: (1, 1), 1: (5, 5)}, {1: (5, 5)}])
+        self.assertEqual([taps.poll() for _ in range(3)], [[(1, 1)], [(5, 5)], []])
 
     def test_no_panel_means_no_taps(self):
         taps = Taps(devices=self.devices('N: Name="Keyboard"\nH: Handlers=kbd event1\nB: EV=3\n'))
@@ -511,6 +515,66 @@ class TouchPanel(unittest.TestCase):
         taps = self.taps([OSError("gone")])
         self.assertFalse(taps.poll())
         self.assertFalse(taps.poll())
+
+    def reconnecting(self, devices, opened, log=None):
+        """A Taps with a clock of its own; `opened` is a list of what the panel gives, and each opening uses the next one."""
+        class Panel:
+            def __init__(self, path, flip=False):
+                self.path, self.script = path, opened.pop(0)
+
+            def poll(self):
+                value = self.script.pop(0)
+                if isinstance(value, Exception):
+                    raise value
+                return value
+
+            def close(self):
+                pass
+        now = [0.0]
+        return Taps(log=log, devices=devices, open_panel=Panel, clock=lambda: now[0]), now
+
+    PANEL = 'N: Name="Panel"\nH: Handlers=event%d\nB: ABS=%x\n'
+
+    def panel_block(self, event):
+        return self.PANEL % (event, 1 << 0x35 | 1 << 0x36)
+
+    def test_a_panel_that_comes_loose_comes_back_by_itself_even_as_another_device(self):
+        said = []
+        devices = self.devices(self.panel_block(3))
+        taps, now = self.reconnecting(devices, [[OSError("gone")], [{0: (7, 8)}]], said.append)
+        self.assertEqual(taps.poll(), [])
+        self.assertIsNone(taps.panel)
+        now[0] = 4.9
+        self.assertEqual(taps.poll(), [])                              # not yet
+        self.assertIsNone(taps.panel)
+        Path(devices).write_text(self.panel_block(5))                  # USB gives it a new number
+        now[0] = 5.0
+        self.assertEqual(taps.poll(), [(7, 8)])
+        self.assertEqual(taps.panel.path, "/dev/input/event5")
+        self.assertEqual(said[-1], "touch screen: Panel (/dev/input/event5)")
+
+    def test_a_finger_held_through_a_dropout_is_a_new_tap_afterwards(self):
+        taps, now = self.reconnecting(self.devices(self.panel_block(3)), [[{0: (1, 1)}, OSError("gone")], [{0: (1, 1)}]])
+        self.assertEqual(taps.poll(), [(1, 1)])
+        self.assertEqual(taps.poll(), [])
+        now[0] = 5.0
+        self.assertEqual(taps.poll(), [(1, 1)])
+
+    def test_a_panel_plugged_in_after_the_start_is_found(self):
+        devices = self.devices('N: Name="Keyboard"\nH: Handlers=kbd event1\nB: EV=3\n')
+        taps, now = self.reconnecting(devices, [[{0: (2, 3)}]])
+        self.assertEqual(taps.poll(), [])
+        Path(devices).write_text(self.panel_block(4))
+        now[0] = 5.0
+        self.assertEqual(taps.poll(), [(2, 3)])
+
+    def test_looking_again_and_again_says_so_once(self):
+        said = []
+        taps, now = self.reconnecting(self.devices('N: Name="Keyboard"\nH: Handlers=kbd event1\nB: EV=3\n'), [], said.append)
+        for t in (5.0, 10.0, 15.0):
+            now[0] = t
+            taps.poll()
+        self.assertEqual(len(said), 1)
 
 
 @unittest.skipIf(pygame is None, "pygame is not installed")

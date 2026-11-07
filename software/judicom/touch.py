@@ -1,7 +1,9 @@
 """The touch screen.  Nothing here needs extra packages: it reads /dev/input itself.
 
     taps = Taps(log)            # finds the panel; without one it just never reports a tap
-    taps.poll()                 # True once each time a finger comes down (call it often)
+    taps.poll()                 # [(x, y), ...] where fingers have just come down, usually [] (call it often)
+
+A panel that is missing or comes loose (a USB dropout) is looked for again every RETRY_SECONDS, so it comes back by itself.
 
 The panel is found by what it does (it reports finger positions), not by its name.  Its corners were measured on 2026-11-05: its x
 runs down Judi's upright picture and its y runs right to left, the same quarter turn as the picture (judicom/display.py).
@@ -9,6 +11,7 @@ runs down Judi's upright picture and its y runs right to left, the same quarter 
 import os
 import re
 import struct
+import time
 from pathlib import Path
 
 from .config import SCREEN_H as H
@@ -19,6 +22,7 @@ ABS_X, ABS_Y, ABS_MT_SLOT, ABS_MT_X, ABS_MT_Y, ABS_MT_ID = 0x00, 0x01, 0x2f, 0x3
 BTN_TOUCH = 0x14a
 EVENT = "llHHi"                    # struct input_event: time (two longs), type, code, value
 EVENT_SIZE = struct.calcsize(EVENT)
+RETRY_SECONDS = 5.0                # how often a missing panel is looked for
 
 
 def find_touch_screen(devices="/proc/bus/input/devices"):
@@ -66,7 +70,10 @@ class Touches:
 
     def poll(self):
         try:
-            self._buf += os.read(self.fd, EVENT_SIZE * 256)
+            data = os.read(self.fd, EVENT_SIZE * 256)
+            if not data:
+                raise OSError("the panel has gone")
+            self._buf += data
         except BlockingIOError:
             pass
         while len(self._buf) >= EVENT_SIZE:
@@ -87,33 +94,51 @@ class Touches:
 
 
 class Taps:
-    def __init__(self, log=None, flip=False, devices="/proc/bus/input/devices", open_panel=Touches):
+    def __init__(self, log=None, flip=False, devices="/proc/bus/input/devices", open_panel=Touches, clock=time.monotonic):
         self.log = log or (lambda msg: None)
-        self.panel, self.down = None, False
+        self.flip, self.devices, self.open_panel, self.clock = flip, devices, open_panel, clock
+        self.panel, self.fingers = None, set()
+        self._looked = self._said = None
+        self._find()
+
+    def _say_once(self, msg):
+        """Looking again every few seconds must not fill the log with the same line."""
+        if msg != self._said:
+            self.log(msg)
+        self._said = msg
+
+    def _find(self):
+        self._looked = self.clock()
         try:
-            path, name = find_touch_screen(devices)
+            path, name = find_touch_screen(self.devices)
             if path is None:
-                self.log("(no touch screen found: a message goes away with a button or the handset only)")
+                self._say_once("(no touch screen found: a message goes away with a button or the handset only)")
                 return
-            self.panel = open_panel(path, flip=flip)
+            self.panel = self.open_panel(path, flip=self.flip)
+            self._said = None
             self.log("touch screen: %s (%s)" % (name, path))
         except OSError as exc:
-            self.log("(cannot read the touch screen: %s)" % exc)
+            self._say_once("(cannot read the touch screen: %s)" % exc)
 
     def poll(self):
         if self.panel is None:
-            return False
+            if self.clock() - self._looked >= RETRY_SECONDS:
+                self._find()
+            if self.panel is None:
+                return []
         try:
-            down = bool(self.panel.poll())
-        except OSError as exc:                          # the panel came loose: the phone carries on without it
+            fingers = self.panel.poll()
+        except OSError as exc:                          # the panel came loose: the phone carries on, and looks for it again
             self.log("(the touch screen stopped: %s)" % exc)
             self.close()
-            return False
-        tapped = down and not self.down
-        self.down = down
-        return tapped
+            self._looked = self.clock()
+            return []
+        new = [place for finger, place in fingers.items() if finger not in self.fingers]
+        self.fingers = set(fingers)
+        return new
 
     def close(self):
+        self.fingers = set()
         if self.panel is not None:
             self.panel.close()
             self.panel = None
