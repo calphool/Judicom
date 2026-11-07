@@ -164,7 +164,7 @@ class Keys(unittest.TestCase):
             self.assertEqual(max(rows) + KEY_H, H)
 
     def test_the_terminal_ends_above_the_keyboard(self):
-        self.assertLessEqual(4 + config.SHELL_ROWS * 19, self.keyboard.top)
+        self.assertLessEqual(config.SHELL_TOP + config.SHELL_ROWS * 19, self.keyboard.top)
 
     def test_a_letter(self):
         self.assertEqual(self.press("q"), b"q")
@@ -695,7 +695,7 @@ class Screen(unittest.TestCase):
         self.assertFalse(Fake.dirty)
         self.assertFalse(keyboard.dirty)
         self.assertNotEqual(surface.get_at((W // 2 + 30, keyboard.top + 8))[:3], (0, 0, 0))     # a key
-        self.assertTrue(any(surface.get_at((x, y))[:3] != (0, 0, 0) for x in range(60) for y in range(4, 23)))
+        self.assertTrue(any(surface.get_at((x, y))[:3] != (0, 0, 0) for x in range(60) for y in range(config.SHELL_TOP, config.SHELL_TOP + 19)))
 
 
 if __name__ == "__main__":
