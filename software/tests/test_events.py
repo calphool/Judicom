@@ -104,6 +104,63 @@ class File(unittest.TestCase):
             self.assertFalse(ev.refresh())
 
 
+class ChurchYear(unittest.TestCase):
+    def date(self, when, year=2026):
+        return parse("%s | X" % when)[0].date_in(year)
+
+    def test_the_moving_days_in_2026_and_2027(self):                  # Easter was April 5, 2026 and is March 28, 2027
+        known = {"Shrove Tuesday": ((2, 17), (2, 9)), "Ash Wednesday": ((2, 18), (2, 10)), "Palm Sunday": ((3, 29), (3, 21)),
+                 "Holy Monday": ((3, 30), (3, 22)), "Holy Tuesday": ((3, 31), (3, 23)), "Holy Wednesday": ((4, 1), (3, 24)),
+                 "Maundy Thursday": ((4, 2), (3, 25)), "Good Friday": ((4, 3), (3, 26)), "Holy Saturday": ((4, 4), (3, 27)),
+                 "Easter Day": ((4, 5), (3, 28)), "Ascension Day": ((5, 14), (5, 6)), "Ascension": ((5, 14), (5, 6)),
+                 "Pentecost": ((5, 24), (5, 16)), "Day of Pentecost": ((5, 24), (5, 16)), "Whitsunday": ((5, 24), (5, 16)),
+                 "Trinity Sunday": ((5, 31), (5, 23)), "Christ the King": ((11, 22), (11, 21)), "Advent": ((11, 29), (11, 28)),
+                 "First Sunday of Advent": ((11, 29), (11, 28))}
+        for name, (y2026, y2027) in known.items():
+            with self.subTest(name=name):
+                self.assertEqual(self.date(name, 2026), datetime.date(2026, *y2026))
+                self.assertEqual(self.date(name, 2027), datetime.date(2027, *y2027))
+
+    def test_each_day_falls_on_its_own_weekday_for_a_century(self):
+        weekday = {"Shrove Tuesday": 1, "Ash Wednesday": 2, "Palm Sunday": 6, "Maundy Thursday": 3, "Good Friday": 4, "Holy Saturday": 5,
+                   "Ascension Day": 3, "Pentecost": 6, "Trinity Sunday": 6, "Christ the King": 6, "Advent": 6}
+        for year in range(2000, 2100):
+            for name, day in weekday.items():
+                self.assertEqual(self.date(name, year).weekday(), day, (name, year))
+
+    def test_names_do_not_care_about_capitals_and_may_have_a_time(self):
+        event = parse("ash WEDNESDAY 7 PM | Service\n")[0]
+        self.assertEqual(event.date_in(2026), datetime.date(2026, 2, 18))
+        self.assertEqual(event.time, datetime.time(19, 0))
+
+    def test_days_from_a_day(self):
+        self.assertEqual(self.date("46 days before Easter"), datetime.date(2026, 2, 18))
+        self.assertEqual(self.date("1 day after 12-25"), datetime.date(2026, 12, 26))
+        self.assertEqual(self.date("3 days before 4th Thursday of November"), datetime.date(2026, 11, 23))
+
+    def test_counting_from_a_feast(self):
+        self.assertEqual(self.date("Sunday after Pentecost"), datetime.date(2026, 5, 31))              # Trinity Sunday
+        self.assertEqual(self.date("4th Sunday after Pentecost"), datetime.date(2026, 6, 21))
+        self.assertEqual(self.date("7th Sunday after Easter"), datetime.date(2026, 5, 24))
+        self.assertEqual(self.date("Sunday before Ash Wednesday"), datetime.date(2026, 2, 15))         # Last Sunday after the Epiphany
+        self.assertEqual(self.date("1st Sunday after 01-06"), datetime.date(2026, 1, 11))              # Baptism of Our Lord
+
+    def test_the_next_one_after_this_years_has_gone(self):
+        event = parse("Ash Wednesday | Ash Wednesday\n")[0]
+        self.assertEqual(event.next_date(datetime.date(2026, 2, 19)), datetime.date(2027, 2, 10))
+
+    def test_what_cannot_be_read_is_reported(self):
+        for when in ("0th Sunday after Easter", "61st Sunday after Easter", "5 days before Tuesday", "days before Easter",
+                     "Sunday before Advent", "10 days after 4th Sunday before 12-25", "Ash Thursday"):
+            with self.subTest(when=when):
+                said = []
+                self.assertEqual(parse("%s | X" % when, said.append), [])
+                self.assertEqual(len(said), 1)
+
+    def test_a_title_is_not_taken_for_a_day(self):
+        self.assertEqual(parse("03-14 | Good Friday lunch\n")[0].date_in(2026), datetime.date(2026, 3, 14))
+
+
 if __name__ == "__main__":
     unittest.main()
 

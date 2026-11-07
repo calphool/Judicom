@@ -5,6 +5,7 @@
 #     Easter                    | Easter               every year
 #     Sunday after 1st Monday of September | Grandparents' Day     the first such weekday after a day of the kind above
 #     4th Sunday before 12-25   | Advent               counted back from a yearly day, which itself never counts
+#     Ash Wednesday             | Ash Wednesday        the church year by name; or 46 days before Easter
 #     2026-11-08 10:30          | Visit from Amy       once (year-month-day); a time is optional: 10:30, 14:00, 2 PM
 # Delete any holiday you don't want on Judi's screen.  Add birthdays and visits at the end.
 

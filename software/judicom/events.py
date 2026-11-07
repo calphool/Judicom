@@ -12,6 +12,9 @@ THE FILE (/home/joe/events.txt on the Judicom, a copy of /home/pi/judicom/events
     Sunday after 1st Monday of September | Grandparents' Day     the first such weekday after a day of the kind above
     4th Sunday before 12-25  | Advent              counted back from such a day, which itself never counts (also: Fourth Sunday
                                                     Before 12/25 (Christmas)); "2nd Sunday after Easter" counts forward
+    46 days before Easter    | Ash Wednesday       a number of days from such a day
+    Ash Wednesday            | Ash Wednesday       the church year by name: see FEASTS.  Also as a day to count from:
+    4th Sunday after Pentecost | ...               (Advent and Christ the King cannot be counted from)
 
 Lines starting with # and empty lines are skipped; a line that cannot be read is reported and skipped.  An event that happens once
 drops off when its day is over.  A yearly event on February 29 is on February 28 in other years.
@@ -46,6 +49,7 @@ class Event:
     after: int = -1                         # "Sunday after ...": the first such weekday (0 = Monday) after the day above
     before: int = -1                        # "Sunday before ...": the same, going back
     count: int = 1                          # "4th Sunday before ...": how many of them along
+    shift: int = 0                          # "46 days before ...": days from the day above, before any "Sunday after"
 
     def date_in(self, year: int) -> datetime.date | None:
         """The day of this (yearly) event in a given year; None if that year has no such day (a 5th Monday that is not there)."""
@@ -55,6 +59,8 @@ class Event:
             d = nth_weekday(year, self.month, self.weekday, self.nth)
         else:
             d = _yearly(year, self.month, self.day)
+        if d is not None:
+            d += datetime.timedelta(days=self.shift)
         if d is not None and self.after >= 0:
             d += datetime.timedelta(days=(self.after - d.weekday() - 1) % 7 + 1 + 7 * (self.count - 1))   # strictly after: 1..7 days on
         if d is not None and self.before >= 0:
@@ -119,8 +125,38 @@ WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november",
                "december"]
 NTH = {"1st": 1, "first": 1, "2nd": 2, "second": 2, "3rd": 3, "third": 3, "4th": 4, "fourth": 4, "5th": 5, "fifth": 5, "last": -1}
-RELATIVE = re.compile(r"^(?:(%s)\s+)?(%s)\s+(before|after)\s+(.+)$" % ("|".join(k for k, v in NTH.items() if v > 0), "|".join(WEEKDAYS)),
-                      re.IGNORECASE)
+RELATIVE = re.compile(r"^(?:(\d+(?:st|nd|rd|th)|%s)\s+)?(%s)\s+(before|after)\s+(.+)$" % ("|".join(k for k, v in NTH.items() if v > 0),
+                                                                                       "|".join(WEEKDAYS)), re.IGNORECASE)
+DAYS_FROM = re.compile(r"^(\d{1,3})\s+days?\s+(before|after)\s+(.+)$", re.IGNORECASE)
+MAX_COUNT = 60
+
+# The moving days of the church year, each written the way the file can say it anyway.  The fixed ones are plain dates: 01-06 Epiphany.
+FEASTS = {"shrove tuesday": "47 days before Easter", "ash wednesday": "46 days before Easter", "palm sunday": "7 days before Easter",
+          "holy monday": "6 days before Easter", "holy tuesday": "5 days before Easter", "holy wednesday": "4 days before Easter",
+          "maundy thursday": "3 days before Easter", "good friday": "2 days before Easter", "holy saturday": "1 day before Easter",
+          "easter day": "Easter", "ascension day": "39 days after Easter", "ascension": "39 days after Easter",
+          "day of pentecost": "49 days after Easter", "pentecost": "49 days after Easter", "whitsunday": "49 days after Easter",
+          "trinity sunday": "56 days after Easter", "christ the king": "5th Sunday before 12-25",
+          "first sunday of advent": "4th Sunday before 12-25", "advent": "4th Sunday before 12-25"}
+
+
+def spell_out(when: str) -> str:
+    """'Ash Wednesday 7 PM' -> '46 days before Easter 7 PM'; anything else as it is."""
+    low = when.lower()
+    for name in sorted(FEASTS, key=len, reverse=True):
+        if low == name or low.startswith(name + " "):
+            return FEASTS[name] + when[len(name):]
+    return when
+
+
+def count_of(word: str) -> int:
+    """'4th', 'Fourth', '12th' -> the number."""
+    count = NTH.get(word.lower()) or int(re.sub(r"\D", "", word))
+    if not 1 <= count <= MAX_COUNT:
+        raise ValueError("count from 1st to %dth" % MAX_COUNT)
+    return count
+
+
 RULE = re.compile(r"^(%s)\s+(%s)\s+(?:of|in)\s+(%s)(?:\s+(.+))?$" % ("|".join(NTH), "|".join(WEEKDAYS), "|".join(MONTH_NAMES)),
                   re.IGNORECASE)
 
@@ -188,13 +224,19 @@ def parse(text: str, log=None) -> list[Event]:
             if not title:
                 raise ValueError("no title after the |")
             after = before = -1
-            count = 1
+            count, shift = 1, 0
+            when = spell_out(when)
             relative = RELATIVE.match(when)
             if relative:
                 weekday = WEEKDAYS.index(relative.group(2).lower())
-                count = NTH[relative.group(1).lower()] if relative.group(1) else 1
+                count = count_of(relative.group(1)) if relative.group(1) else 1
                 after, before = (weekday, -1) if relative.group(3).lower() == "after" else (-1, weekday)
                 when = re.sub(r"\s*\([^)]*\)$", "", relative.group(4).strip())       # "12/25 (Christmas)": the note is for people
+                when = spell_out(when)
+            days = DAYS_FROM.match(when)
+            if days:
+                shift = int(days.group(1)) * (1 if days.group(2).lower() == "after" else -1)
+                when = days.group(3).strip()
             rule = RULE.match(when)
             if rule or re.match(r"^easter(?:\s+(.+))?$", when, re.IGNORECASE):
                 tail = rule.group(4) if rule else re.match(r"^easter(?:\s+(.+))?$", when, re.IGNORECASE).group(1)
@@ -202,22 +244,22 @@ def parse(text: str, log=None) -> list[Event]:
                 if rule:
                     events.append(Event(title, MONTH_NAMES.index(rule.group(3).lower()) + 1, 0, None, time,
                                         NTH[rule.group(1).lower()], WEEKDAYS.index(rule.group(2).lower()), after=after, before=before,
-                                        count=count))
+                                        count=count, shift=shift))
                 else:
-                    events.append(Event(title, time=time, easter=True, after=after, before=before, count=count))
+                    events.append(Event(title, time=time, easter=True, after=after, before=before, count=count, shift=shift))
                 continue
-            if relative:
+            if relative or days:
                 m = re.match(r"^(\d{1,2})[-/](\d{1,2})(?:\s+(.+))?$", when)        # "Monday after 12-25": a yearly date
                 if not m:
-                    raise ValueError("'... before' and '... after' need a yearly day: 12-25, 4th Thursday of November or Easter")
+                    raise ValueError("'... before' and '... after' need a yearly day: 12-25, 4th Thursday of November, Easter or Pentecost")
                 _yearly(2024, int(m.group(1)), int(m.group(2)))
                 time = parse_time(m.group(3)) if m.group(3) else None
-                events.append(Event(title, int(m.group(1)), int(m.group(2)), None, time, after=after, before=before, count=count))
+                events.append(Event(title, int(m.group(1)), int(m.group(2)), None, time, after=after, before=before, count=count, shift=shift))
                 continue
             m = re.match(r"^(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(.+))?$", when)
             if not m:
                 raise ValueError("the date must look like 12-25 (every year), 2026-11-08 (once), "
-                                 "4th Thursday of November, last Monday of May, Easter, or 4th Sunday before 12-25")
+                                 "4th Thursday of November, last Monday of May, Easter, Ash Wednesday, or 4th Sunday before 12-25")
             year = int(m.group(1)) if m.group(1) else None
             month, day = int(m.group(2)), int(m.group(3))
             if year is None:
