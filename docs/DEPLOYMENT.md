@@ -57,13 +57,18 @@ text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy 
 
 ### The housekeeping website
 
-**http://naspi.local:8080** at home, **http://naspi-1:8080** over Tailscale (e.g. from a phone away from home).  Pages:
+**https://naspi.local:8080** at home, **https://naspi-1:8080** over Tailscale (e.g. from a phone away from home).  Pages:
 **Callers** (who may ring Judi, names, the two buttons; applied to Asterisk at once), **Events**, **Caller pictures** (any picture,
 cropped square from the middle and made 800 x 800 PNG, named after the caller) and **Photos** (the slideshow: upload with a
 caption, edit captions, remove).  It edits exactly the files described below, so editing them by hand still works too.
 
-- No password (by choice).  It only answers the home network, Tailscale and the NAS itself, only under the NAS's own names and
-  addresses, and every change needs the page's own form token, so a web page elsewhere cannot change the caller list.
+- It speaks HTTPS with a self-signed certificate (`deploy/nas/admin/make_cert.sh`; the key stays in `/home/pi/judicom/tls`), so each
+  browser warns once.  Plain `http://` no longer works on this port.
+- Every page needs signing in as `pi` with pi's password on the NAS (checked by PAM; no copy is kept).  A sign-in lasts 12 hours or
+  until the website restarts, and 5 wrong tries from one address lock it out for 5 minutes.  Needs `python3-pampy`; without it nobody
+  can sign in.
+- It only answers the home network, Tailscale and the NAS itself, only under the NAS's own names and addresses, and every change
+  needs the page's own form token, so a web page elsewhere cannot change the caller list.
 - A list with a mistake in it (a number without its area code, two people on one button, a date it cannot read) is shown with the
   problem and not saved.  Each saved list's previous version is kept in `/home/pi/judicom/history/` (newest 30 each).
 - Removed pictures are moved to `/mnt/8tbdrive/.judicom-deleted/` (`caller pictures/`, `photos/`), not erased.

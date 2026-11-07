@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The Judicom's housekeeping website, on the NAS:  http://naspi.local:8080   (also over Tailscale: http://naspi-1:8080)
+"""The Judicom's housekeeping website, on the NAS:  https://naspi.local:8080   (also over Tailscale: https://naspi-1:8080)
 
     Callers         who may ring Judi, the names on her screen and her two buttons  (/home/pi/judicom/contacts.txt; applied to
                     Asterisk at once with apply_contacts.py)
@@ -13,7 +13,11 @@
 
 The Judicom fetches the lists and caller pictures every 10 minutes and the photos every hour.
 
-Safety (there is no password, by choice):
+Safety:
+  - every page needs signing in as pi, with pi's own password on the NAS (checked by PAM, so no copy of it is kept here).  A sign-in
+    lasts LOGIN_HOURS, or until the website restarts.  LOGIN_TRIES wrong tries from one address lock it out for LOGIN_LOCK_SECONDS;
+  - it speaks HTTPS, with a self-signed certificate from make_cert.sh, so the password does not cross the network in the clear
+    (browsers warn once about the certificate);
   - only addresses on the home network, Tailscale and the NAS itself are answered; anything else gets 403;
   - only requests addressed to the NAS's own names and addresses are answered (stops "DNS rebinding" from a web page elsewhere);
   - every change needs the form's token, which other web sites cannot read (stops a page elsewhere from posting to this one);
@@ -21,7 +25,7 @@ Safety (there is no password, by choice):
     /home/pi/judicom/history/, and removed pictures are moved to /mnt/8tbdrive/.judicom-deleted/, not erased.
 
 Run by judicom-admin.service as pi.  By hand:  python3 /home/pi/Judicom/deploy/nas/admin/judicom_admin.py  [--port 8080]
-Needs Flask and Pillow (Debian: python3-flask python3-pil) and the rest of this repository (it uses software/judicom).
+Needs Flask, Pillow and PAM for Python (Debian: python3-flask python3-pil python3-pampy) and the rest of this repository (it uses software/judicom).
 """
 import argparse
 import datetime
@@ -29,6 +33,7 @@ import io
 import ipaddress
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -38,7 +43,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
+from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from jinja2 import DictLoader
 from PIL import Image, ImageOps
 from werkzeug.utils import secure_filename
@@ -59,6 +64,26 @@ SENT_KEEP = 20                      # messages remembered, and shown on the page
 NETS = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                                           "100.64.0.0/10", "fd7a:115c:a1e0::/48", "fe80::/10")]
 HOSTS = {"naspi", "naspi.local", "naspi-1", "localhost"}
+TLS_CERT, TLS_KEY = Path("/home/pi/judicom/tls/cert.pem"), Path("/home/pi/judicom/tls/key.pem")      # from make_cert.sh
+LOGIN_USER = "pi"                   # the only one who may sign in
+LOGIN_HOURS = 12
+LOGIN_TRIES = 5                     # wrong tries from one address before it has to wait
+LOGIN_LOCK_SECONDS = 300
+MAX_PASSWORD = 1024
+SAFE_NEXT = re.compile(r"^/(?!/)[A-Za-z0-9_\-./?=&%+]*$")     # where to go after signing in: a page of this site, nothing else
+NO_SIGN_IN_NEEDED = {"login"}
+ASKED_BY_SCRIPT = {"screen_png", "screen_sent"}                # these answer 401; a page would get a sign-in form it cannot show
+
+
+def pam_check(user, password):
+    """True only if PAM says the password is right.  A program can check its own user's password without being root.
+    Whatever goes wrong is a no, and nothing about the password is ever written down."""
+    try:
+        import pam
+        return pam.authenticate(user, password, service="login", resetcreds=False) is True
+    except Exception as exc:                                   # noqa: BLE001 - python3-pampy missing, or a password PAM cannot take
+        print("(cannot check a password: %s)" % type(exc).__name__, file=sys.stderr, flush=True)
+        return False
 
 
 @dataclass
@@ -70,6 +95,8 @@ class Settings:
     hosts: set = field(default_factory=lambda: set(HOSTS))
     screen: list = field(default_factory=lambda: ["/usr/bin/ssh", "-i", "/home/pi/.ssh/judicom_screen", "-o", "BatchMode=yes",
                                                   "-o", "ConnectTimeout=5", "joe@judicom"])
+    check_password: object = pam_check
+    clock: object = time.monotonic
 
     @property
     def sent(self):
@@ -152,7 +179,7 @@ def move_to_trash(s, path, kind):
 
 # ------------------------------------------------------------------ callers -------------------------------------------------
 CONTACTS_HEADER = """# Judi's caller list: who may ring the Judicom, the names on its screen, and its two buttons.
-# Kept by the housekeeping website (http://naspi.local:8080); it can be edited by hand too.
+# Kept by the housekeeping website (https://naspi.local:8080); it can be edited by hand too.
 # One person per line:   number | name | relationship | button (left / right / empty)
 """
 
@@ -523,7 +550,8 @@ def allowed_host(host, names):
 def create_app(s=None):
     s = s or Settings()
     app = Flask(__name__)
-    app.secret_key = secrets.token_bytes(32)                  # for the flashed messages; new at every start (nothing to keep)
+    app.secret_key = secrets.token_bytes(32)                  # signs the sign-in cookie; new at every start, which signs everyone out
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024       # a batch of phone photos
     app.jinja_loader = DictLoader(TEMPLATES)
     token = secrets.token_urlsafe(24)
@@ -531,6 +559,11 @@ def create_app(s=None):
     last_look = {"png": None, "at": 0.0}
     sent_lock = threading.Lock()
     last_asked = {"at": 0.0}
+    login_lock = threading.Lock()
+    wrong = {}                                                # address -> [wrong tries, when they are forgotten]
+
+    def signed_in():
+        return session.get("user") == LOGIN_USER and s.clock() < session.get("until", 0)
 
     @app.before_request
     def guard():
@@ -538,14 +571,18 @@ def create_app(s=None):
             abort(403, "only the home network and Tailscale may use this site")
         if not allowed_host(request.host, s.hosts):
             abort(403, "unknown host name %r" % request.host)
+        if request.endpoint not in NO_SIGN_IN_NEEDED and not signed_in():
+            if request.endpoint in ASKED_BY_SCRIPT:
+                return "Please sign in.", 401, {"Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store"}
+            return redirect(url_for("login", next=request.full_path.rstrip("?")) if request.method == "GET" else url_for("login"))
         if request.method == "POST" and request.form.get("token") != token:
             abort(403, "the form has expired: go back, reload the page and try again")
 
     @app.context_processor
     def common():
-        return {"token": token, "nav": [("home", "Home"), ("callers", "Callers"), ("events", "Events"),
-                                        ("people", "Caller pictures"), ("photos", "Photos"),
-                                        ("screen", "See Judicom Now")]}
+        return {"token": token, "signed_in": signed_in(),
+                "nav": [("home", "Home"), ("callers", "Callers"), ("events", "Events"), ("people", "Caller pictures"),
+                        ("photos", "Photos"), ("screen", "See Judicom Now")] if signed_in() else []}
 
     @app.errorhandler(403)
     def forbidden(e):
@@ -555,6 +592,46 @@ def create_app(s=None):
     def too_big(e):
         return render_template("message.html", title="Too big", text="That was more than 400 MB at once: send fewer photos at "
                                "a time."), 413
+
+    # ---- signing in
+    def try_password(user, password):
+        """(signed in?, what to tell them).  One at a time, so that many tries at once cannot get past the count."""
+        address = request.remote_addr
+        with login_lock:
+            now = s.clock()
+            for gone in [a for a, (_, forget) in wrong.items() if forget <= now]:
+                del wrong[gone]
+            if wrong.get(address, [0])[0] >= LOGIN_TRIES:
+                return False, "Too many wrong tries.  Wait a few minutes and try again."
+            good = (secrets.compare_digest(user.encode(), LOGIN_USER.encode()) and 0 < len(password) <= MAX_PASSWORD and
+                    s.check_password(LOGIN_USER, password))
+            if good:
+                wrong.pop(address, None)
+                return True, ""
+            entry = wrong.setdefault(address, [0, 0])
+            entry[0], entry[1] = entry[0] + 1, s.clock() + LOGIN_LOCK_SECONDS
+            print("wrong sign-in %d from %s" % (entry[0], address), file=sys.stderr, flush=True)
+            if entry[0] >= LOGIN_TRIES:
+                return False, "Too many wrong tries.  Wait a few minutes and try again."
+            return False, "That user name or password is not right."
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        target = request.values.get("next", "")
+        target = target if SAFE_NEXT.match(target) else url_for("home")
+        if request.method == "GET":
+            return redirect(target) if signed_in() else render_template("login.html", title="Sign in", next=target, error="")
+        good, words = try_password(request.form.get("user", ""), request.form.get("password", ""))
+        if not good:
+            return render_template("login.html", title="Sign in", next=target, error=words), 401
+        session.clear()
+        session["user"], session["until"] = LOGIN_USER, s.clock() + LOGIN_HOURS * 3600
+        return redirect(target)
+
+    @app.route("/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return redirect(url_for("login"))
 
     # ---- home
     @app.route("/")
@@ -816,7 +893,7 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
 .tile input[type=text]{margin:3px 0}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}.nopic{aspect-ratio:1;display:flex;align-items:center;justify-content:center;color:var(--soft);background:#e9eeee;border-radius:6px}
 .when{white-space:nowrap;color:var(--soft);font-size:14px}@media(max-width:640px){td,th{padding:4px 3px}.hide-small{display:none}}
 </style></head><body>
-<header><b>Judicom</b>{% for ep, label in nav %}<a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep else '' }}">{{ label }}</a>{% endfor %}</header>
+<header><b>Judicom</b>{% for ep, label in nav %}<a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep else '' }}">{{ label }}</a>{% endfor %}{% if signed_in %}<form method="post" action="{{ url_for('logout') }}" style="margin-left:auto"><input type="hidden" name="token" value="{{ token }}"><button type="submit">Sign out</button></form>{% endif %}</header>
 <main>{% for cat, m in get_flashed_messages(with_categories=true) %}<div class="msg {{ cat }}">{{ m }}</div>{% endfor %}
 {% if errors %}<ul class="errors">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
 {% block body %}{% endblock %}</main></body></html>""",
@@ -839,6 +916,7 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
     clearTimeout(timer);
     if (document.hidden) return;                       // nobody is watching: leave the Judicom alone until they come back
     fetch("{{ url_for('screen_png') }}", {cache: "no-store"}).then(function (r) {
+      if (r.status === 401) location.reload();         // the sign-in has run out
       if (!r.ok) throw new Error("no answer");
       return r.blob();
     }).then(function (picture) {
@@ -869,6 +947,14 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
   look();
 })();
 </script>{% endblock %}""",
+
+    "login.html": """{% extends "base.html" %}{% block body %}<h1>Sign in</h1>
+<form method="post" action="{{ url_for('login') }}" class="card" style="max-width:360px"><input type="hidden" name="token" value="{{ token }}">
+<input type="hidden" name="next" value="{{ next }}">
+{% if error %}<p style="color:var(--err)">{{ error }}</p>{% endif %}
+<p><label>User name<br><input name="user" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" autofocus required style="width:100%"></label></p>
+<p><label>Password<br><input name="password" type="password" autocomplete="current-password" required style="width:100%"></label></p>
+<p><button type="submit">Sign in</button></p></form>{% endblock %}""",
 
     "message.html": """{% extends "base.html" %}{% block body %}<h1>{{ title }}</h1><div class="card">{{ text }}</div>{% endblock %}""",
 
@@ -962,7 +1048,13 @@ def main(argv=None):
     args = ap.parse_args(argv)
     s = Settings()
     s.hosts |= {h.strip().lower() for h in os.environ.get("ADMIN_HOSTS", "").split(",") if h.strip()}
-    create_app(s).run(host=args.host, port=args.port, threaded=True)
+    app = create_app(s)
+    tls = (str(TLS_CERT), str(TLS_KEY)) if TLS_CERT.is_file() and TLS_KEY.is_file() else None
+    if tls:
+        app.config["SESSION_COOKIE_SECURE"] = True
+    else:
+        print("WARNING: no certificate, so passwords cross the network in the clear: run make_cert.sh", file=sys.stderr, flush=True)
+    app.run(host=args.host, port=args.port, threaded=True, ssl_context=tls)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """Tests for deploy/nas/admin/judicom_admin.py (the housekeeping website), with Flask's test client and temporary folders.
 Skipped where Flask or Pillow is not installed.   Run from the software folder:   python3 -m unittest -v"""
+import contextlib
 import importlib.util
 import io
 import json
@@ -8,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import urlsplit
 from unittest import mock
 
 try:
@@ -61,10 +63,24 @@ class Site(unittest.TestCase):
         apply = root / "fake_apply.sh"
         apply.write_text("#!/bin/sh\necho applied >> %s\n" % self.applied)
         apply.chmod(0o755)
-        s = admin.Settings(judicom_dir=self.j, photos_dir=self.photos, trash_dir=self.trash, apply=[str(apply)])
+        self.now = [1000.0]
+        self.passwords_tried = []
+
+        def check(user, password):
+            self.passwords_tried.append((user, password))
+            return (user, password) == ("pi", "right-password")
+        s = admin.Settings(judicom_dir=self.j, photos_dir=self.photos, trash_dir=self.trash, apply=[str(apply)], check_password=check,
+                           clock=lambda: self.now[0])
         self.settings = s
         self.app = admin.create_app(s)
         self.client = self.app.test_client()
+        self.sign_in()
+
+    def sign_in(self, user="pi", password="right-password", address="192.168.1.20", **extra):
+        form = self.client.get("/login", base_url="http://naspi.local:8080", environ_base={"REMOTE_ADDR": address})
+        token = re.search(r'name="token" value="([^"]+)"', form.get_data(as_text=True)).group(1)
+        return self.client.post("/login", data=dict(extra, user=user, password=password, token=token), base_url="http://naspi.local:8080",
+                                environ_base={"REMOTE_ADDR": address})
 
     def get(self, url, **kw):
         kw.setdefault("environ_base", {"REMOTE_ADDR": "192.168.1.20"})
@@ -441,6 +457,179 @@ class Site(unittest.TestCase):
         self.fake_nas_request()
         r = self.send(self.first_caller(), "x" * 300 + "</textarea><script>alert(1)</script>")
         self.assertNotIn("<script>alert(1)", r.get_data(as_text=True))
+
+    # ---- signing in
+    def signed_out(self):
+        self.client = self.app.test_client()
+
+    def test_every_page_needs_signing_in(self):
+        self.signed_out()
+        checked = 0
+        for rule in self.app.url_map.iter_rules():
+            if rule.endpoint == "login":
+                continue
+            url = re.sub(r"<[^>]+>", "x", rule.rule)
+            for method in rule.methods & {"GET", "POST"}:
+                with self.subTest(url=url, method=method):
+                    r = (self.get(url) if method == "GET" else
+                         self.client.post(url, data={}, base_url="http://naspi.local:8080", environ_base={"REMOTE_ADDR": "192.168.1.20"}))
+                    self.assertIn(r.status_code, (302, 401))
+                    if r.status_code == 302:
+                        self.assertIn("/login", r.headers["Location"])
+                    checked += 1
+        self.assertGreater(checked, 15)
+
+    def test_a_signed_out_post_changes_nothing_even_with_the_token(self):
+        token = self.token()
+        before = (self.j / "contacts.txt").read_text()
+        self.signed_out()
+        r = self.client.post("/callers", data=dict(self.callers_form([("515-555-0999", "Stranger", "", "")]), token=token),
+                             base_url="http://naspi.local:8080", environ_base={"REMOTE_ADDR": "192.168.1.20"})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual((self.j / "contacts.txt").read_text(), before)
+
+    def test_the_scripts_of_the_screen_page_hear_401(self):
+        self.signed_out()
+        self.assertEqual(self.get("/screen.png").status_code, 401)
+        self.assertEqual(self.get("/screen/sent").status_code, 401)
+
+    def test_the_sign_in_page_shows_no_menu(self):
+        self.signed_out()
+        page = self.get("/login").get_data(as_text=True)
+        self.assertNotIn("Caller pictures", page)
+        self.assertIn('type="password"', page)
+
+    def test_the_right_password_goes_on_to_the_page_asked_for(self):
+        self.signed_out()
+        where = self.get("/events?x=1").headers["Location"]
+        self.assertIn("next=", where)
+        r = self.sign_in(next="/events?x=1")
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r.headers["Location"].endswith("/events?x=1"))
+        self.assertEqual(self.get("/events").status_code, 200)
+
+    def test_a_wrong_password_stays_out(self):
+        self.signed_out()
+        r = self.sign_in(password="wrong")
+        self.assertEqual(r.status_code, 401)
+        self.assertIn("not right", r.get_data(as_text=True))
+        self.assertEqual(self.get("/callers").status_code, 302)
+
+    def test_only_pi_may_sign_in_whatever_the_password(self):
+        self.signed_out()
+        self.passwords_tried.clear()
+        for user in ("joe", "root", "PI", "pi ", ""):
+            self.assertEqual(self.sign_in(user=user).status_code, 401)
+        self.assertEqual(self.passwords_tried, [])
+        self.assertEqual(self.get("/callers").status_code, 302)
+
+    def test_an_empty_or_absurd_password_never_reaches_pam(self):
+        self.signed_out()
+        self.passwords_tried.clear()
+        self.sign_in(password="")
+        self.sign_in(password="x" * 5000)
+        self.assertEqual(self.passwords_tried, [])
+
+    def test_too_many_wrong_tries_lock_that_address_out_for_a_while(self):
+        self.signed_out()
+        for _ in range(admin.LOGIN_TRIES):
+            self.sign_in(password="wrong")
+        self.passwords_tried.clear()
+        r = self.sign_in()
+        self.assertEqual(r.status_code, 401)
+        self.assertIn("Too many", r.get_data(as_text=True))
+        self.assertEqual(self.passwords_tried, [])              # not even asked: guessing goes nowhere
+        self.assertEqual(self.sign_in(address="192.168.1.21").status_code, 302)      # someone else is not locked out
+        self.signed_out()
+        self.now[0] += admin.LOGIN_LOCK_SECONDS
+        self.assertEqual(self.sign_in().status_code, 302)
+
+    def test_old_wrong_tries_are_forgotten(self):
+        self.signed_out()
+        for _ in range(admin.LOGIN_TRIES - 1):
+            self.sign_in(password="wrong")
+        self.now[0] += admin.LOGIN_LOCK_SECONDS
+        self.sign_in(password="wrong")
+        self.assertEqual(self.sign_in().status_code, 302)
+
+    def test_a_right_password_clears_the_count(self):
+        self.signed_out()
+        for _ in range(admin.LOGIN_TRIES - 1):
+            self.sign_in(password="wrong")
+        self.sign_in()
+        self.signed_out()
+        self.sign_in(password="wrong")
+        self.assertIn("not right", self.sign_in(password="wrong").get_data(as_text=True))
+
+    def test_signing_in_needs_the_form_token(self):
+        self.signed_out()
+        r = self.client.post("/login", data={"user": "pi", "password": "right-password"}, base_url="http://naspi.local:8080",
+                             environ_base={"REMOTE_ADDR": "192.168.1.20"})
+        self.assertEqual(r.status_code, 403)
+
+    def test_a_sign_in_runs_out(self):
+        self.assertEqual(self.get("/callers").status_code, 200)
+        self.now[0] += admin.LOGIN_HOURS * 3600 - 1
+        self.assertEqual(self.get("/callers").status_code, 200)
+        self.now[0] += 1
+        self.assertEqual(self.get("/callers").status_code, 302)
+
+    def test_signing_out(self):
+        self.assertIn("Sign out", self.get("/").get_data(as_text=True))
+        self.assertEqual(self.post("/logout", {}).status_code, 302)
+        self.assertEqual(self.get("/callers").status_code, 302)
+
+    def test_a_restart_signs_everyone_out(self):
+        self.signed_out()
+        cookie = self.sign_in().headers["Set-Cookie"].split(";")[0]
+        same = dict(base_url="http://naspi.local:8080", environ_base={"REMOTE_ADDR": "192.168.1.20"}, headers={"Cookie": cookie})
+        self.assertEqual(self.app.test_client(use_cookies=False).get("/callers", **same).status_code, 200)
+        restarted = admin.create_app(self.settings).test_client(use_cookies=False)
+        self.assertEqual(restarted.get("/callers", **same).status_code, 302)
+
+    def test_it_only_goes_on_to_pages_of_this_site(self):
+        self.signed_out()
+        for bad in ("//evil.example/", "https://evil.example/", "/\\evil.example", "/\t/evil.example", "\\evil.example", "evil"):
+            with self.subTest(bad=bad):
+                self.signed_out()
+                r = self.sign_in(next=bad)
+                self.assertEqual(r.status_code, 302)
+                self.assertEqual(urlsplit(r.headers["Location"]).path, "/")
+                self.assertNotIn("evil", r.headers["Location"])
+
+    def test_the_cookie_is_kept_from_scripts_and_other_sites(self):
+        self.signed_out()
+        cookie = self.sign_in().headers["Set-Cookie"]
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Lax", cookie)
+
+    def test_a_password_is_never_printed(self):
+        self.signed_out()
+        out = io.StringIO()
+        with contextlib.redirect_stderr(out), contextlib.redirect_stdout(out):
+            self.sign_in(password="my-secret-word")
+        self.assertIn("wrong sign-in 1 from 192.168.1.20", out.getvalue())
+        self.assertNotIn("my-secret-word", out.getvalue())
+
+    def test_the_check_says_no_when_pam_is_missing_or_fails(self):
+        out = io.StringIO()
+        with mock.patch.dict(sys.modules, {"pam": None}), contextlib.redirect_stderr(out):
+            self.assertFalse(admin.pam_check("pi", "my-secret-word"))
+        broken = mock.Mock()
+        broken.authenticate.side_effect = ValueError("my-secret-word")
+        with mock.patch.dict(sys.modules, {"pam": broken}), contextlib.redirect_stderr(out):
+            self.assertFalse(admin.pam_check("pi", "my-secret-word"))
+        self.assertNotIn("my-secret-word", out.getvalue())
+
+    def test_the_check_says_yes_only_for_true(self):
+        answer = mock.Mock()
+        answer.authenticate.return_value = True
+        with mock.patch.dict(sys.modules, {"pam": answer}):
+            self.assertTrue(admin.pam_check("pi", "pw"))
+        answer.authenticate.assert_called_once_with("pi", "pw", service="login", resetcreds=False)
+        answer.authenticate.return_value = 1
+        with mock.patch.dict(sys.modules, {"pam": answer}):
+            self.assertFalse(admin.pam_check("pi", "pw"))
 
 
 if __name__ == "__main__":
