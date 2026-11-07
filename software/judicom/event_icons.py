@@ -8,6 +8,7 @@
     Columbus Day -> a sailing ship             Halloween -> a pumpkin                   All Saints Day -> a lit candle
     Veterans Day -> a medal                    Thanksgiving -> a turkey                 Christmas Eve -> a stocking
     Christmas -> a tree                        Ugly Sweater Day -> a Christmas sweater
+    Christmas Card Day -> a card in its envelope                                        Christmas Carol Day -> a carol book
     any birthday -> a cake       an anniversary or wedding -> two rings      Visit from ... -> a house
     and the family's own made-up days: Flagpole -> a flag going up, Morse code -> a telegraph key, Absolutely Nothing -> a hammock,
     Cat's Questions -> a cat, Backwards -> an arrow pointing back, Go To Work Naked -> a barrel, Grouch -> a grump being hugged,
@@ -21,6 +22,9 @@
     Stupid Question -> a raised hand, Mad Hatter -> a green top hat, Unexplained Event -> a flying saucer, Wear Something Crazy ->
     a propeller beanie, Howl At The Moon -> a wolf and a full moon, Deviled Eggs -> a deviled egg, Chaos -> a tangled ball of yarn,
     Clean The Refrigerator -> a sparkling fridge, Absurdity -> a fish on a bicycle, Black Friday -> a shopping bag, Monkey -> a monkey
+    the church year: Epiphany -> a crown under a star, Ash Wednesday -> a forehead with a cross of ashes, Palm Sunday -> a palm
+    branch, Good Friday -> a cross on a hill, Pentecost -> tongues of fire, Advent -> an Advent wreath with the first candle lit
+    and Sadie Hawkins -> a lasso around a heart, Pearl Harbor -> an anchor with a red, white and blue ribbon
     anything else -> a calendar page with the day of the month on it
 
     icon = event_icon(title, size, day)      # a transparent size x size surface (made once per kind, size and day)
@@ -35,6 +39,15 @@ import pygame
 ICONS = [                                   # (words, any of which in the title picks it, icon); the first match wins
     (("birthday",), "cake"),
     (("sweater",), "sweater"),
+    (("epiphany",), "crownstar"),                         # the church year
+    (("ash wednesday",), "ashes"),
+    (("palm sunday",), "palm"),
+    (("good friday",), "cross"),
+    (("pentecost", "whitsun"), "flames"),
+    (("adventure",), "calendar"),                         # (not Advent)
+    (("advent",), "adventwreath"),
+    (("sadie hawkins",), "lasso"),
+    (("pearl harbor",), "anchor"),
     (("hug a cat",), "cathug"),                           # the made-up family days
     (("veggie", "vegetable"), "veggies"),
     (("panic",), "lifering"),
@@ -80,6 +93,8 @@ ICONS = [                                   # (words, any of which in the title 
     (("chicken",), "chicken"),
     (("star war",), "planet"),
     (("pillow",), "pillow"),
+    (("christmas card", "xmas card"), "xmascard"),
+    (("christmas carol", "xmas carol"), "carolbook"),
     (("christmas eve", "xmas eve"), "stocking"),
     (("christmas", "xmas"), "tree"),
     (("new year's eve", "new years eve", "new year eve"), "clock"),
@@ -1327,6 +1342,171 @@ def _monkey(p, day):
     pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(36, 56), p.R(28), p.R(16)), math.pi + 0.35, 2 * math.pi - 0.35, p.R(2.5))
 
 
+def _crownstar(p, day):
+    gold, dark = (245, 200, 70), (205, 150, 40)
+    for a in range(0, 360, 45):                                                # the star's light
+        x, y = math.cos(math.radians(a)), math.sin(math.radians(a))
+        p.line((255, 240, 170), (50 + x * 13, 19 + y * 13), (50 + x * (19 if a % 90 else 22), 19 + y * (19 if a % 90 else 22)), 2)
+    p.poly((255, 236, 130), _star_pts(50, 19, 13, inner=0.42), o=2)
+    p.poly(gold, [(16, 88), (10, 48), (31, 66), (50, 40), (69, 66), (90, 48), (84, 88)])       # the crown
+    p.rect(dark, 16, 78, 68, 11, radius=2, o=2)
+    for x, colour in ((31, (210, 50, 60)), (50, (70, 130, 220)), (69, (70, 170, 100))):
+        p.circle(colour, x, 83.5, 3.2, o=1.5)
+    for x, y in ((10, 48), (50, 40), (90, 48)):
+        p.circle((255, 236, 130), x, y, 3.5, o=1.8)
+
+
+def _ashes(p, day):
+    p.ellipse((150, 150, 158), 15, 6, 70, 74)                                  # grey hair behind
+    p.ellipse((240, 205, 175), 21, 14, 58, 78)                                 # the face
+    p.poly((150, 150, 158), [(21, 40), (24, 18), (40, 9), (60, 9), (76, 18), (79, 40), (72, 25), (60, 17), (40, 17), (28, 25)], o=0)
+    ash = (72, 70, 76)
+    p.line(ash, (50, 22), (50, 44), 5.5)                                       # the cross of ashes
+    p.line(ash, (40, 31), (60, 31), 5.5)
+    for x in (37, 63):                                                         # closed eyes
+        pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(x - 7, 50), p.R(14), p.R(9)), math.pi, 2 * math.pi, p.R(2.2))
+    pygame.draw.arc(p.s, LINE, pygame.Rect(*p.P(41, 68), p.R(18), p.R(9)), math.pi + 0.5, 2 * math.pi - 0.5, p.R(2.2))
+
+
+def _palm(p, day):
+    def along(t):                                                              # the stem: a curve from the bottom left to the top right
+        return (22 + 30 * t + 30 * t * t, 94 - 54 * t - 30 * t * t)
+    green, light = (70, 150, 80), (110, 190, 100)
+    for i in range(13, 0, -1):
+        t = i / 14.0
+        (x, y), (x2, y2) = along(t), along(t + 0.02)
+        heading = math.degrees(math.atan2(y2 - y, x2 - x))
+        length = 40 - 24 * t
+        for side, colour in ((-1, green), (1, light)):
+            a = heading + side * 58
+            cx, cy = x + math.cos(math.radians(a)) * length / 2, y + math.sin(math.radians(a)) * length / 2
+            p.poly(colour, _leaf(cx, cy, a, length, 9), o=1.5)
+    points = [along(i / 20.0) for i in range(21)]
+    for a, b in zip(points, points[1:]):
+        p.line(LINE, a, b, 5)
+    for a, b in zip(points, points[1:]):
+        p.line((190, 170, 90), a, b, 2.5)
+
+
+def _cross(p, day):
+    p.poly((96, 130, 84), [(4, 94), (14, 80), (34, 72), (50, 70), (66, 72), (86, 80), (96, 94)])        # the hill
+    wood, grain = (170, 118, 70), (135, 90, 50)
+    p.rect(wood, 42, 8, 16, 70, radius=2)
+    p.rect(wood, 18, 26, 64, 15, radius=2)
+    p.rect(wood, 44.5, 28, 11, 11, o=0)                                        # the join, without an outline across it
+    for x, y, x2 in ((46, 14, 46), (54, 50, 54), (47, 60, 47)):
+        p.line(grain, (x, y), (x2, y + 6), 1.2)
+    p.line(grain, (25, 32), (34, 32), 1.2)
+    p.line(grain, (66, 35), (75, 35), 1.2)
+    cloth = (130, 80, 170)
+    p.poly(cloth, [(30, 26), (70, 26), (70, 42), (74, 62), (64, 56), (58, 42), (42, 42), (36, 56), (26, 62), (30, 42)], o=2)
+
+
+def _flames(p, day):
+    def flame(x, bottom, h, outer, inner):
+        w = h * 0.42
+        p.poly(outer, [(x, bottom - h), (x + w * 0.45, bottom - h * 0.62), (x + w, bottom - h * 0.34), (x + w * 0.72, bottom - h * 0.08),
+                       (x, bottom), (x - w * 0.72, bottom - h * 0.08), (x - w, bottom - h * 0.34), (x - w * 0.45, bottom - h * 0.62)], o=2.2)
+        p.poly(inner, [(x, bottom - h * 0.55), (x + w * 0.5, bottom - h * 0.24), (x, bottom - h * 0.04), (x - w * 0.5, bottom - h * 0.24)], o=0)
+    red, orange, yellow = (220, 60, 50), (250, 140, 40), (255, 225, 110)
+    flame(22, 90, 54, red, orange)
+    flame(78, 90, 54, red, orange)
+    flame(50, 92, 84, orange, yellow)
+
+
+def _note(p, x, y, colour, s=1.0):
+    """A quaver: its head at (x, y)."""
+    p.ellipse(colour, x - 5 * s, y - 3.5 * s, 10 * s, 7 * s, o=1.5)
+    p.line(LINE, (x + 4.5 * s, y), (x + 4.5 * s, y - 20 * s), 3 * s)
+    p.line(LINE, (x + 4.5 * s, y - 20 * s), (x + 12 * s, y - 13 * s), 3 * s)
+    p.line(colour, (x + 4.5 * s, y), (x + 4.5 * s, y - 19 * s), 1.2 * s)
+
+
+def _xmascard(p, day):
+    p.poly((205, 190, 165), [(10, 50), (50, 22), (90, 50)])                    # the inside of the envelope, open behind the card
+    p.rect((205, 50, 60), 22, 6, 56, 62, radius=2)                             # the card
+    p.poly((70, 160, 90), [(50, 16), (63, 35), (57, 35), (67, 50), (33, 50), (43, 35), (37, 35)], o=1.8)     # a tree on it
+    p.rect((130, 90, 50), 47, 50, 6, 6, o=1.2)
+    p.poly((255, 220, 90), _star_pts(50, 15, 6), o=1.2)
+    p.circle((255, 220, 90), 45, 41, 1.8, o=0)
+    p.circle((255, 255, 255), 55, 33, 1.6, o=0)
+    p.rect((245, 236, 214), 10, 50, 80, 42, radius=2)                          # the envelope's front
+    p.poly((232, 220, 195), [(10, 50), (50, 76), (90, 50), (90, 92), (10, 92)], o=2)
+    p.line(LINE, (10, 92), (40, 69), 2)
+    p.line(LINE, (90, 92), (60, 69), 2)
+
+
+def _carolbook(p, day):
+    cover = (170, 40, 50)
+    p.poly(cover, [(6, 46), (50, 54), (94, 46), (94, 90), (50, 98), (6, 90)])  # the red cover
+    for side in (-1, 1):                                                       # the two open pages
+        p.poly((250, 246, 232), [(50, 50), (50 + side * 40, 42), (50 + side * 40, 84), (50, 92)], o=2)
+        for row in range(2):                                                   # the staves
+            for line in range(4):
+                y = 53 + row * 18 + line * 3
+                p.line((165, 160, 150), (50 + side * 6, y + 1), (50 + side * 35, y - 5), 0.8)
+    for x, y in ((24, 56), (34, 67), (66, 62), (78, 53), (26, 75), (72, 74)):
+        p.ellipse(LINE, x - 2.5, y - 1.8, 5, 3.6, o=0)
+        p.line(LINE, (x + 2.1, y), (x + 2.1, y - 8), 1.2)
+    _note(p, 30, 32, (235, 190, 70))                                           # the song rising from it
+    _note(p, 60, 26, (235, 190, 70), 1.2)
+
+
+def _lasso(p, day):
+    rope, dark = (214, 174, 110), (160, 120, 70)
+    loop = _oval(46, 44, 37, 33, n=48)
+    tail = [(76, 62), (82, 72), (78, 82), (86, 90), (95, 88)]
+    for a, b in list(zip(loop, loop[1:] + loop[:1])) + list(zip(tail, tail[1:])):
+        p.line(LINE, a, b, 9)
+    for a, b in list(zip(loop, loop[1:] + loop[:1])) + list(zip(tail, tail[1:])):
+        p.line(rope, a, b, 5)
+    for i, (x, y) in enumerate(loop):                                          # the twist of the rope
+        if i % 3 == 0:
+            p.line(dark, (x - 1.6, y - 1.6), (x + 1.6, y + 1.6), 1.3)
+    p.rect(dark, 69, 57, 13, 10, radius=2, o=2)                                # the knot
+    p.poly((226, 60, 80), _heart_pts(46, 44, 21))
+
+
+def _adventwreath(p, day):
+    def greens(front):
+        for i in range(30):
+            a = math.radians(i * 12)
+            if (math.sin(a) >= 0) == front:
+                x, y = 50 + math.cos(a) * 37, 73 + math.sin(a) * 13
+                tilt = math.degrees(a) + 90 + (35 if i % 2 else -35)
+                p.poly((70, 145, 80) if i % 2 else (105, 180, 100), _leaf(x, y, tilt, 25, 11), o=1.5)
+    p.ellipse((55, 120, 70), 10, 60, 80, 27, o=2)
+    greens(False)
+    candles = ((20, 34, (130, 80, 170)), (40, 26, (130, 80, 170)), (60, 26, (235, 130, 170)), (80, 34, (130, 80, 170)))
+    for i, (x, top, colour) in enumerate(candles):
+        p.rect(colour, x - 6, top, 12, 76 - top, radius=2, o=2)
+        pygame.draw.line(p.s, LINE, p.P(x, top), p.P(x, top - 5), p.R(2))
+    glow = pygame.Surface(p.s.get_size(), pygame.SRCALPHA)                     # the first candle is lit
+    for r, alpha in ((17, 45), (12, 80)):
+        pygame.draw.circle(glow, (255, 230, 140, alpha), p.P(20, 21), p.R(r))
+    p.s.blit(glow, (0, 0))
+    p.poly((255, 160, 40), [(20, 10), (25, 21), (23, 27), (20, 29), (17, 27), (15, 21)], o=1.8)
+    p.poly((255, 240, 150), [(20, 18), (22, 24), (20, 27), (18, 24)], o=0)
+    greens(True)
+    for x, y in ((28, 82), (50, 87), (72, 82), (12, 72), (88, 72)):
+        p.circle((210, 50, 60), x, y, 2.8, o=1.3)
+
+
+def _anchor(p, day):
+    steel = (185, 200, 220)
+    arc = [(50 + math.cos(math.radians(a)) * 37, 54 + math.sin(math.radians(a)) * 37) for a in range(180, -1, -10)]
+    inner = [(50 + math.cos(math.radians(a)) * 28, 54 + math.sin(math.radians(a)) * 28) for a in range(0, 181, 10)]
+    p.poly(steel, arc + inner)                                                 # the curved arms
+    p.poly(steel, [(4, 62), (13, 40), (26, 56)])                               # the flukes
+    p.poly(steel, [(96, 62), (87, 40), (74, 56)])
+    p.rect(steel, 45, 20, 10, 68, radius=2)                                    # the shank
+    p.rect(steel, 26, 28, 48, 9, radius=3)                                     # the stock
+    p.circle(steel, 50, 13, 9)                                                 # the ring
+    pygame.draw.circle(p.s, LINE, p.P(50, 13), p.R(3.5))
+    for x, colour in ((38, (210, 50, 60)), (50, (250, 250, 250)), (62, (50, 90, 170))):       # the ribbon
+        p.poly(colour, [(x - 6, 43), (x + 6, 43), (x + 6, 63), (x, 58), (x - 6, 63)], o=1.8)
+
+
 DRAW = {"cake": _cake, "tree": _tree, "egg": _egg, "fireworks": _fireworks, "flag": _flag, "turkey": _turkey, "pumpkin": _pumpkin,
         "heart": _heart, "shamrock": _shamrock, "flower": _flower, "tie": _tie, "house": _house, "star": _star, "calendar": _calendar,
         "clock": _clock, "partyhat": _partyhat, "dove": _dove, "tophat": _tophat, "poppy": _poppy, "tools": _tools,
@@ -1338,4 +1518,5 @@ DRAW = {"cake": _cake, "tree": _tree, "egg": _egg, "fireworks": _fireworks, "fla
         "cathug": _cathug, "veggies": _veggies, "lifering": _lifering, "jackbox": _jackbox, "umbrella": _umbrella, "guitar": _guitar,
         "shoe": _shoe, "sloth": _sloth, "disguise": _disguise, "blocks": _blocks, "rocks": _rocks, "parrot": _parrot, "hand": _hand,
         "madhat": _madhat, "ufo": _ufo, "beanie": _beanie, "wolf": _wolf, "deviledegg": _deviledegg, "yarn": _yarn,
-        "fridge": _fridge, "fishbike": _fishbike, "bag": _bag, "monkey": _monkey}
+        "fridge": _fridge, "fishbike": _fishbike, "bag": _bag, "monkey": _monkey, "crownstar": _crownstar, "ashes": _ashes, "palm": _palm,
+        "cross": _cross, "flames": _flames, "xmascard": _xmascard, "carolbook": _carolbook, "lasso": _lasso, "adventwreath": _adventwreath, "anchor": _anchor}

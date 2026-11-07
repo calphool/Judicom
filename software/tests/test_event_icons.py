@@ -57,6 +57,24 @@ class Choosing(unittest.TestCase):
         holidays = {event_icons.icon_for(h) for h in ("Flag Day", "Christmas Eve", "Juneteenth", "Memorial Day")}
         self.assertFalse(holidays & set(kinds))                                  # and none borrowed from a real holiday
 
+    def test_the_church_year_and_the_last_few_days_each_have_their_own_picture(self):
+        days = {"Epiphany": "crownstar", "Ash Wednesday": "ashes", "Palm Sunday": "palm", "Good Friday": "cross", "Pentecost": "flames", "Day of Pentecost": "flames", "Advent Begins": "adventwreath",
+                "First Sunday of Advent": "adventwreath", "Sadie Hawkins Day": "lasso", "Pearl Harbor Day": "anchor", "Christmas Card Day": "xmascard", "Christmas Carol Day": "carolbook",
+                "Pearl Harbor Remembrance Day": "anchor"}
+        for title, kind in days.items():
+            with self.subTest(title=title):
+                self.assertEqual(event_icons.icon_for(title), kind)
+
+    def test_christmas_itself_keeps_its_tree(self):
+        self.assertEqual(event_icons.icon_for("Christmas"), "tree")
+        self.assertEqual(event_icons.icon_for("Carol's birthday"), "cake")
+
+    def test_an_adventure_is_not_advent(self):
+        self.assertEqual(event_icons.icon_for("Adventure at the zoo"), "calendar")
+
+    def test_black_friday_is_not_good_friday(self):
+        self.assertEqual(event_icons.icon_for("Black Friday"), "bag")
+
     def test_a_birthday_on_christmas_is_still_a_cake(self):
         self.assertEqual(event_icons.icon_for("Christmas birthday party"), "cake")
 
