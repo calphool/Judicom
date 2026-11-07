@@ -497,8 +497,41 @@ class TouchPanel(unittest.TestCase):
         return Taps(devices=self.devices(block), open_panel=Panel)
 
     def test_a_tap_counts_once_however_long_the_finger_stays(self):
-        taps = self.taps([{}, {0: (1, 1)}, {0: (2, 2)}, {}, {1: (3, 3)}])
-        self.assertEqual([taps.poll() for _ in range(5)], [[], [(1, 1)], [], [], [(3, 3)]])
+        taps, now = self.reconnecting(self.devices(self.panel_block(3)), [[{}, {0: (1, 1)}, {0: (2, 2)}, {}, {1: (3, 3)}]])
+        seen = []
+        for _ in range(5):
+            seen.append(taps.poll())
+            now[0] += 1.0
+        self.assertEqual(seen, [[], [(1, 1)], [], [], [(3, 3)]])
+
+    def timed(self, script):
+        """script: (seconds, what the panel gives).  Returns the taps seen."""
+        taps, now = self.reconnecting(self.devices(self.panel_block(3)), [[fingers for _, fingers in script]])
+        seen = []
+        for t, _ in script:
+            now[0] = t
+            seen += taps.poll()
+        return seen
+
+    def test_a_press_reported_twice_is_one_tap(self):                # as recorded on 2026-11-06
+        self.assertEqual(self.timed([(20.23, {0: (80, 70)}), (20.33, {}), (20.43, {0: (77, 72)}), (20.70, {})]), [(80, 70)])
+
+    def test_the_longest_echo_recorded_and_a_third_report(self):
+        self.assertEqual(self.timed([(23.02, {0: (506, 949)}), (23.13, {}), (23.29, {0: (506, 950)}), (23.60, {})]), [(506, 949)])
+        self.assertEqual(self.timed([(39.08, {0: (69, 959)}), (39.19, {}), (39.29, {0: (67, 959)}), (39.49, {}), (39.56, {0: (53, 959)}),
+                                     (39.69, {})]), [(69, 959)])
+
+    def test_the_real_taps_recorded_all_count(self):
+        script = []
+        for t, place in ((21.58, (534, 73)), (23.02, (506, 949)), (24.44, (67, 916))):
+            script += [(t, {0: place}), (t + 0.1, {}), (t + 0.2, {0: place}), (t + 0.5, {})]
+        self.assertEqual(self.timed(script), [(534, 73), (506, 949), (67, 916)])
+
+    def test_the_same_spot_again_after_a_moment_is_a_new_tap(self):
+        self.assertEqual(self.timed([(1.0, {0: (10, 10)}), (1.1, {}), (1.4, {0: (10, 10)})]), [(10, 10), (10, 10)])
+
+    def test_the_next_key_along_is_never_an_echo(self):
+        self.assertEqual(self.timed([(1.0, {0: (30, 700)}), (1.1, {}), (1.15, {0: (90, 700)})]), [(30, 700), (90, 700)])
 
     def test_a_second_finger_is_a_tap_of_its_own(self):
         taps = self.taps([{0: (1, 1)}, {0: (1, 1), 1: (5, 5)}, {1: (5, 5)}])

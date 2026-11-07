@@ -5,6 +5,10 @@
 
 A panel that is missing or comes loose (a USB dropout) is looked for again every RETRY_SECONDS, so it comes back by itself.
 
+This panel reports nearly every press twice: down, up after 0.1 s, and down again 0.07 to 0.16 s later in the same place (measured
+2026-11-06; real taps were at least 0.47 s apart).  So a finger that comes down within ECHO_SECONDS of one going up, and within
+ECHO_PX of it, is that same press.  Keys are 60 pixels apart, so two different keys are never taken for an echo.
+
 The panel is found by what it does (it reports finger positions), not by its name.  Its corners were measured on 2026-11-05: its x
 runs down Judi's upright picture and its y runs right to left, the same quarter turn as the picture (judicom/display.py).
 """
@@ -23,6 +27,7 @@ BTN_TOUCH = 0x14a
 EVENT = "llHHi"                    # struct input_event: time (two longs), type, code, value
 EVENT_SIZE = struct.calcsize(EVENT)
 RETRY_SECONDS = 5.0                # how often a missing panel is looked for
+ECHO_SECONDS, ECHO_PX = 0.25, 50   # a press reported twice (see above)
 
 
 def find_touch_screen(devices="/proc/bus/input/devices"):
@@ -97,8 +102,9 @@ class Taps:
     def __init__(self, log=None, flip=False, devices="/proc/bus/input/devices", open_panel=Touches, clock=time.monotonic):
         self.log = log or (lambda msg: None)
         self.flip, self.devices, self.open_panel, self.clock = flip, devices, open_panel, clock
-        self.panel, self.fingers = None, set()
+        self.panel, self.fingers = None, {}          # fingers: finger -> where it is now
         self._looked = self._said = None
+        self._lifted = None                          # (when, where) the last finger went up
         self._find()
 
     def _say_once(self, msg):
@@ -133,12 +139,22 @@ class Taps:
             self.close()
             self._looked = self.clock()
             return []
-        new = [place for finger, place in fingers.items() if finger not in self.fingers]
-        self.fingers = set(fingers)
+        now = self.clock()
+        new = [place for finger, place in fingers.items() if finger not in self.fingers and not self._echo(place, now)]
+        for finger, place in self.fingers.items():
+            if finger not in fingers:
+                self._lifted = (now, place)
+        self.fingers = dict(fingers)
         return new
 
+    def _echo(self, place, now):
+        if self._lifted is None or now - self._lifted[0] > ECHO_SECONDS:
+            return False
+        (x, y), (lx, ly) = place, self._lifted[1]
+        return abs(x - lx) <= ECHO_PX and abs(y - ly) <= ECHO_PX
+
     def close(self):
-        self.fingers = set()
+        self.fingers = {}
         if self.panel is not None:
             self.panel.close()
             self.panel = None
