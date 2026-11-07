@@ -172,3 +172,63 @@ class Holidays(unittest.TestCase):
         self.assertEqual(logged, [])
         self.assertGreaterEqual(len(events), 21)
         self.assertTrue(all(e.next_date(NOW.date()) for e in events))      # every one of them comes round
+
+
+class BeforeAndAfter(unittest.TestCase):
+    def date(self, when, year):
+        return parse("%s | X" % when)[0].date_in(year)
+
+    def test_advent_in_the_years_that_are_known(self):
+        known = {2021: (11, 28), 2022: (11, 27), 2023: (12, 3), 2024: (12, 1), 2025: (11, 30), 2026: (11, 29), 2027: (11, 28), 2028: (12, 3)}
+        for year, (month, day) in known.items():
+            with self.subTest(year=year):
+                self.assertEqual(self.date("4th Sunday before 12-25", year), datetime.date(year, month, day))
+
+    def test_christmas_on_a_sunday_does_not_count_as_one_of_the_four(self):
+        self.assertEqual(datetime.date(2022, 12, 25).weekday(), 6)
+        self.assertEqual(self.date("Sunday before 12-25", 2022), datetime.date(2022, 12, 18))
+
+    def test_advent_is_always_a_sunday_from_november_27_to_december_3(self):
+        for year in range(2000, 2100):
+            d = self.date("4th Sunday before 12-25", year)
+            self.assertEqual(d.weekday(), 6)
+            self.assertTrue(datetime.date(year, 11, 27) <= d <= datetime.date(year, 12, 3), d)
+
+    def test_the_ways_of_writing_it(self):
+        for when in ("Fourth Sunday Before 12/25 (Christmas)", "fourth sunday before 12/25", "4th SUNDAY BEFORE 12-25", "4th Sunday before 12-25 (Christmas)"):
+            with self.subTest(when=when):
+                self.assertEqual(self.date(when, 2026), datetime.date(2026, 11, 29))
+
+    def test_before_the_other_kinds_of_day(self):
+        self.assertEqual(self.date("Sunday before Easter", 2026), datetime.date(2026, 3, 29))         # Palm Sunday
+        self.assertEqual(self.date("Monday before 4th Thursday of November", 2026), datetime.date(2026, 11, 23))
+
+    def test_counting_forward_too(self):
+        self.assertEqual(self.date("2nd Sunday after Easter", 2026), datetime.date(2026, 4, 19))
+
+    def test_what_worked_before_still_does(self):
+        self.assertEqual(self.date("Sunday after 1st Monday of September", 2026), datetime.date(2026, 9, 13))
+        self.assertEqual(self.date("Friday after 4th Thursday of November", 2026), datetime.date(2026, 11, 27))
+        self.assertEqual(self.date("Monday after 12-25", 2026), datetime.date(2026, 12, 28))
+
+    def test_a_time_may_follow(self):
+        event = parse("4th Sunday before 12-25 10:30 AM | Advent service")[0]
+        self.assertEqual(event.time, datetime.time(10, 30))
+        self.assertEqual(event.date_in(2026), datetime.date(2026, 11, 29))
+
+    def test_the_next_one_comes_after_this_years_has_gone(self):
+        event = parse("4th Sunday before 12-25 | Advent")[0]
+        self.assertEqual(event.next_date(datetime.date(2026, 11, 6)), datetime.date(2026, 11, 29))
+        self.assertEqual(event.next_date(datetime.date(2026, 11, 29)), datetime.date(2026, 11, 29))
+        self.assertEqual(event.next_date(datetime.date(2026, 11, 30)), datetime.date(2027, 11, 28))
+
+    def test_what_cannot_be_read_is_reported(self):
+        for when in ("4th Sunday before", "4th Sunday before Tuesday", "last Sunday before 12-25", "4th Sunday before 13-40"):
+            with self.subTest(when=when):
+                said = []
+                self.assertEqual(parse("%s | X" % when, said.append), [])
+                self.assertEqual(len(said), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

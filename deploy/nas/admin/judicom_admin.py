@@ -1011,7 +1011,7 @@ The two people on the <b>left</b> and <b>right</b> buttons are the ones she can 
     "events.html": """{% extends "base.html" %}{% set title = "Events" %}{% block body %}<h1>Events</h1>
 {% if coming %}<div class="card"><b>On Judi's screen now:</b><ul>{% for u in coming %}<li>{{ u.title }}: {{ u.when }} ({{ u.countdown }})</li>{% endfor %}</ul></div>{% endif %}
 <div class="card help">How to write <b>When</b>: <b>12-25</b> every year &middot; <b>2026-11-08 10:30</b> once (the time is optional: 10:30, 2 PM) &middot;
-<b>4th Thursday of November</b> or <b>last Monday of May</b> &middot; <b>Easter</b> &middot; <b>Sunday after 1st Monday of September</b>.
+<b>4th Thursday of November</b> or <b>last Monday of May</b> &middot; <b>Easter</b> &middot; <b>Sunday after 1st Monday of September</b> &middot; <b>4th Sunday before 12-25</b>.
 A one-time event drops off by itself when its day is over.  Grey rows are headings, just for you; each section ends with a blank row for adding one there.</div>
 <form method="post" class="card"><input type="hidden" name="token" value="{{ token }}">
 <table><tr><th>When</th><th>What</th><th class="hide-small">Next</th><th>Remove</th></tr>
