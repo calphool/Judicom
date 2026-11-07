@@ -4,6 +4,7 @@
 #     4th Thursday of November  | Thanksgiving         every year, on a weekday of the month (1st 2nd 3rd 4th 5th or last)
 #     Easter                    | Easter               every year
 #     Sunday after 1st Monday of September | Grandparents' Day     the first such weekday after a day of the kind above
+#     4th Sunday before 12-25   | Advent               counted back from a yearly day, which itself never counts
 #     2026-11-08 10:30          | Visit from Ann       once (year-month-day); a time is optional: 10:30, 14:00, 2 PM
 # Delete any holiday you don't want on Judi's screen.  Add birthdays and visits at the end.
 
