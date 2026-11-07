@@ -21,6 +21,7 @@ PEOPLE_EXTS = (".png", ".jpg", ".jpeg")
 PEOPLE_MAX_FILE = 5 * 1024 * 1024     # a bigger picture is not copied from the NAS (800 x 800 is far smaller)
 PEOPLE_MAX_TOTAL = 50 * 1024 * 1024   # nor more than this altogether
 FACE_PX = 400                         # the picture's size on the call screens
+LIFTED_FACE_PX = 190                  # the small picture over each arrow when the handset is lifted
 
 # Messages from the housekeeping website (judicom/messages.py) wait here until Judi has read them.
 MESSAGES_DIR = Path(os.environ.get("JUDICOM_MESSAGES", "/home/joe/messages"))

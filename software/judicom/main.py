@@ -230,6 +230,7 @@ def main(argv=None):
     phone = Phone(Machine(buttons, clock=clock, log=log, phone_ok=lambda: calls.ready), controls, calls, sounds, photos, contacts,
                   log, postbox=postbox, taps=taps, maintenance=maintenance)
     call_view = CallView(buttons, faces)
+    call_view.preload()
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
         ", turned 90 degrees" if display.rotate else "", args.folder, source, sounds.describe()))
     log("Pretend phone software: y = answer, f = fail, e = they hang up, i = incoming call (right button's person), "
