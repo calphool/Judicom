@@ -12,7 +12,7 @@ from judicom.machine import Mode, Party
 
 if pygame:
     from judicom.call_view import CallView
-    from judicom.config import BG, BUTTON_X, YELLOW
+    from judicom.config import BG, BUTTON_X, LIFTED_FACE_PX, YELLOW
     from judicom.config import SCREEN_H as H
     from judicom.config import SCREEN_W as W
 
@@ -66,6 +66,71 @@ class Screens(unittest.TestCase):
         for mode in (Mode.LIFTED, Mode.CALLING, Mode.ONGOING, Mode.INCOMING, Mode.NO_ANSWER, Mode.ENDED):
             with self.subTest(mode=mode):
                 self.assertEqual(tuple(self.drawn(mode, CLARK).get_at((5, 5)))[:3], BG)
+
+    def pictures(self, *names):
+        class Faces:
+            asked = []
+
+            def get(self, name, size):
+                Faces.asked.append((name, size))
+                if name not in names:
+                    return None
+                face = pygame.Surface((size, size))
+                face.fill((255, 0, 0))
+                return face
+        self.view.faces = Faces()
+        return Faces
+
+    def red_at(self, x, y):
+        return tuple(self.surf.get_at((x, y)))[:3] == (255, 0, 0)
+
+    def face_spot(self, side):
+        return BUTTON_X[side], H - 40 - 150 - 16 - 62 - 44 - 14 - LIFTED_FACE_PX // 2     # the middle of the picture, arrows at rest
+
+    def test_the_picture_of_whoever_is_on_each_button_is_over_the_arrow(self):
+        asked = self.pictures("Clark", "Amy")
+        self.drawn(Mode.LIFTED, t=0)
+        self.assertEqual(asked.asked[:2], [("Clark", LIFTED_FACE_PX), ("Amy", LIFTED_FACE_PX)])
+        self.assertTrue(self.red_at(*self.face_spot("left")))
+        self.assertTrue(self.red_at(*self.face_spot("right")))
+
+    def test_someone_without_a_picture_just_has_the_name(self):
+        self.pictures("Amy")
+        self.drawn(Mode.LIFTED, t=0)
+        self.assertFalse(self.red_at(*self.face_spot("left")))
+        self.assertTrue(self.red_at(*self.face_spot("right")))
+
+    def test_the_question_makes_room_only_for_pictures(self):
+        def top_of_the_question():
+            return next(y for y in range(H) if tuple(self.surf.get_at((W // 2, y)))[:3] != BG or
+                        any(tuple(self.surf.get_at((x, y)))[:3] != BG for x in range(0, W, 4)))
+        self.drawn(Mode.LIFTED, t=0)
+        without = top_of_the_question()
+        self.pictures("Clark", "Amy")
+        self.drawn(Mode.LIFTED, t=0)
+        self.assertLess(top_of_the_question(), without)
+
+    def test_the_pictures_clear_the_question_and_each_other(self):
+        self.pictures("Clark", "Amy")
+        self.drawn(Mode.LIFTED, t=0)
+        top = self.face_spot("left")[1] - LIFTED_FACE_PX // 2
+        self.assertTrue(all(tuple(self.surf.get_at((x, top - 8)))[:3] == BG for x in range(0, W, 2)))
+        self.assertLess(BUTTON_X["left"] + LIFTED_FACE_PX // 2, BUTTON_X["right"] - LIFTED_FACE_PX // 2)
+
+    def test_only_the_arrows_move(self):
+        self.pictures("Clark", "Amy")
+        low, high = self.drawn(Mode.LIFTED, t=0.227).copy(), self.drawn(Mode.LIFTED, t=0.682).copy()     # the two ends of the bob
+        arrows_top = H - 40 - 150
+        for y in range(0, arrows_top, 3):
+            for x in range(0, W, 3):
+                self.assertEqual(low.get_at((x, y)), high.get_at((x, y)), (x, y))
+        self.assertTrue(any(low.get_at((x, y)) != high.get_at((x, y)) for x in range(0, W, 3) for y in range(arrows_top, H)))
+
+    def test_preload_reads_the_button_pictures(self):
+        asked = self.pictures()
+        asked.asked = []
+        self.view.preload()
+        self.assertEqual(asked.asked, [("Clark", LIFTED_FACE_PX), ("Amy", LIFTED_FACE_PX)])
 
     def test_arrows_point_at_the_buttons(self):
         s = self.drawn(Mode.LIFTED)

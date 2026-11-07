@@ -4,7 +4,8 @@
     view.draw(surface, machine.mode, machine.party, t)
     view.animated(machine.mode)              # True while something moves: draw every frame; otherwise only when machine.version changes
 
-  LIFTED          "Who would you like to call?" and an arrow down to each button, with the name above it (the arrows bob gently)
+  LIFTED          "Who would you like to call?" and an arrow down to each button, with the name above it and their picture above
+                  that if there is one (the arrows bob gently)
   DIALING         the same as CALLING (the touch-tones play meanwhile; the screen does not change when the call goes out)
   CALLING         the handset on a white panel with rings spreading out, "Calling Amy (daughter)..."
   ONGOING         sound waves from the handset, "Speaking with Amy (daughter)"
@@ -25,7 +26,7 @@ import math
 import pygame
 
 from . import draw
-from .config import AMBER, BG, BUTTON_X, DARK, FACE_PX, GREEN, INK, ROSE, SOFT, YELLOW
+from .config import AMBER, BG, BUTTON_X, DARK, FACE_PX, GREEN, INK, LIFTED_FACE_PX, ROSE, SOFT, YELLOW
 from .config import SCREEN_H as H
 from .config import SCREEN_W as W
 from .machine import Mode
@@ -118,22 +119,36 @@ class CallView:
         else:
             raise ValueError("CallView does not draw %s" % mode)
 
+    def button_face(self, party):
+        """The small picture over a button's arrow, or None."""
+        return self.faces.get(party.name, LIFTED_FACE_PX) if self.faces is not None else None
+
+    def preload(self):
+        """Reads the button pictures now, so that the first lift of the handset does not wait for them."""
+        for party in self.buttons.values():
+            self.button_face(party)
+
     def draw_lifted(self, surf, t):
         surf.fill(BG)
         size = 72
         lines = draw.wrap("Who would you like to call?", "bold", size, W - 40)
+        pictures = {key: self.button_face(party) for key, party in self.buttons.items()}
         y = (H - int(size * 1.15) * len(lines)) // 2 - 120                    # above the middle: the names and arrows are below
+        if any(pictures.values()):
+            y -= 70                                                           # and the pictures above them
         for line in lines:
             draw.centered(surf, draw.text(line, "bold", size, INK), y)
             y += int(size * 1.15)
-        nudge = int(12 * (0.5 + 0.5 * math.sin(t * 2 * math.pi * 1.1)))     # the arrows bob toward the buttons
-        tip = H - 40 + nudge
+        nudge = int(12 * (0.5 + 0.5 * math.sin(t * 2 * math.pi * 1.1)))     # the arrows bob toward the buttons; all else holds still
+        tip = H - 40
         for key, party in self.buttons.items():
             cx = BUTTON_X.get(key)
             if cx is None:
                 continue
-            arrow(surf, cx, tip, AMBER)
+            arrow(surf, cx, tip + nudge, AMBER)
             ny = tip - 150 - 16 - 62 - 44
+            if pictures[key] is not None:
+                surf.blit(pictures[key], (cx - LIFTED_FACE_PX // 2, ny - 14 - LIFTED_FACE_PX))
             draw.centered(surf, draw.text(party.name or party.dial, "bold", 62, INK, 255), ny, cx)
             if party.relationship:
                 draw.centered(surf, draw.text("(%s)" % party.relationship, "reg", 40, SOFT, 255), ny + 66, cx)
