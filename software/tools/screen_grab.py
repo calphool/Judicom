@@ -5,7 +5,7 @@
     python3 tools/screen_grab.py some.png        writes that file
     python3 tools/screen_grab.py -               writes the PNG to standard output
 
-To just look, use See Judicom Now on the housekeeping website (http://naspi.local:8080): it runs this with the - and shows the
+To just look, use See Judicom Now on the housekeeping website (https://naspi.local:8080): it runs this with the - and shows the
 picture, through tools/nas_request.py, over a key that can do nothing else (docs/DEPLOYMENT.md).
 
 It takes the picture the graphics hardware is sending to the panel, not one the phone program hands over, so nothing is stopped
