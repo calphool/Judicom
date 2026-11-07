@@ -12,7 +12,7 @@ import time
 
 from . import config
 
-UNIT, KEY_H = config.SCREEN_W // 10, 62
+UNIT, KEY_H = (config.SCREEN_W - config.SHELL_RIGHT) // 10, 62
 LIT_SECONDS = 0.12
 
 SPECIAL = {"Esc": b"\x1b", "Tab": b"\t", "Enter": b"\r", "Bksp": b"\x7f", "Space": b" ",

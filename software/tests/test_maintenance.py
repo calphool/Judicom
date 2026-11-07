@@ -160,11 +160,14 @@ class Keys(unittest.TestCase):
             rows = {}
             for _, x, y, w, h, _ in keys:
                 rows[y] = rows.get(y, 0) + w
-            self.assertEqual(set(rows.values()), {W})
+            self.assertEqual(set(rows.values()), {W - config.SHELL_RIGHT})
             self.assertEqual(max(rows) + KEY_H, H)
 
     def test_the_terminal_ends_above_the_keyboard(self):
         self.assertLessEqual(config.SHELL_TOP + config.SHELL_ROWS * 19, self.keyboard.top)
+
+    def test_the_terminal_stops_short_of_the_right_bezel(self):
+        self.assertLessEqual(config.SHELL_COLUMNS * 10, W - config.SHELL_RIGHT)
 
     def test_a_letter(self):
         self.assertEqual(self.press("q"), b"q")

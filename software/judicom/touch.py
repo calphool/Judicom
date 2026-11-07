@@ -7,7 +7,7 @@ A panel that is missing or comes loose (a USB dropout) is looked for again every
 
 This panel reports nearly every press twice: down, up after 0.1 s, and down again 0.07 to 0.16 s later in the same place (measured
 2026-11-06; real taps were at least 0.47 s apart).  So a finger that comes down within ECHO_SECONDS of one going up, and within
-ECHO_PX of it, is that same press.  Keys are 60 pixels apart, so two different keys are never taken for an echo.
+ECHO_PX of it, is that same press.  Keys are 58 pixels apart, so two different keys are never taken for an echo.
 
 The panel is found by what it does (it reports finger positions), not by its name.  Its corners were measured on 2026-11-05: its x
 runs down Judi's upright picture and its y runs right to left, the same quarter turn as the picture (judicom/display.py).
