@@ -101,7 +101,8 @@ ARM_SECONDS = 3.0             # both buttons held this long, handset on the hook
 KNOCK_SECONDS = 10.0          # then each corner within this long of the last
 CORNER_PX = 170               # how far from the edges a tap still counts as in the corner
 SHELL_IDLE_SECONDS = 600.0    # back to the photos after this long without a key
-SHELL_COLUMNS, SHELL_ROWS = 60, 34                 # 10 x 19 pixels each, above the keyboard
+SHELL_COLUMNS, SHELL_ROWS = 60, 32                 # 10 x 19 pixels each, above the keyboard
+SHELL_TOP = 36                # the first row starts this far down: the bezel covers the top of the screen
 BONG_LEVEL = 0.4              # on the ringer speaker
 
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------

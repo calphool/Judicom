@@ -5,7 +5,7 @@ from . import config, draw
 
 CELL_W, CELL_H = 10, 19
 FONT_SIZE = 16
-LEFT, TOP = 0, 4
+LEFT, TOP = 0, config.SHELL_TOP
 BLACK, TEXT = (0, 0, 0), (225, 225, 225)
 KEY, KEY_ON, KEY_EDGE = (52, 56, 64), (120, 150, 210), (20, 22, 26)
 MAX_GLYPHS = 1500
