@@ -35,6 +35,7 @@ import json
 import os
 import re
 import secrets
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,7 @@ from pathlib import Path
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from jinja2 import DictLoader
 from PIL import Image, ImageOps
+from werkzeug.serving import WSGIRequestHandler
 from werkzeug.utils import secure_filename
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "software"))
@@ -65,6 +67,7 @@ NETS = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "::1/128", "10.0.0.0/8"
                                           "100.64.0.0/10", "fd7a:115c:a1e0::/48", "fe80::/10")]
 HOSTS = {"naspi", "naspi.local", "naspi-1", "localhost"}
 TLS_CERT, TLS_KEY = Path("/home/pi/judicom/tls/cert.pem"), Path("/home/pi/judicom/tls/key.pem")      # from make_cert.sh
+IDLE_CONNECTION_SECONDS = 60        # a connection that sends nothing for this long is dropped
 LOGIN_USER = "pi"                   # the only one who may sign in
 LOGIN_HOURS = 12
 LOGIN_TRIES = 5                     # wrong tries from one address before it has to wait
@@ -73,6 +76,24 @@ MAX_PASSWORD = 1024
 SAFE_NEXT = re.compile(r"^/(?!/)[A-Za-z0-9_\-./?=&%+]*$")     # where to go after signing in: a page of this site, nothing else
 NO_SIGN_IN_NEEDED = {"login"}
 ASKED_BY_SCRIPT = {"screen_png", "screen_sent"}                # these answer 401; a page would get a sign-in form it cannot show
+
+
+class HandshakeLater(ssl.SSLContext):
+    """HTTPS, with each connection's handshake in that connection's own thread.  By default the server shakes hands in its one
+    accepting loop, so a connection that says nothing (browsers keep spare ones open) stops the website for everybody."""
+
+    def wrap_socket(self, sock, server_side=False, do_handshake_on_connect=True, **kw):
+        return super().wrap_socket(sock, server_side=server_side, do_handshake_on_connect=False, **kw)
+
+
+class Handler(WSGIRequestHandler):
+    timeout = IDLE_CONNECTION_SECONDS
+
+
+def tls_context(cert, key):
+    context = HandshakeLater(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(str(cert), str(key))
+    return context
 
 
 def pam_check(user, password):
@@ -1049,12 +1070,12 @@ def main(argv=None):
     s = Settings()
     s.hosts |= {h.strip().lower() for h in os.environ.get("ADMIN_HOSTS", "").split(",") if h.strip()}
     app = create_app(s)
-    tls = (str(TLS_CERT), str(TLS_KEY)) if TLS_CERT.is_file() and TLS_KEY.is_file() else None
+    tls = tls_context(TLS_CERT, TLS_KEY) if TLS_CERT.is_file() and TLS_KEY.is_file() else None
     if tls:
         app.config["SESSION_COOKIE_SECURE"] = True
     else:
         print("WARNING: no certificate, so passwords cross the network in the clear: run make_cert.sh", file=sys.stderr, flush=True)
-    app.run(host=args.host, port=args.port, threaded=True, ssl_context=tls)
+    app.run(host=args.host, port=args.port, threaded=True, ssl_context=tls, request_handler=Handler)
 
 
 if __name__ == "__main__":

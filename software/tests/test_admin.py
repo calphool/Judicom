@@ -5,8 +5,14 @@ import importlib.util
 import io
 import json
 import re
+import shutil
+import socket
+import ssl
+import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -630,6 +636,47 @@ class Site(unittest.TestCase):
         answer.authenticate.return_value = 1
         with mock.patch.dict(sys.modules, {"pam": answer}):
             self.assertFalse(admin.pam_check("pi", "pw"))
+
+
+@unittest.skipUnless(HAVE and shutil.which("openssl"), "needs Flask, Pillow and openssl")
+class RealHttps(unittest.TestCase):
+    """A real server on a real socket: the test client never goes near the handshake."""
+
+    def serve(self, context):
+        from werkzeug.serving import make_server
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        self.cert, self.key = Path(d.name) / "cert.pem", Path(d.name) / "key.pem"
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-keyout", str(self.key), "-out",
+                        str(self.cert), "-subj", "/CN=localhost"], check=True, capture_output=True)
+        app = admin.create_app(admin.Settings(judicom_dir=Path(d.name), photos_dir=Path(d.name), trash_dir=Path(d.name)))
+        server = make_server("127.0.0.1", 0, app, threaded=True, ssl_context=context(self.cert, self.key), request_handler=admin.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        return server.server_port
+
+    def fetch(self, port):
+        context = ssl.create_default_context()
+        context.check_hostname, context.verify_mode = False, ssl.CERT_NONE
+        with socket.create_connection(("127.0.0.1", port), timeout=4) as raw, context.wrap_socket(raw) as tls:
+            tls.sendall(b"GET /login HTTP/1.0\r\nHost: localhost\r\n\r\n")
+            return tls.recv(100)
+
+    def test_it_answers_over_https(self):
+        self.assertIn(b"200", self.fetch(self.serve(admin.tls_context)))
+
+    def test_a_connection_that_says_nothing_stops_nobody(self):
+        port = self.serve(admin.tls_context)
+        idle = [socket.create_connection(("127.0.0.1", port)) for _ in range(3)]
+        self.addCleanup(lambda: [s.close() for s in idle])
+        time.sleep(0.3)
+        self.assertIn(b"200", self.fetch(port))
+
+    def test_a_connection_that_is_not_https_stops_nobody(self):
+        port = self.serve(admin.tls_context)
+        with socket.create_connection(("127.0.0.1", port)) as plain:
+            plain.sendall(b"GET / HTTP/1.0\r\n\r\n")
+            self.assertIn(b"200", self.fetch(port))
 
 
 if __name__ == "__main__":
