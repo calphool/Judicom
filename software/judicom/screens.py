@@ -1,8 +1,8 @@
-"""The screens that take turns between runs of photos (home.py steps through them): the info screen, a verse, the weather.
+"""The screens that take turns between runs of photos (home.py steps through them): the info screen, a verse, the weather, a joke.
 
 Each one is a small object that home.py uses the same way:
 
-    screen.name               "info", "verse", "weather" (home.mode while it shows)
+    screen.name               "info", "verse", "weather", "joke" (home.mode while it shows)
     screen.seconds            how long it stays up
     screen.ready()            at its turn: get what it will show (the next verse, the latest weather ...).  False: nothing to
                               show now (no verses; no weather report), so its turn goes to the next screen.
@@ -12,9 +12,11 @@ Each one is a small object that home.py uses the same way:
 
 A new screen is a class like these, added to the list home.Home makes.  None of this needs pygame until something is drawn.
 """
+import time
+
 from . import config
 
-INFO, VERSE, WEATHER = "info", "verse", "weather"
+INFO, VERSE, WEATHER, JOKE = "info", "verse", "weather", "joke"
 
 
 class InfoScreen:
@@ -88,3 +90,36 @@ class WeatherScreen:
 
     def label(self):
         return "weather"
+
+
+class JokeScreen:
+    """A joke (joke_view.py): the setup, then the punchline PUNCHLINE_SECONDS later, on the same screen.  Every joke once before
+    any comes again (jokes.JokeDeck)."""
+    name = JOKE
+
+    def __init__(self, jokes=None, seconds=config.JOKE_SECONDS, punchline_seconds=config.PUNCHLINE_SECONDS, clock=time.monotonic):
+        self.jokes, self.seconds, self.punchline_seconds, self.clock = jokes, seconds, punchline_seconds, clock
+        self.joke = None                             # the one on the screen
+        self.shown_at = None
+
+    def ready(self):
+        if self.jokes is None:
+            return False
+        self.jokes.refresh()                         # the list may have been fetched from the NAS since
+        self.joke, self.shown_at = self.jokes.next(), self.clock()
+        return self.joke is not None
+
+    def punchline(self):
+        """Is it time for the punchline?"""
+        return self.shown_at is not None and self.clock() - self.shown_at >= self.punchline_seconds
+
+    def draw(self, surf, now):
+        from . import joke_view
+        joke_view.draw_joke(surf, self.joke, self.punchline())
+
+    def signature(self, now):
+        return (self.joke, self.punchline())         # drawn again once: when the punchline appears
+
+    def label(self):
+        return "joke"
+

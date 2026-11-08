@@ -153,6 +153,18 @@ class Events(Folder):
 
 
 class Verses(Folder):
+    def test_writes_the_jokes_with_a_copy_header(self):
+        path = self.dir / "jokes.txt"
+        self.assertEqual(sync.sync_jokes(lambda: "Why are fish so smart? | Because they live in schools!\n", path, self.logged.append), 0)
+        self.assertTrue(path.read_text().startswith("# COPY of Judi's joke list"))
+        self.assertIn("jokes updated: 1", self.logged[-1])
+
+    def test_an_answer_without_jokes_keeps_the_old_list(self):
+        path = self.dir / "jokes.txt"
+        path.write_text("old\n")
+        self.assertEqual(sync.sync_jokes(lambda: "no bars here\n", path, self.logged.append), 1)
+        self.assertEqual(path.read_text(), "old\n")
+
     def test_writes_the_verses_with_a_copy_header(self):
         path = self.dir / "verses.txt"
         self.assertEqual(sync.sync_verses(lambda: "Psalm 56:3 | What time I am afraid, I will trust in thee.\n", path,
@@ -254,6 +266,7 @@ class ServeList(unittest.TestCase):
             (Path(d) / "contacts.txt").write_text("C\n")
             (Path(d) / "events.txt").write_text("E\n")
             (Path(d) / "verses.txt").write_text("V\n")
+            (Path(d) / "jokes.txt").write_text("J\n")
             local = Path(d) / "serve_list.sh"
             local.write_text(script.read_text().replace("/home/pi/judicom/", d + "/"))
             env = {"PATH": "/usr/bin:/bin", "SSH_ORIGINAL_COMMAND": request}
@@ -262,6 +275,7 @@ class ServeList(unittest.TestCase):
 
     def test_answers(self):
         self.assertEqual(self.ask("verses")[:2], (0, "V\n"))
+        self.assertEqual(self.ask("jokes")[:2], (0, "J\n"))
         self.assertEqual(self.ask("")[:2], (0, "C\n"))
         self.assertEqual(self.ask("contacts")[:2], (0, "C\n"))
         self.assertEqual(self.ask("events")[:2], (0, "E\n"))

@@ -107,7 +107,7 @@ which can only run `software/tools/nas_request.py` (the picture, a message, and 
 - The Judicom fetches the same file itself every 10 minutes (section 3), with its own key.  That key's line in
   `/home/pi/.ssh/authorized_keys` only lets it read this list and the events list (below):
   `restrict,command="/home/pi/judicom/serve_list.sh" ssh-ed25519 AAAA... judicom-contacts-sync`
-  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events`, `verses`, `people-list` or
+  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events`, `verses`, `jokes`, `people-list` or
   `people`, and refuses anything else).
 
 ### Pictures of the people
@@ -168,6 +168,15 @@ Log: `journalctl -u jellyfin-mail-importer`.
 words taken from a public-domain KJV text): `reference | words`, one per line, `[2]` where verse 2 begins inside a passage.  The
 Judicom fetches it with the caller list every 10 minutes and shows one verse, on a page that looks like an old Bible, every other
 time the info screen would come (so after every 10 photos), for 30 seconds; every verse once before any comes again.
+
+### Judi's jokes
+
+`/home/pi/judicom/jokes.txt` on the NAS (start from `deploy/nas/judicom/jokes.example.txt`: about 100 gentle dad jokes):
+`setup | punchline`, one per line.  The Judicom fetches it with the caller list every 10 minutes and shows one after the weather
+screen in the rotation (info, verse, weather, joke): the setup in big letters with a jester at the bottom, the punchline appearing
+under it 8 seconds later, 30 seconds in all; every joke once before any comes again.  Without the file the joke screen is skipped.
+The list leaves out jokes about forgetting, getting old, doctors and hospitals, death, weight and diets, and money;
+`software/tests/test_jokes.py` checks the example list for those words, its length and repeats.
 
 ### The offline alert
 
@@ -275,6 +284,7 @@ someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 
 | `~/contacts.txt` | **fetched from the NAS** by the `judicom-contacts-sync` timer (at boot, then every 10 minutes) | a copy of Judi's caller list: the two buttons and the names shown for incoming calls.  Local changes are overwritten.  Fetch now: `sudo systemctl start judicom-contacts-sync`; log: `journalctl -u judicom-contacts-sync` |
 | `~/events.txt` | **fetched from the NAS** with the caller list | a copy of Judi's events list, for the info screen |
 | `~/verses.txt` | **fetched from the NAS** with the caller list | a copy of Judi's verse list, for the verse screen |
+| `~/jokes.txt` | **fetched from the NAS** with the caller list | a copy of Judi's joke list, for the joke screen |
 | `~/people/` | **copied from the NAS** with the caller list | a copy of `/home/pi/judicom/people/`: the people pictures for the call screens (section 2).  Only changed pictures are fetched (compared by sha256); at most 5 MB each and 50 MB altogether |
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
 | `~/photos/` | **copied from the NAS** by the `judicom-photo-sync` timer (2 min after boot, then every hour) | a copy of `/mnt/8tbdrive/Photos/Judi`, **pictures it can show (.jpg .jpeg .png .bmp) and .meta captions only**: videos and other formats the mail importer saves there stay on the NAS (Jellyfin), so they cannot fill the card.  Pictures removed there go here too.  Nothing is changed if the NAS can't be reached, its folder has no pictures (drive not mounted?), copying the new photos would leave less than 4 GB free on the card (`PHOTO_KEEP_FREE`; a "nearly full" warning in the log), or more than half of the pictures would go (`python3 -m judicom.photo_sync --force` by hand if that is meant).  Fetch now: `sudo systemctl start judicom-photo-sync`; see first: `python3 -m judicom.photo_sync --dry-run`; log: `journalctl -u judicom-photo-sync` |

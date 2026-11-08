@@ -4,11 +4,12 @@ clock at night.
     home = Home(PhotoView(...), events, weather)      # used exactly like a PhotoView: start(), tick(), next(), needs_redraw(), draw()
 
   PHOTOS  the family photos (photo_view.py).  After INFO_EVERY_PHOTOS of them have had their full time, the next screen in
-          the rotation INFO -> VERSE -> WEATHER -> INFO ... (screens.py), then the photos again, starting with a fresh picture:
+          the rotation INFO -> VERSE -> WEATHER -> JOKE -> INFO ... (screens.py), then the photos again, from a fresh picture:
   INFO    the day, the date, the time and the next events with their countdowns (info_view.py), for INFO_SECONDS
   VERSE   a verse (verse_view.py: a Bible page), for VERSE_SECONDS.  Every verse comes once before any comes again.
   WEATHER today's weather and the next days' (weather_view.py), for WEATHER_SECONDS
-          A screen with nothing to show (no verses; no weather report: no internet) is skipped, its turn goes to the next one.
+  JOKE    a joke (joke_view.py): the setup, and PUNCHLINE_SECONDS later the punchline under it, for JOKE_SECONDS in all
+          A screen with nothing to show (no verses or jokes; no weather report: no internet) is skipped; its turn goes to the next.
   NIGHT   from NIGHT_FROM to NIGHT_TO: a dark screen with only the time and the date (not while the "stay awake" file
           NIGHT_PAUSE_FILE exists and is younger than NIGHT_PAUSE_HOURS: touch /home/joe/judicom-awake)
 A call takes the screen whenever one comes (main.py); afterwards start() is called again and picks the right one of the three, so
@@ -20,10 +21,10 @@ import os
 import time
 
 from . import config
-from .screens import INFO, VERSE, WEATHER, InfoScreen, VerseScreen, WeatherScreen
+from .screens import INFO, JOKE, VERSE, WEATHER, InfoScreen, JokeScreen, VerseScreen, WeatherScreen
 
 PHOTOS, NIGHT = "photos", "night"
-ROTATION = (INFO, VERSE, WEATHER)                # the order the screens take turns in (the names of Home.screens)
+ROTATION = (INFO, VERSE, WEATHER, JOKE)          # the order the screens take turns in (the names of Home.screens)
 
 
 def in_night(now, start=config.NIGHT_FROM, end=config.NIGHT_TO):
@@ -35,11 +36,13 @@ class Home:
     def __init__(self, photos, events=None, weather=None, now=datetime.datetime.now, clock=time.monotonic, log=None, verses=None,
                  verse_seconds=config.VERSE_SECONDS, weather_seconds=config.WEATHER_SECONDS,
                  every=config.INFO_EVERY_PHOTOS, info_seconds=config.INFO_SECONDS, night=(config.NIGHT_FROM, config.NIGHT_TO),
-                 awake_file=config.NIGHT_PAUSE_FILE, awake_hours=config.NIGHT_PAUSE_HOURS):
+                 awake_file=config.NIGHT_PAUSE_FILE, awake_hours=config.NIGHT_PAUSE_HOURS, jokes=None,
+                 joke_seconds=config.JOKE_SECONDS, punchline_seconds=config.PUNCHLINE_SECONDS):
         self.awake_file, self.awake_hours = str(awake_file) if awake_file else None, awake_hours
         self._awake_said = None
         self.photos, self.events, self.weather, self.verses = photos, events, weather, verses
-        self.screens = [InfoScreen(events, info_seconds), VerseScreen(verses, verse_seconds), WeatherScreen(weather, weather_seconds)]
+        self.screens = [InfoScreen(events, info_seconds), VerseScreen(verses, verse_seconds), WeatherScreen(weather, weather_seconds),
+                        JokeScreen(jokes, joke_seconds, punchline_seconds, clock)]
         assert tuple(sc.name for sc in self.screens) == ROTATION
         self.screen = None              # the one of them showing now (None: the photos or the night clock)
         self._turn = 0                  # whose turn after the next run of photos: screens[_turn]
@@ -97,7 +100,7 @@ class Home:
             self._photos()
 
     def next(self):
-        """The space key: the next photo, or from the info / verse / weather screen back to the photos."""
+        """The space key: the next photo, or from the info / verse / weather / joke screen back to the photos."""
         if self.mode == PHOTOS:
             self.photos.next()
         elif self.screen is not None:

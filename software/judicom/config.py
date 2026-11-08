@@ -139,4 +139,11 @@ CARD = (52, 90, 100)          # the info screen's lighter teal panels
 # list); see judicom/verses.py.
 VERSE_SECONDS = 30.0
 VERSES_FILE = Path(os.environ.get("JUDICOM_VERSES", "/home/joe/verses.txt"))
+
+# ---- the joke screen -------------------------------------------------------------------------------------------------------
+# A joke's setup, then its punchline PUNCHLINE_SECONDS later on the same screen, JOKE_SECONDS in all.  The jokes: a copy of
+# /home/pi/judicom/jokes.txt on the NAS (judicom.sync fetches it with the caller list); see judicom/jokes.py.
+JOKE_SECONDS = 30.0
+PUNCHLINE_SECONDS = 8.0
+JOKES_FILE = Path(os.environ.get("JUDICOM_JOKES", "/home/joe/jokes.txt"))
 FONT_DIR = Path(__file__).resolve().parent / "fonts"

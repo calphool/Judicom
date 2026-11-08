@@ -131,6 +131,31 @@ def sync_verses(fetcher=None, path=None, log=print):
     return 0
 
 
+JOKES_HEADER = ("# COPY of Judi's joke list.  The master is /home/pi/judicom/jokes.txt on the NAS: edit it there.\n"
+                "# This file is replaced every 10 minutes (python3 -m judicom.sync), so changes made here are lost.\n")
+
+
+def sync_jokes(fetcher=None, path=None, log=print):
+    """Fetch the joke list; 0 done, 1 not changed (the reason is logged).  Like sync_verses."""
+    from .jokes import parse as parse_jokes
+    fetcher = fetcher or (lambda: fetch(what="jokes"))
+    try:
+        text = fetcher()
+        problems = []
+        jokes = parse_jokes(text, problems.append)
+        lines = [l for l in text.splitlines() if l.strip() and not l.strip().startswith("#")]
+        if lines and not jokes:
+            raise RuntimeError("the NAS's answer has no jokes in it (is serve_list.sh up to date on the NAS?)")
+    except RuntimeError as exc:
+        log("jokes not updated: %s (keeping the current list)" % exc)
+        return 1
+    for p in problems:
+        log("in the NAS's joke list: " + p)
+    changed = store(text, str(config.JOKES_FILE if path is None else path), JOKES_HEADER)
+    log("jokes %s: %d" % ("updated" if changed else "unchanged", len(jokes)))
+    return 0
+
+
 def parse_people_list(text):
     """{file name: sha256} from serve_list.sh's "people-list" answer ("<sha256>  ./Ann.png" lines).  Names that are not plain
     picture names (a path, hidden, odd characters, another kind of file) are left out."""
@@ -256,6 +281,7 @@ def main(argv=None):
     result = sync()
     sync_events()                                        # the caller list matters more: its result is the exit status
     sync_verses()
+    sync_jokes()
     sync_people()
     sys.exit(result)
 

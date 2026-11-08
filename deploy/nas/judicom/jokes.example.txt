@@ -1,0 +1,115 @@
+# Jokes for the Judicom's joke screen, shown one at a time in a shuffled order: every joke once before any comes again.
+# This is the master list: the Judicom fetches it from /home/pi/judicom/jokes.txt on the NAS every 10 minutes.
+# One per line:   setup | punchline      (the punchline appears 8 seconds after the setup)
+# Kept to gentle wordplay on everyday things.  Left out on purpose: forgetting, getting old, doctors and hospitals, death,
+# weight and diets, money worries, and anything that makes fun of a kind of person.  Add, change or delete lines freely.
+
+# ---- animals
+Why are fish so smart? | Because they live in schools!
+What do you call a cow in an earthquake? | A milkshake!
+What do you call a sleeping bull? | A bulldozer!
+How does a penguin build its house? | Igloos it together!
+What do you call a dinosaur that's a sound sleeper? | A dino-snore!
+Why do bees have sticky hair? | Because they use honeycombs!
+Why couldn't the pony sing? | Because she was a little horse!
+What do you call a lazy kangaroo? | A pouch potato!
+Why do cows wear bells? | Because their horns don't work!
+Why did the chicken join a band? | Because it had the drumsticks!
+What kind of shoes do frogs wear? | Open-toad sandals!
+What did the duck say when she bought lipstick? | Put it on my bill!
+What do you call an alligator in a vest? | An investigator!
+How do you make an octopus laugh? | With ten-tickles!
+Why did the cow cross the road? | To get to the udder side!
+What do you call a bee that can't make up its mind? | A maybe!
+Why do seagulls fly over the sea? | Because if they flew over the bay, they'd be bagels!
+What do you call a rabbit who tells jokes? | A funny bunny!
+What do you call a dog magician? | A labracadabrador!
+What do you call a duck that gets all A's? | A wise quacker!
+What do you get from a pampered cow? | Spoiled milk!
+Why are frogs so happy? | They eat whatever bugs them!
+What do you call a sheep covered in chocolate? | A candy baa!
+Why did the horse chew with its mouth open? | Because it had bad stable manners!
+What do you call a pile of kittens? | A meow-ntain!
+What did the buffalo say to his son when he left for school? | Bison!
+What do you call a fish wearing a bow tie? | Sofishticated!
+Why was the cat sitting on the computer? | To keep an eye on the mouse!
+What do you call a bird that's afraid of heights? | A chicken!
+How do you catch a squirrel? | Climb a tree and act like a nut!
+What's a cat's favorite color? | Purr-ple!
+What do you call a dinosaur that knows a lot of words? | A thesaurus!
+What did the snail say riding on the turtle's back? | Wheee!
+What did the fisherman say to the magician? | Pick a cod, any cod!
+Why are spiders good baseball players? | They know how to catch flies!
+What do you call a cow that plays an instrument? | A moo-sician!
+Why do birds fly south for the winter? | Because it's too far to walk!
+What do you call a group of musical whales? | An orca-stra!
+What do you call a bear in the rain? | A drizzly bear!
+What do you call an elephant that doesn't matter? | An irrelephant!
+Why don't fish play basketball? | They're afraid of the net!
+What do you call a cat that loves to bowl? | An alley cat!
+Why did the cow go to outer space? | To see the moooon!
+What did the big cat say to the little cat? | You're purr-fect!
+What do you call a horse that lives next door? | A neigh-bor!
+What do you call a dog that loves bubble baths? | A shampoodle!
+Why did the owl say "tweet, tweet"? | Because it didn't give a hoot!
+What do you call a pig that knows karate? | A pork chop!
+
+# ---- food
+Why don't eggs tell jokes? | They'd crack each other up!
+Why did the tomato blush? | Because it saw the salad dressing!
+What do you call cheese that isn't yours? | Nacho cheese!
+What do you call a fake noodle? | An impasta!
+Why did the baker go to work? | Because he kneaded the dough!
+What did the mama tomato say to the baby tomato? | Ketchup!
+Why did the orange stop rolling? | It ran out of juice!
+What did the hamburger name its baby? | Patty!
+Why did the potato cross the road? | It saw a fork up ahead!
+Why do bananas wear sunscreen? | Because they peel!
+What kind of key opens a banana? | A mon-key!
+Why did the strawberry call for help? | Because it was in a jam!
+What did the plate say to the cup? | Dinner's on me!
+Why did the student eat his homework? | Because the teacher said it was a piece of cake!
+Why did the gum cross the road? | It was stuck to the chicken's foot!
+What sound does a nut make when it sneezes? | Cashew!
+Why did the cookie go to school? | To become a smart cookie!
+What do you call a peanut in a spacesuit? | An astro-nut!
+What did the lettuce say to the celery? | Quit stalking me!
+Why did the banana go to the party? | Because it was a-peeling!
+
+# ---- around the house and out and about
+Why did the bicycle fall over? | Because it was two-tired!
+Why can't you trust stairs? | They're always up to something!
+What did one wall say to the other wall? | I'll meet you at the corner!
+What do you call a factory that makes okay products? | A satisfactory!
+What has ears but cannot hear? | A cornfield!
+Why did the math book look sad? | Because it had too many problems!
+How do you organize a space party? | You planet!
+Why did the picture go to jail? | Because it was framed!
+Why are elevator jokes so good? | They work on many levels!
+Why did the coffee call the police? | It got mugged!
+Why did the stadium get hot after the game? | All the fans left!
+What did the zero say to the eight? | Nice belt!
+What did the big flower say to the little flower? | Hi, bud!
+What did one hat say to the other? | You stay here, I'll go on ahead!
+How does the moon cut its hair? | Eclipse it!
+Why was the broom late? | It overswept!
+What did the tree say to the wind? | Leaf me alone!
+What do you call a train carrying bubblegum? | A chew-chew train!
+Why is a piano so hard to open? | Because the keys are inside!
+What does a cloud wear under its raincoat? | Thunderwear!
+What kind of music do balloons not like? | Pop music!
+How do trees get on the computer? | They log in!
+Why can't a nose be twelve inches long? | Because then it would be a foot!
+What do you call a belt made of watches? | A waist of time!
+What do you call a happy cowboy? | A jolly rancher!
+Why did the robot go on vacation? | To recharge its batteries!
+Why did the music teacher need a ladder? | To reach the high notes!
+Why did the lamp go to school? | It wanted to be brighter!
+What has four wheels and flies? | A garbage truck!
+Why did the man run around his bed? | He was trying to catch up on his sleep!
+Where do pencils go on vacation? | Pencil-vania!
+What kind of flowers grow on your face? | Tulips!
+What did the ocean say to the beach? | Nothing, it just waved!
+Why did the golfer bring two pairs of pants? | In case he got a hole in one!
+What kind of tree fits in your hand? | A palm tree!
+Why did the scarecrow win an award? | Because he was outstanding in his field!
