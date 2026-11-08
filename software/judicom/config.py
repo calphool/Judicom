@@ -50,6 +50,7 @@ HOOK_PRESSED_ON_HOOK = True   # True: the handset resting in the cradle presses 
 BUTTON_PINS = {"left": 23, "right": 24}
 AMP_PIN = 25                  # an OUTPUT: high switches the ringer's amplifier on (through a MOSFET); low, or no program, off
 AMP_OFF_SECONDS = 1.0         # it is switched off this long after the speaker's last sound has ended
+#                               (switched so that the amplifier's noise is not heard between sounds: docs/HARDWARE.md)
 LIFT_SETTLE = 0.10            # the handset counts as lifted after it has been up this long (seconds)
 HANG_UP_SETTLE = 0.50         # ... and as hung up after it has been down this long, so a jostle in the cradle does not end a call
 BUTTON_SETTLE = 0.05          # a button press counts after this long (contact bounce)

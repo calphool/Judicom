@@ -37,6 +37,28 @@ Do **not** assume the original Merlin microphone is an electret capsule, that it
 
 The Pi 3 B+ analog jack is a four-pole A/V connector; confirm the correct audio contacts using the Pi's documented pinout or a known-compatible breakout. Do not short stereo outputs together to form mono; use software mono routing or an appropriate summing network.
 
+## Ringer amplifier switch (why the amplifier is switched on and off)
+
+The PAM8403 put noise on the ringtone speaker whenever it was powered, even with nothing playing.  Rather than chase the noise
+itself, the amplifier is now switched off whenever the speaker has nothing to play:
+
+- A MOSFET switch controlled by **GPIO 25** (BCM numbering; high = amplifier on) turns the PAM8403 on and off.  It was built and
+  tested on 2026-11-07.
+- The phone program switches it **on** just before anything plays on the speaker (the ringer, a message's three beeps, the
+  maintenance shell's bongs) and **off** once the speaker has been quiet for `AMP_OFF_SECONDS` (1 second), so the end of a sound is
+  not cut off.  It stays on through the gaps of a ring.  The handset's sounds (dial tone, dialing) do not use it.
+- While the phone program runs it holds GPIO 25 low.  At boot and whenever the phone program is not running, nothing drives the pin:
+  unless the MOSFET's gate has a pull-down resistor, add `gpio=25=op,dl` to `/boot/firmware/config.txt` so the firmware holds it low
+  from power-on.
+
+**If the ringer is silent,** this switch is the first thing to check: without GPIO 25 high the amplifier is off, so the ringer, the
+message beeps and the bongs all go quiet.  The phone's log says so at start if it cannot get the pin.  To test the switch, stop the
+phone program (`sudo systemctl stop judicom-phone`), then `cd ~/Judicom/software && python3 -m judicom.ring_test` should ring
+and `python3 -m judicom.ring_test --pin 25=0` should stay silent.  Start the phone again afterwards.
+
+In the code: `AMP_PIN` and `AMP_OFF_SECONDS` in `software/judicom/config.py`, `Amp` and `Sounds` in `software/judicom/sound.py`.
+**Do not remove the switching as an unneeded power-saving step:** it is what keeps the speaker quiet between sounds.
+
 ## Mechanical notes
 
 - Display visible opening: approximately **155 × 88 mm**.

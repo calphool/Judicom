@@ -7,6 +7,7 @@ until they are switched off; the digits play once.
 
 The ringer speaker's amplifier is switched by GPIO 25 (config.AMP_PIN, through a MOSFET): Sounds switches it on before the ringer, a
 message's beeps or a bong starts, and off AMP_OFF_SECONDS after the last of them has ended (update() checks, every frame).
+This is the fix for the noise the amplifier makes when it is on with nothing to play: see docs/HARDWARE.md, "Ringer amplifier switch".
 
 Playing is done by aplay (alsa-utils), fed from a thread with the same piece of sound over and over.  The dial tone must be stopped -
 which lets aplay release the USB card - before the phone software opens that card for a call; Sounds does that as soon as the machine
