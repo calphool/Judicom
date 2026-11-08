@@ -3,9 +3,10 @@ import array
 import math
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
-from judicom import sound
+from judicom import config, sound
 from judicom.sound import (DTMF, RATE, Sounds, card_exists, dial_tone_pcm, dialable, dialing_seconds, digits_pcm, find_usb_card,
                            ring_pcm)
 
@@ -192,3 +193,102 @@ class Switching(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeAmp:
+    def __init__(self):
+        self.is_on, self.switched, self.closed = False, [], False
+
+    def on(self):
+        if not self.is_on:
+            self.switched.append("on")
+        self.is_on = True
+
+    def off(self):
+        if self.is_on:
+            self.switched.append("off")
+        self.is_on = False
+
+    def close(self):
+        self.closed = True
+
+
+class Amplifier(unittest.TestCase):
+    def setUp(self):
+        self.now = [0.0]
+        self.amp = FakeAmp()
+        self.s = Sounds(handset_card="Device", ringer_card="Headphones", make_loop=FakeLoop, amp=self.amp, clock=lambda: self.now[0])
+
+    def later(self, seconds):
+        self.now[0] += seconds
+        self.s.update(*self.s._want)
+
+    def test_on_before_the_ringer_and_off_a_moment_after_it_stops(self):
+        order = []
+        start = self.s.ring.start
+        self.s.ring.start = lambda: (order.append(("ring", self.amp.is_on)), start())
+        self.s.update(False, True)
+        self.assertEqual(order, [("ring", True)])                      # the amplifier was already on when the ringer started
+        self.later(30)
+        self.assertTrue(self.amp.is_on)                                # on all through the ringing, gaps and all
+        self.s.update(False, False)
+        self.later(0.5)
+        self.assertTrue(self.amp.is_on)                                # the end of the sound is not cut off
+        self.later(config.AMP_OFF_SECONDS)
+        self.assertFalse(self.amp.is_on)
+        self.assertEqual(self.amp.switched, ["on", "off"])
+
+    def test_message_beeps_switch_it_on_and_it_goes_off_when_they_have_played(self):
+        self.s.beep()
+        self.assertTrue(self.amp.is_on)
+        self.s.beeps.playing = False                                   # aplay has played them and ended by itself
+        self.later(0.1)
+        self.later(config.AMP_OFF_SECONDS)
+        self.assertFalse(self.amp.is_on)
+
+    def test_bongs_one_after_another_keep_it_on(self):
+        for step in range(5):
+            self.s.bong(step)
+            self.s.bongs[step].playing = False
+            self.later(0.5)
+        self.assertTrue(self.amp.is_on)
+        self.assertEqual(self.amp.switched, ["on"])
+        self.later(config.AMP_OFF_SECONDS)
+        self.assertFalse(self.amp.is_on)
+
+    def test_the_handset_sounds_leave_it_off(self):
+        self.s.update(True, False)
+        self.s.update(False, False, "555")
+        self.assertEqual(self.amp.switched, [])
+
+    def test_closing_switches_it_off(self):
+        self.s.update(False, True)
+        self.s.close()
+        self.assertTrue(self.amp.closed)
+
+    def test_no_amplifier_switch_is_fine(self):
+        s = Sounds(handset_card="Device", ringer_card="Headphones", make_loop=FakeLoop)
+        s.update(False, True)
+        s.beep()
+        s.update(False, False)
+
+    def test_a_pin_that_cannot_be_had_is_only_logged(self):
+        said = []
+        with mock.patch.object(sound, "Amp", side_effect=RuntimeError("GPIO busy")):
+            self.assertIsNone(sound.make_amp(said.append))
+        self.assertIn("GPIO busy", said[0])
+        self.assertIn("25", said[0])
+
+
+class RingTestPins(unittest.TestCase):
+    def pins(self, argv):
+        from judicom import ring_test
+        args = ring_test.parse(argv)
+        return args.pin if any(pin == config.AMP_PIN for pin, _ in args.pin) else [(config.AMP_PIN, 1)] + args.pin
+
+    def test_the_amplifier_is_switched_on_by_itself(self):
+        self.assertEqual(self.pins([]), [(25, 1)])
+
+    def test_unless_told_otherwise(self):
+        self.assertEqual(self.pins(["--pin", "25=0"]), [(25, 0)])
+

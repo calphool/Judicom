@@ -30,6 +30,7 @@ The endpoint is currently assumed to be a **Pi 3 B+**, replacing earlier Pi 3 A+
 ```text
 Merlin handset mic/receiver <-> compatible analog interface <-> USB sound device <-> Pi 3 B+
 Pi 3 B+ analog 3.5 mm output -> PAM8403 amplifier -> external ringtone speaker
+GPIO 25 (high = on) -> MOSFET switch for the PAM8403: the phone switches the amplifier on only while the speaker plays
 ```
 
 Do **not** assume the original Merlin microphone is an electret capsule, that its receiver is suitable for direct connection to a USB adapter, or that the handset's four contacts have a standard pinout. Identify the actual handset and measure its circuits first. Do not connect an unknown transducer directly to a powered mic input.

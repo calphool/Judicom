@@ -5,6 +5,9 @@ until they are switched off; the digits play once.
     sounds.update(dial_tone=True, ringing=False, digits="")   # every frame, with what the machine wants; only changes do anything
     sounds.close()
 
+The ringer speaker's amplifier is switched by GPIO 25 (config.AMP_PIN, through a MOSFET): Sounds switches it on before the ringer, a
+message's beeps or a bong starts, and off AMP_OFF_SECONDS after the last of them has ended (update() checks, every frame).
+
 Playing is done by aplay (alsa-utils), fed from a thread with the same piece of sound over and over.  The dial tone must be stopped -
 which lets aplay release the USB card - before the phone software opens that card for a call; Sounds does that as soon as the machine
 leaves the "handset lifted" screen.
@@ -17,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 
 from . import config
 
@@ -198,10 +202,45 @@ class Silent:
         pass
 
 
+class Amp:
+    """The ringer's amplifier.  Held low (off) from the start, so the pin does not float while the phone program runs."""
+
+    def __init__(self, pin=config.AMP_PIN):
+        from gpiozero import DigitalOutputDevice
+        self.pin = pin
+        self._device = DigitalOutputDevice(pin, initial_value=False)
+        self.is_on = False
+
+    def on(self):
+        if not self.is_on:
+            self._device.on()
+            self.is_on = True
+
+    def off(self):
+        if self.is_on:
+            self._device.off()
+            self.is_on = False
+
+    def close(self):
+        self._device.off()
+        self._device.close()
+
+
+def make_amp(log=None):
+    """The amplifier switch, or None (said in the log: then the ringer speaker may stay silent)."""
+    try:
+        return Amp()
+    except Exception as exc:                             # noqa: BLE001 - no GPIO (a PC), or the pin is taken: the phone goes on
+        (log or print)("(cannot switch the ringer's amplifier on GPIO %d: %s.  The ringer may be silent.)" % (config.AMP_PIN, exc))
+        return None
+
+
 class Sounds:
-    def __init__(self, log=None, enabled=True, handset_card=None, ringer_card=None, make_loop=Loop):
+    def __init__(self, log=None, enabled=True, handset_card=None, ringer_card=None, make_loop=Loop, amp=None, clock=time.monotonic):
         self.log = log or (lambda msg: None)
         self.make_loop = make_loop
+        self.amp, self.clock = amp, clock
+        self._quiet_since = None
         self.dial = self.ring = self.digits = self.beeps = Silent()
         self.bongs, self._bong = [], Silent()
         self.handset_card = self.ringer_card = None
@@ -221,8 +260,27 @@ class Sounds:
             "sound card '%s'" % self.handset_card if self.handset_card else "no USB sound device (silent)",
             "sound card '%s'" % self.ringer_card if self.ringer_card else "no '%s' card (silent)" % config.RINGER_CARD)
 
+    def _speaker_on(self):
+        """Before anything starts on the ringer speaker."""
+        self._quiet_since = None
+        if self.amp is not None:
+            self.amp.on()
+
+    def _check_amp(self):
+        """Off once the speaker has been quiet for AMP_OFF_SECONDS (so the end of a sound is not cut, and a ring's gaps keep it on)."""
+        if self.amp is None or not self.amp.is_on:
+            return
+        if self.ring.playing or self.beeps.playing or self._bong.playing:
+            self._quiet_since = None
+        elif self._quiet_since is None:
+            self._quiet_since = self.clock()
+        elif self.clock() - self._quiet_since >= config.AMP_OFF_SECONDS:
+            self.amp.off()
+            self._quiet_since = None
+
     def update(self, dial_tone, ringing, digits=""):
         """digits: the touch-tones to play once (while the machine is dialing), or "" for none."""
+        self._check_amp()
         want = (bool(dial_tone), bool(ringing), dialable(digits))
         if want == self._want:
             return
@@ -242,6 +300,7 @@ class Sounds:
         if want[1]:
             self.beeps.stop()                           # the ringer needs the card
             self._bong.stop()
+            self._speaker_on()
             self.ring.start()
         if digits_changed and want[2]:
             self.digits.start()
@@ -251,6 +310,7 @@ class Sounds:
     def beep(self):
         """The three beeps of a new message (not over the ringer: a call matters more)."""
         if not self._want[1]:
+            self._speaker_on()
             self.beeps.start()
 
     def bong(self, step):
@@ -260,6 +320,7 @@ class Sounds:
         self.beeps.stop()                               # one sound at a time on this card
         self._bong.stop()
         self._bong = self.bongs[step]
+        self._speaker_on()
         self._bong.start()
 
     def close(self):
@@ -268,3 +329,5 @@ class Sounds:
         self.beeps.stop()
         self._bong.stop()
         self.digits.stop()
+        if self.amp is not None:
+            self.amp.close()

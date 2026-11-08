@@ -197,7 +197,8 @@ def main(argv=None):
     clock = lambda: start + (time.monotonic() - start) * args.speed                           # noqa: E731
     controls, source = make_controls(args.demo, log)
     display = Display(window=args.window, rotate=not args.no_rotate, flip=args.flip)
-    sounds = Sounds(log, enabled=not args.no_sound)
+    from .sound import make_amp
+    sounds = Sounds(log, enabled=not args.no_sound, amp=None if args.demo or args.no_sound else make_amp(log))
     from .events import EventList
     from .home import Home
     from .weather import Weather

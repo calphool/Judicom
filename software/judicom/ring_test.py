@@ -2,12 +2,13 @@
 
     cd ~/Judicom/software && python3 -m judicom.ring_test              # at the usual level (config.RING_LEVEL)
     python3 -m judicom.ring_test 0.3                                  # at another level, 0.0 - 1.0
-    python3 -m judicom.ring_test --pin 25=1                           # set GPIO 25 (BCM number) high first, then ring
+    python3 -m judicom.ring_test --pin 25=0                           # the amplifier's pin low: the speaker should stay silent
     python3 -m judicom.ring_test --pin 25=0 --pin 26=1 0.3            # several pins, and a level
 
-Each --pin is set before the ringer starts and held while it rings; on Ctrl-C the pin is set back to 0 and released.
+The amplifier's pin (config.AMP_PIN, GPIO 25) is set high first unless a --pin says otherwise.  Each --pin is set before the ringer
+starts and held while it rings; on Ctrl-C the pins are set back to 0 and released.
 The switch pins (hook and buttons) are refused: they are wired to ground, and driving one high would short it.
-Safe to run while the phone program is running: the phone only opens the speaker while it is ringing for a call.
+The phone program holds the amplifier's pin, so stop it first:  sudo systemctl stop judicom-phone   (and start it again after).
 """
 import argparse
 import signal
@@ -79,10 +80,12 @@ def main(argv=None):
     held = []
     ring = sound.Loop(config.RINGER_CARD, sound.ring_pcm(level=args.level), "ringer", print)
     try:
+        pins = args.pin if any(pin == config.AMP_PIN for pin, _ in args.pin) else [(config.AMP_PIN, 1)] + args.pin
         try:
-            held = set_pins(args.pin)
+            held = set_pins(pins)
         except Exception as e:
-            sys.exit("Could not set the pins: %s" % e)
+            sys.exit("Could not set the pins: %s\n(Is the phone program running?  It holds GPIO %d:  sudo systemctl stop judicom-phone)"
+                     % (e, config.AMP_PIN))
         print("Ringing at level %.2f on '%s'.  Ctrl-C to stop." % (args.level, config.RINGER_CARD))
         ring.start()
         while ring.playing:                                # until Ctrl-C (or aplay fails, which Loop reports)
