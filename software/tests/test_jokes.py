@@ -90,6 +90,34 @@ class Timing(unittest.TestCase):
     def test_the_whole_joke_has_time_to_be_read(self):
         self.assertGreaterEqual(config.JOKE_SECONDS - config.PUNCHLINE_SECONDS, 15)
 
+    def test_he_laughs_two_seconds_after_the_punchline_for_a_while_then_stops(self):
+        self.screen.ready()
+        self.clock.t += config.PUNCHLINE_SECONDS
+        self.assertIsNone(self.screen.laugh_frame())
+        self.clock.t += config.LAUGH_DELAY_SECONDS - 0.01
+        self.assertIsNone(self.screen.laugh_frame())
+        self.clock.t += 0.01
+        self.assertEqual(self.screen.laugh_frame(), 0)
+        self.clock.t += config.LAUGH_SECONDS - 0.01
+        self.assertIsNotNone(self.screen.laugh_frame())
+        self.clock.t += 0.01
+        self.assertIsNone(self.screen.laugh_frame())
+        self.assertLessEqual(config.PUNCHLINE_SECONDS + config.LAUGH_DELAY_SECONDS + config.LAUGH_SECONDS, config.JOKE_SECONDS)
+
+    def test_while_he_laughs_it_is_drawn_so_many_times_a_second_and_otherwise_not(self):
+        self.screen.ready()
+        self.clock.t += config.PUNCHLINE_SECONDS + config.LAUGH_DELAY_SECONDS
+        seen = set()
+        for _ in range(int(config.LAUGH_SECONDS * 100)):
+            seen.add(self.screen.signature(None))
+            self.clock.t += 0.01
+        self.assertAlmostEqual(len(seen), config.LAUGH_SECONDS * config.LAUGH_FPS, delta=1)
+        self.clock.t += 0.1                                              # (past the end, whatever the rounding)
+        after = self.screen.signature(None)
+        self.assertIsNone(after[2])
+        self.clock.t += 5
+        self.assertEqual(self.screen.signature(None), after)
+
     def test_no_list_no_joke_screen(self):
         self.assertFalse(JokeScreen(None).ready())
 
@@ -174,10 +202,10 @@ class Drawing(unittest.TestCase):
         draw.reset()
         pygame.quit()
 
-    def drawn(self, joke, punchline):
+    def drawn(self, joke, punchline, laugh=None):
         from judicom.joke_view import draw_joke
         surf = pygame.Surface((config.SCREEN_W, config.SCREEN_H))
-        draw_joke(surf, joke, punchline)
+        draw_joke(surf, joke, punchline, laugh)
         return surf
 
     def test_the_setup_stays_put_when_the_punchline_appears(self):
@@ -198,11 +226,37 @@ class Drawing(unittest.TestCase):
             self.assertLessEqual((len(setup) + len(punch)) * int(size * 1.18) + gap, TEXT_BOTTOM - TEXT_TOP, joke)
 
     def test_the_jester_stands_in_the_middle(self):
-        from judicom.joke_view import CX, _jester
-        surf = pygame.Surface((config.SCREEN_W, 300), pygame.SRCALPHA)
-        _jester(surf, CX - 120, 0, 240)
-        xs = [x for x in range(config.SCREEN_W) for y in range(0, 300, 4) if surf.get_at((x, y))[3] > 0]
+        from judicom.joke_view import CX, JESTER
+        from judicom.jokes import Joke
+        joke = Joke("Why?", "Because!")
+        surf = self.drawn(joke, True)
+        page = self.page(joke, True)
+        xs = [x for x in range(config.SCREEN_W) for y in range(config.SCREEN_H - JESTER - 24, config.SCREEN_H, 4)
+              if surf.get_at((x, y)) != page.get_at((x, y))]
         self.assertLessEqual(abs((min(xs) + max(xs)) / 2 - CX), 6)
+
+    def page(self, joke, punchline):
+        from judicom.joke_view import _page
+        return _page(joke, punchline)
+
+    def test_he_laughs_and_moves_but_nothing_else_does(self):
+        from judicom.joke_view import JESTER_Y
+        from judicom.jokes import Joke
+        joke = Joke("What do you call a cow in an earthquake?", "A milkshake!")
+        still = self.drawn(joke, True)
+        frames = [self.drawn(joke, True, laugh=t) for t in (0.1, 0.25, 0.6)]
+        for frame in frames:
+            for y in range(0, JESTER_Y - 30, 4):
+                for x in range(0, config.SCREEN_W, 6):
+                    self.assertEqual(frame.get_at((x, y)), still.get_at((x, y)), (x, y))
+        pictures = {pygame.image.tostring(f, "RGB") for f in frames + [still]}
+        self.assertEqual(len(pictures), 4)                               # every frame different, and not the resting smile
+
+    def test_after_the_laugh_he_smiles_as_before(self):
+        from judicom.jokes import Joke
+        joke = Joke("Why?", "Because!")
+        self.drawn(joke, True, laugh=1.0)
+        self.assertEqual(pygame.image.tostring(self.drawn(joke, True), "RGB"), pygame.image.tostring(self.drawn(joke, True), "RGB"))
 
     def test_nothing_under_the_bezel(self):
         from judicom.joke_view import LEFT, RIGHT, TEXT_TOP

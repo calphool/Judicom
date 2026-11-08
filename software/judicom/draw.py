@@ -14,6 +14,8 @@ def reset():
     _font_paths.clear()
     _fonts.clear()
     _texts.clear()
+    from . import joke_view                                  # its kept pictures were made with these fonts
+    joke_view.reset()
 
 
 def _find_fonts():

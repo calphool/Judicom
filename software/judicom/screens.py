@@ -97,8 +97,10 @@ class JokeScreen:
     any comes again (jokes.JokeDeck)."""
     name = JOKE
 
-    def __init__(self, jokes=None, seconds=config.JOKE_SECONDS, punchline_seconds=config.PUNCHLINE_SECONDS, clock=time.monotonic):
+    def __init__(self, jokes=None, seconds=config.JOKE_SECONDS, punchline_seconds=config.PUNCHLINE_SECONDS, clock=time.monotonic,
+                 laugh_delay=config.LAUGH_DELAY_SECONDS, laugh_seconds=config.LAUGH_SECONDS, laugh_fps=config.LAUGH_FPS):
         self.jokes, self.seconds, self.punchline_seconds, self.clock = jokes, seconds, punchline_seconds, clock
+        self.laugh_delay, self.laugh_seconds, self.laugh_fps = laugh_delay, laugh_seconds, laugh_fps
         self.joke = None                             # the one on the screen
         self.shown_at = None
 
@@ -113,12 +115,21 @@ class JokeScreen:
         """Is it time for the punchline?"""
         return self.shown_at is not None and self.clock() - self.shown_at >= self.punchline_seconds
 
+    def laugh_frame(self):
+        """While the jester laughs (from LAUGH_DELAY_SECONDS after the punchline, for LAUGH_SECONDS): which frame of it, counted
+        at LAUGH_FPS; otherwise None."""
+        if self.shown_at is None:
+            return None
+        t = self.clock() - self.shown_at - self.punchline_seconds - self.laugh_delay
+        return int(t * self.laugh_fps) if 0 <= t < self.laugh_seconds else None
+
     def draw(self, surf, now):
         from . import joke_view
-        joke_view.draw_joke(surf, self.joke, self.punchline())
+        frame = self.laugh_frame()
+        joke_view.draw_joke(surf, self.joke, self.punchline(), None if frame is None else frame / float(self.laugh_fps))
 
     def signature(self, now):
-        return (self.joke, self.punchline())         # drawn again once: when the punchline appears
+        return (self.joke, self.punchline(), self.laugh_frame())     # still, except when the punchline comes and while he laughs
 
     def label(self):
         return "joke"

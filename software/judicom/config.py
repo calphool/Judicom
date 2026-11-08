@@ -145,5 +145,8 @@ VERSES_FILE = Path(os.environ.get("JUDICOM_VERSES", "/home/joe/verses.txt"))
 # /home/pi/judicom/jokes.txt on the NAS (judicom.sync fetches it with the caller list); see judicom/jokes.py.
 JOKE_SECONDS = 30.0
 PUNCHLINE_SECONDS = 8.0
+LAUGH_DELAY_SECONDS = 2.0     # the jester laughs this long after the punchline appears ...
+LAUGH_SECONDS = 4.0           # ... for this long, then smiles again
+LAUGH_FPS = 12                # the laugh is drawn this many times a second (the rest of the time the screen is still)
 JOKES_FILE = Path(os.environ.get("JUDICOM_JOKES", "/home/joe/jokes.txt"))
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
