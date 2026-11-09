@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Stops a commit that would put something private into this PUBLIC repository.
+
+Turn it on once per clone (from the top folder):   git config core.hooksPath .githooks
+Check every tracked file, not only a commit:       python3 .githooks/pre-commit --all
+
+It looks only at the lines a commit adds, for two kinds of thing:
+  1. The private list, kept OUTSIDE the repository because the list itself is private:
+         ~/.config/judicom/private-words.txt      (or the file named by JUDICOM_PRIVATE_WORDS)
+     One entry per line; # starts a comment.  An entry that is a phone number (digits with any of + - . ( ) and spaces) matches
+     its last 7 digits however they are written (2125551234, 212-555-1234, 555.1234 ...).  Anything else matches as plain text,
+     capitals not mattering.  Put in: family phone numbers, Judi's number, the VoIP.ms account id, account names, the tailnet name.
+     No list -> no commit (make the file, even with only comments, or commit with --no-verify if you are sure).
+  2. Rules that need no secrets (below): IP addresses outside the example ranges, phone numbers without a 555,
+     tailnet names, private keys, Gmail addresses, check-in URLs, and files that must never be committed.
+A line that really is fine can say so with the words  not-private  on it (in a comment).
+"""
+import ipaddress
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+PRIVATE_WORDS = Path(os.environ.get("JUDICOM_PRIVATE_WORDS", Path.home() / ".config" / "judicom" / "private-words.txt"))
+ALLOW_MARK = "not-private"
+
+# Addresses that are fine in public: loopback, multicast, public DNS, the documentation ranges, the made-up ones the tests use,
+# and VoIP.ms's own servers.  The home network and Tailscale addresses belong in the private list.
+OK_NETS = [ipaddress.ip_network(n) for n in (
+    "127.0.0.0/8", "0.0.0.0/32", "255.255.255.255/32", "192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24",
+    "100.64.0.0/24", "192.168.1.0/24", "10.0.0.0/24", "224.0.0.0/4", "8.8.8.8/32", "1.1.1.1/32", "1.0.0.1/32", "208.100.60.0/24")]
+OK_NETWORK_NAMES = {"10.0.0.0", "172.16.0.0", "192.168.0.0", "100.64.0.0"}      # range names, as in "10.0.0.0/8"
+
+IPV4 = re.compile(r"(?<![\d.])(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?![\d.])")
+PHONE = re.compile(r"(?<!\d)(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-](\d{4})(?!\d)")
+RULES = [
+    ("a tailnet name (*.ts.net)", re.compile(r"\b(?!tail1234\b)[a-z0-9-]+\.ts\.net\b", re.I), lambda m: "example" in m.group(0)),
+    ("a private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"), None),
+    ("a Gmail address", re.compile(r"\b[\w.+-]+@gmail\.com\b", re.I), None),
+    ("a check-in URL (healthchecks)", re.compile(r"hc-ping\.com/[0-9a-z-]{8,}", re.I), None),
+]
+# Files that hold secrets or family details: only their .example versions belong in git.
+NEVER = re.compile(r"(^|/)(contacts\.txt|watch\.env|config\.env|accounts|voipms\.conf|judicom\.conf|judicom-allowed\.conf"
+                   r"|private-words\.txt|id_[a-z0-9]+|[^/]*\.(pem|key))$")
+
+
+def phone_pattern(entry):
+    """A private-list entry that is a phone number -> a pattern for its last 7 digits, any separators.  Otherwise None."""
+    if not re.fullmatch(r"[\d\s+().-]+", entry):
+        return None
+    digits = re.sub(r"\D", "", entry)
+    if len(digits) < 7:
+        return None
+    sep = r"[\s.()-]*"
+    if len(digits) == 11 and digits[0] == "1":                       # +1: the country code may be there or not
+        digits = digits[1:]
+    head, tail = digits[:-7], digits[-7:]
+    optional = (r"(?:\+?1%s)?" % sep) + (r"(?:%s%s)?" % (sep.join(head), sep) if head else "")
+    return re.compile(r"(?<!\d)" + optional + sep.join(tail) + r"(?!\d)")
+
+
+def load_private(path=PRIVATE_WORDS):
+    """[(label, compiled pattern)] from the private list, or None if there is no list."""
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return None
+    found = []
+    for n, line in enumerate(lines, 1):
+        entry = line.split("#", 1)[0].strip()
+        if entry:
+            found.append(("private list line %d" % n, phone_pattern(entry) or re.compile(re.escape(entry), re.I)))
+    return found
+
+
+def ip_problem(text):
+    try:
+        ip = ipaddress.ip_address(text)
+    except ValueError:
+        return False                                         # 999.1.2.3, version numbers: not an address
+    return text not in OK_NETWORK_NAMES and not any(ip in net for net in OK_NETS)
+
+
+def check_line(text, private):
+    """What is wrong with one added line: a list of short reasons (never the private text itself)."""
+    if ALLOW_MARK in text:
+        return []
+    found = [label for label, pat in private if pat.search(text)]
+    found += ["an IP address" for m in IPV4.finditer(text) if ip_problem(m.group(1))][:1]
+    found += ["a phone number without a 555 in it" for m in PHONE.finditer(text) if "555" not in (m.group(1), m.group(2))][:1]
+    found += [label for label, pat, ok in RULES if any(not (ok and ok(m)) for m in pat.finditer(text))]
+    return found
+
+
+def added_lines(diff):
+    """(file, line number, text) for each added line of a `git diff -U0` output."""
+    path, number = None, 0
+    for line in diff.splitlines():
+        if line.startswith("+++ "):
+            path = line[6:] if line.startswith("+++ b/") else None
+        elif line.startswith("@@"):
+            m = re.search(r"\+(\d+)", line)
+            number = int(m.group(1)) if m else 0
+        elif line.startswith("+") and path:
+            yield path, number, line[1:]
+            number += 1
+
+
+def check(diff, names, private):
+    problems = ["%s: a file that must never be committed (keep it out, or commit its .example)" % n for n in names if NEVER.search(n)]
+    for path, number, text in added_lines(diff):
+        for why in check_line(text, private):
+            problems.append("%s:%d: %s" % (path, number, why))
+    return problems
+
+
+def git(*args):
+    return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
+
+
+def main(argv):
+    private = load_private()
+    if private is None:
+        print("pre-commit: there is no private list at %s.\n  Make it (one private number or word per line; see .githooks/pre-commit),"
+              "\n  then commit again.  Nothing was committed." % PRIVATE_WORDS, file=sys.stderr)
+        return 1
+    if "--all" in argv:
+        names = git("ls-files").splitlines()
+        diff = git("diff", "--no-color", "--no-ext-diff", "-U0", git("hash-object", "-t", "tree", "/dev/null").strip(), "HEAD", "--")
+    else:
+        names = git("diff", "--cached", "--name-only", "--diff-filter=ACR").splitlines()
+        diff = git("diff", "--cached", "--no-color", "--no-ext-diff", "-U0", "--diff-filter=ACMR")
+    problems = check(diff, names if "--all" not in argv else [], private)
+    if problems:
+        print("pre-commit: this would put something private into the public repository:", file=sys.stderr)
+        for p in problems[:50]:
+            print("  " + p, file=sys.stderr)
+        if len(problems) > 50:
+            print("  ... and %d more" % (len(problems) - 50), file=sys.stderr)
+        print("Nothing was committed.  Remove it (git restore --staged / edit), or, if a line really is fine, add the words "
+              "%r to it." % ALLOW_MARK, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
