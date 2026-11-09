@@ -29,7 +29,7 @@ esac
 [ -f "$KEY" ] || { echo "No backup key ($KEY): see docs/DEPLOYMENT.md." >&2; exit 1; }
 [ -f "$HERE/backup_stream.sh" ] || { echo "backup_stream.sh is missing next to this script." >&2; exit 1; }
 answer=$("${SSH[@]}" "commit none none" 2>&1 || true)
-if [[ "$answer" != *"receive_backup: commit NAME SUM"* ]]; then
+if [[ "$answer" != *"receive_backup: commit NAME"* ]]; then
   echo "The NAS cannot be reached on the home network ($NAS): ${answer:-no answer}" >&2
   echo "This backup only runs at home (over Tailscale it would stall while the card is frozen).  Nothing done." >&2
   exit 1
