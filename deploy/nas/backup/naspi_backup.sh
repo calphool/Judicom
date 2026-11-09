@@ -5,7 +5,6 @@
 #      so each one costs only what changed.  Kept: the newest KEEP_SNAPSHOTS.
 #   2. a compressed copy of the NAS's own SD-card image (backup-sd-image.service writes it to the SSD, the same drive as
 #      /home: one failure would take both).  Kept: the newest KEEP_SD_IMAGES.
-#   3. tidies the Judicom's SD-card images (receive_backup.sh): the newest KEEP_JUDICOM, and no half-received .part files.
 # Everything goes to DEST (the first 2 TB drive); the existing rsync-backup mirror copies it to the second one.
 # Space: nothing is written while DEST has less than MIN_FREE_PCT percent free; the oldest snapshots go first to make room.
 # Success or failure is reported to PING_URL (healthchecks.io), from /etc/naspi-backup.env (not in git).
@@ -16,10 +15,8 @@ SETTINGS="${SETTINGS:-/etc/naspi-backup.env}"
 SRC="${SRC:-/home/pi}"
 DEST="${DEST:-/mnt/2tbdrive}"
 SD_IMAGE="${SD_IMAGE:-/mnt/1tbdrive/naspi-sd-backup.img}"
-JUDICOM_DIR="${JUDICOM_DIR:-$DEST/judicom-backups}"
 KEEP_SNAPSHOTS="${KEEP_SNAPSHOTS:-8}"
 KEEP_SD_IMAGES="${KEEP_SD_IMAGES:-2}"
-KEEP_JUDICOM="${KEEP_JUDICOM:-4}"
 MIN_FREE_PCT="${MIN_FREE_PCT:-10}"
 SD_ROOM_GB="${SD_ROOM_GB:-20}"           # room asked for before compressing the SD image (128 GB card, ~12 GB used)
 CHECK_MOUNT="${CHECK_MOUNT:-1}"          # 0 only in tests
@@ -93,16 +90,6 @@ if [ -f "$SD_IMAGE" ]; then
   done
 else
   say "no SD image at $SD_IMAGE (skipped)"
-fi
-
-# ---- 3. the Judicom's images: the newest few, no leftovers --------------------------------------------------------------
-if [ -d "$JUDICOM_DIR" ]; then
-  find "$JUDICOM_DIR" -maxdepth 1 -name '.judicom-*.part' -mmin +1440 -print -delete | sed 's/^/naspi-backup: removed leftover /'
-  mapfile -t all < <(oldest_first "$JUDICOM_DIR" 'judicom-20*.img.zst')
-  for ((i = 0; i < ${#all[@]} - KEEP_JUDICOM; i++)); do
-    say "removing old Judicom image ${all[i]}"
-    rm -f -- "${all[i]}" "${all[i]}.sha256"
-  done
 fi
 
 say "done: $(free_gb) GB ($(free_pct)%) free on $DEST"

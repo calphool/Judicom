@@ -212,7 +212,6 @@ existing `rsync-backup` mirror (every 8 hours) copies it to `/mnt/2tbdrive2`.
   copy it out of the snapshot of the week you want.
 - `naspi-sd-images/naspi-sd-<date>.img.zst`: the NAS's SD-card image, compressed and checked (`zstd -t`).  The newest **2**.
   Restore: `zstd -dc naspi-sd-....img.zst | sudo dd of=/dev/sdX bs=4M conv=fsync` onto a card of at least 128 GB.
-- `judicom-backups/`: the newest **4** Judicom images are kept; half-received `.part` files older than a day are removed.
 - **Space:** nothing is written while the drive has less than 10 % free; the oldest snapshots are removed first to make room,
   and if that is not enough the run fails (and says so).
 - Settings: `/etc/naspi-backup.env` (root only, not in git; `naspi-backup.env.example`): `PING_URL=` of a healthchecks.io check

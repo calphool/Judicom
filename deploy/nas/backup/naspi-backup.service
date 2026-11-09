@@ -1,5 +1,5 @@
 [Unit]
-Description=Weekly NAS backup: /home/pi snapshot, NAS SD image copy, Judicom image tidy (to /mnt/2tbdrive)
+Description=Weekly NAS backup: /home/pi snapshot and NAS SD image copy (to /mnt/2tbdrive)
 After=local-fs.target network-online.target
 Wants=network-online.target
 RequiresMountsFor=/mnt/2tbdrive

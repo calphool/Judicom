@@ -70,19 +70,6 @@ class Backup(unittest.TestCase):
             self.assertEqual(self.run_it("2026-10-%02d" % day).returncode, 0)
         self.assertEqual(self.snaps(), ["2026-10-%02d" % d for d in range(3, 11)])
 
-    def test_judicom_images_newest_four_and_no_old_leftovers(self):
-        j = self.dest / "judicom-backups"
-        names = ["judicom-2026-11-0%d-120000.img.zst" % d for d in range(1, 7)]
-        for n in names:
-            (j / n).write_text("x")
-            (j / (n + ".sha256")).write_text("sum")
-        old, new = j / ".judicom-2026-11-01-100000.img.zst.part", j / ".judicom-2026-11-09-100000.img.zst.part"
-        old.write_text("half"); new.write_text("receiving")
-        os.utime(old, (time.time() - 3 * 86400,) * 2)
-        self.assertEqual(self.run_it().returncode, 0)
-        left = sorted(p.name for p in j.iterdir())
-        self.assertEqual(left, sorted([new.name] + [x for n in names[2:] for x in (n, n + ".sha256")]))
-
     def test_too_little_space_removes_old_snapshots_then_fails_and_says_so(self):
         for day in ("2026-11-01", "2026-11-08"):
             self.run_it(day)
