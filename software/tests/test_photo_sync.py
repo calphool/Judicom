@@ -54,7 +54,7 @@ class Real(unittest.TestCase):
     def test_copies_pictures_and_captions(self):
         self.add("Bryson_1.jpg", "Bryson_1.meta", "Joe And Ann.jpg")
         self.assertEqual(self.sync(), 0)
-        self.assertEqual(self.names(), ["Joe And Ann.jpg", "Bryson_1.jpg", "Bryson_1.meta"])
+        self.assertEqual(self.names(), ["Bryson_1.jpg", "Bryson_1.meta", "Joe And Ann.jpg"])
         self.assertEqual((self.here / "Bryson_1.jpg").read_bytes(), b"picture Bryson_1.jpg")
         self.assertIn("3 new", self.logged[-1])
         self.assertIn("Joe And Ann.jpg", self.logged[-1])              # names with spaces
