@@ -200,6 +200,26 @@ down), a button does not dial; the screen says "The phone is not working.  It is
 minutes (`regint=60` plus the 32 s SIP timeout); a call tried before that may still end in "No answer.".
 Callers meanwhile hear the "not available" message from the PBX.  It is back to normal by itself once baresip registers again.
 
+### The NAS's weekly backup
+
+`deploy/nas/backup/` (install on the NAS: `bash install_backup.sh`): root's `naspi-backup.timer`, **Sundays 06:00**, after the
+NAS's own `backup-sd-image` (04:00, about an hour).  It covers what the NAS's other backups miss: `/home/pi` lives on the SSD,
+which nothing else copies, and the NAS's SD-card image is written to that same SSD.  Everything goes to `/mnt/2tbdrive`, and the
+existing `rsync-backup` mirror (every 8 hours) copies it to `/mnt/2tbdrive2`.
+- `naspi-snapshots/<date>/`: `/home/pi` without the caches (`.cache .npm .nuget .nvm`): the Judicom's lists and pictures,
+  the Asterisk configs and passwords, the mail importer's settings, `watch.env`.  Unchanged files are hard links to the week
+  before, so a snapshot costs only what changed (about 1 GB for the first).  The newest **8** are kept.  To get a file back:
+  copy it out of the snapshot of the week you want.
+- `naspi-sd-images/naspi-sd-<date>.img.zst`: the NAS's SD-card image, compressed and checked (`zstd -t`).  The newest **2**.
+  Restore: `zstd -dc naspi-sd-....img.zst | sudo dd of=/dev/sdX bs=4M conv=fsync` onto a card of at least 128 GB.
+- `judicom-backups/`: the newest **4** Judicom images are kept; half-received `.part` files older than a day are removed.
+- **Space:** nothing is written while the drive has less than 10 % free; the oldest snapshots are removed first to make room,
+  and if that is not enough the run fails (and says so).
+- Settings: `/etc/naspi-backup.env` (root only, not in git; `naspi-backup.env.example`): `PING_URL=` of a healthchecks.io check
+  (period 7 days, grace 1 day), which emails when a run fails or does not happen; the `KEEP_...` counts and `MIN_FREE_PCT`.
+- Run now: `sudo systemctl start naspi-backup`; log: `journalctl -u naspi-backup`.
+- Not covered yet: a copy away from the house (a fire or theft takes all the drives).
+
 ### Call history
 
 Asterisk writes one line per call (and per leg of a call) to `/var/log/asterisk/cdr-csv/Master.csv` in the container (a Docker
