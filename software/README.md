@@ -114,7 +114,7 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/verse_view.py   the verse screen: a verse on a page like an old Bible (EB Garamond, judicom/fonts)    (pygame)
     judicom/verses.py       Judi's verse list (KJV) and the shuffled deck                                 (no pygame)
     judicom/events.py       Judi's events list (birthdays, holidays, visits) and the countdowns           (no pygame)
-    judicom/weather.py      Springfield's weather and forecast from Open-Meteo, fetched every 30 min      (no pygame)
+    judicom/weather.py      the local weather and forecast from Open-Meteo, fetched every 30 min       (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/watched_file.py reads the contacts / events / verses file again only when it changes     (no pygame)

@@ -2,8 +2,13 @@ JUDICOM BOOT PICTURE
 ====================
 Shows the "Judicom phone starting up..." picture instead of the scrolling boot text.
 
+Your own picture
+  The pictures here are plain stand-ins (the repository is public: no family photos in it).  Put your own picture, upright,
+  about 600 x 1024, at /home/joe/judicom-splash.png on the Judicom (or name it with JUDICOM_SPLASH=...), then run
+  install_splash.sh: it turns the picture for the sideways panel and installs it.  Keep the picture out of git.
+
 Files
-  judicom_splash_portrait.png   the picture as it looks on the portrait-mounted screen (600 x 1024) - for looking at / other uses
+  judicom_splash_portrait.png   the stand-in as it looks on the portrait-mounted screen (600 x 1024)
   theme/splash.png              the same picture turned 90 degrees (1024 x 600) so it looks upright on the sideways-mounted panel
   theme/judicom.plymouth, theme/judicom.script   the Plymouth theme (picture centred, no text, no progress bar)
   install_splash.sh / uninstall_splash.sh
@@ -20,6 +25,7 @@ The script installs Plymouth, copies the theme, adds disable_splash=1 and auto_i
 What you should see: black for the first few seconds, then the picture until the system has started.
 
 If the picture is upside-down
+  Your own picture: FLIP=1 bash install_splash.sh.  The stand-in:
   sudo cp judicom_splash_native_upside_down_alternative.png /usr/share/plymouth/themes/judicom/splash.png
   sudo plymouth-set-default-theme -R judicom && sudo reboot
 

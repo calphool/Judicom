@@ -14,10 +14,26 @@ for f in theme/judicom.plymouth theme/judicom.script theme/splash.png; do
 done
 [ -f "$CMDLINE" ] && [ -f "$CONFIG" ] || { echo "Cannot find $CMDLINE / $CONFIG" >&2; exit 1; }
 
+# Your own picture (upright, about 600 x 1024), kept OUT of git: the repository is public.  Without it: the plain picture in theme/.
+OWN="${JUDICOM_SPLASH:-$HOME/judicom-splash.png}"
+PICTURE=theme/splash.png
+if [ -f "$OWN" ]; then
+  PICTURE="$(mktemp --suffix=.png)"
+  trap 'rm -f "$PICTURE"' EXIT
+  # turned for the sideways panel (FLIP=1: the other way, if it comes out upside-down)
+  python3 -c 'import sys; from PIL import Image, ImageOps
+img = ImageOps.fit(Image.open(sys.argv[1]).convert("RGB"), (600, 1024))
+img.rotate(-90 if sys.argv[3] == "1" else 90, expand=True).save(sys.argv[2])' "$OWN" "$PICTURE" "${FLIP:-0}"
+  echo "Using your own picture: $OWN"
+else
+  echo "No $OWN: using the plain picture."
+fi
+
 if [ -z "${TEST_ONLY:-}" ]; then
   $SUDO apt-get install -y plymouth plymouth-themes
   $SUDO mkdir -p "$THEME_DIR"
-  $SUDO cp theme/judicom.plymouth theme/judicom.script theme/splash.png "$THEME_DIR/"
+  $SUDO cp theme/judicom.plymouth theme/judicom.script "$THEME_DIR/"
+  $SUDO cp "$PICTURE" "$THEME_DIR/splash.png"
 fi
 
 # --- back up, then edit config.txt ---

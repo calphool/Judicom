@@ -1,6 +1,24 @@
 """Settings that other parts of the program share.  Change a value here, nowhere else."""
+import configparser
 import os
 from pathlib import Path
+
+# ---- this installation's own facts (NOT in git: the repository is public) ---------------------------------------------------
+# Where Judi lives (for the weather) and the names she goes by are in a small file on the Judicom; see judicom-site.example.conf.
+# Without it the phone works as always, only with no weather screen.
+SITE_FILE = Path(os.environ.get("JUDICOM_SITE", "/home/joe/judicom-site.conf"))
+_site = configparser.ConfigParser()
+try:
+    _site.read(SITE_FILE, encoding="utf-8")
+except (OSError, configparser.Error, UnicodeDecodeError):
+    pass                                             # a broken file counts as no file
+
+
+def _site_float(section, key):
+    try:
+        return float(_site.get(section, key))
+    except (configparser.Error, ValueError):
+        return None
 
 # Where the family photos live (judicom.photo_sync fills this folder from the NAS every hour).
 # For a test on another computer:  JUDICOM_PHOTOS=/some/folder python3 -m judicom.photos
@@ -8,7 +26,7 @@ PHOTO_DIR = Path(os.environ.get("JUDICOM_PHOTOS", "/home/joe/photos"))
 
 # Judi's own name as family members might write it in a caption: shown as "You" ("Judi and Ann" -> "You and Ann",
 # "Judi's sister" -> "Your sister").  Add other names she goes by if family use them for her.
-JUDI_NAMES = ("Judi",)
+JUDI_NAMES = tuple(n.strip() for n in _site.get("judi", "names", fallback="Judi").split(",") if n.strip()) or ("Judi",)
 
 # Which files count as pictures (capital letters do not matter).
 PHOTO_EXTS = (".jpg", ".jpeg", ".png", ".bmp")
@@ -125,9 +143,10 @@ NIGHT_PAUSE_HOURS = 2.0
 # Judi's events: a copy of /home/pi/judicom/events.txt on the NAS (judicom.sync fetches it with the caller list).
 EVENTS_FILE = Path(os.environ.get("JUDICOM_EVENTS", "/home/joe/events.txt"))
 # The weather screen (Open-Meteo: free, no account), fetched every 30 minutes; left out when it is more than 3 hours old.
-WEATHER_PLACE = "Springfield"
-WEATHER_LAT, WEATHER_LON = 39.80, -89.65
-WEATHER_TIMEZONE = "America/Chicago"
+# The place is in the site file ([weather] place, latitude, longitude, timezone); without a latitude and longitude: no weather.
+WEATHER_PLACE = _site.get("weather", "place", fallback="")
+WEATHER_LAT, WEATHER_LON = _site_float("weather", "latitude"), _site_float("weather", "longitude")
+WEATHER_TIMEZONE = _site.get("weather", "timezone", fallback="auto")        # "auto": the place's own time zone
 WEATHER_EVERY = 30 * 60
 WEATHER_STALE = 3 * 60 * 60
 NIGHT_INK, NIGHT_SOFT = (104, 104, 104), (78, 78, 78)    # the night clock's dim greys

@@ -274,8 +274,8 @@ installed and logged in (its name there: `judicom`), **time zone America/Chicago
 the screen's clock and the 9 pm - 6 am night clock go by it).
 
 **What the screen shows** when no call is going on: the photos; after every 5 photos, for 30 s, the next of three screens in
-turn: the info screen (day, date, time, the next 5 events with countdowns), a Bible verse, and the weather (Springfield today and
-the next 5 days, from Open-Meteo; left out when there is no internet); from 9 pm to 6 am the night clock (time and date, dim).
+turn: the info screen (day, date, time, the next 5 events with countdowns), a Bible verse, and the weather (where Judi lives, today and
+the next 5 days, from Open-Meteo; left out when there is no internet, or when the site file below has no place); from 9 pm to 6 am the night clock (time and date, dim).
 Settings at the end of `software/judicom/config.py`.  To see the photos and the info screen at night (setting up, showing
 someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 2 hours (or until `rm ~/judicom-awake`).
 
@@ -295,6 +295,8 @@ someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 
 | `~/.ssh/judicom_sync` | `ssh-keygen -t ed25519 -N "" -C judicom-contacts-sync -f ~/.ssh/judicom_sync` | the key that fetches the list; its public half goes on the NAS (section 2) |
 | `~/photos/` | **copied from the NAS** by the `judicom-photo-sync` timer (2 min after boot, then every hour) | a copy of `/mnt/8tbdrive/Photos/Judi`, **pictures it can show (.jpg .jpeg .png .bmp) and .meta captions only**: videos and other formats the mail importer saves there stay on the NAS (Jellyfin), so they cannot fill the card.  Pictures removed there go here too.  Nothing is changed if the NAS can't be reached, its folder has no pictures (drive not mounted?), copying the new photos would leave less than 4 GB free on the card (`PHOTO_KEEP_FREE`; a "nearly full" warning in the log), or more than half of the pictures would go (`python3 -m judicom.photo_sync --force` by hand if that is meant).  Fetch now: `sudo systemctl start judicom-photo-sync`; see first: `python3 -m judicom.photo_sync --dry-run`; log: `journalctl -u judicom-photo-sync` |
 | `~/.ssh/judicom_photos` | `ssh-keygen -t ed25519 -N "" -C judicom-photo-sync -f ~/.ssh/judicom_photos` | the key that copies the photos; its public half goes on the NAS (section 2) |
+| `~/judicom-site.conf` | `software/judicom-site.example.conf` | **not in git**: the place for the weather screen (name, latitude, longitude, time zone) and the names Judi goes by in captions.  Without it: no weather screen.  After a change: `sudo systemctl restart judicom-phone` |
+| `~/judicom-splash.png` | your own picture (upright, about 600 x 1024) | **not in git**: the boot picture; `judicom_splash/install_splash.sh` turns it for the panel and installs it (without it: a plain stand-in) |
 | boot picture | `judicom_splash/install_splash.sh` | |
 | services | `bash ~/Judicom/software/systemd/install_services.sh` | `judicom-baresip`, `judicom-phone`, and the `judicom-contacts-sync` and `judicom-photo-sync` timers; also keeps the boot picture up until the first photo and turns off the login prompt on the screen |
 
@@ -399,5 +401,7 @@ Removing someone works the same way.  To change who the buttons call, move `left
 - NAS: `/home/pi/judicom/contacts.txt` (Judi's caller list), `voipms.conf`, `judicom.conf` (passwords), the two message WAVs (they
   speak the contact number)
 - NAS: `/mnt/8tbdrive/Photos/Judi` (Judi's photos; the Judicom only has a copy)
-- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` and `~/.ssh/judicom_photos` (can be made again)
+- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` and `~/.ssh/judicom_photos` (can be made again),
+  `~/judicom-site.conf` (where Judi lives), `~/judicom-splash.png` (the boot picture)
+- Your own computer: `~/.config/judicom/private-words.txt` (what the pre-commit hook keeps out of git)
 - VoIP.ms portal settings (section 1)

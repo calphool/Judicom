@@ -3,7 +3,7 @@ when there is a weather report.
 
     draw_weather(surf, now, report)
 
-    Weather                                 the title, and the place in grey
+    Weather                                 the title, and the place in grey (WEATHER_PLACE, from the site file)
     Springfield
     +------------------------------------+
     | Today                              |  the weather now: picture, temperature, words, high and low, and the chance of

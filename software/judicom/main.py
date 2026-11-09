@@ -202,8 +202,12 @@ def main(argv=None):
     from .events import EventList
     from .home import Home
     from .weather import Weather
-    weather = Weather(log=log)
-    weather.start()                                      # in the background: never holds the screen up
+    weather = None
+    if config.WEATHER_LAT is None or config.WEATHER_LON is None:
+        log("no weather screen: no [weather] latitude / longitude in %s" % config.SITE_FILE)
+    else:
+        weather = Weather(log=log)
+        weather.start()                                  # in the background: never holds the screen up
     from .jokes import JokeDeck
     from .verses import VerseDeck
     photos = Home(PhotoView(PhotoDeck(args.folder), log=log), EventList(log=log), weather, log=log,    # photos, info / verse / weather
@@ -282,7 +286,8 @@ def main(argv=None):
         calls.close()
         if taps:
             taps.close()
-        weather.stop()
+        if weather:
+            weather.stop()
         sounds.close()
         controls.close()
         if terminal:

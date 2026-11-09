@@ -2,6 +2,7 @@
 import io
 import json
 import unittest
+from unittest import mock
 import urllib.parse
 
 from judicom import weather
@@ -50,11 +51,12 @@ class Parsing(unittest.TestCase):
             self.assertIn(icon, {"sun", "moon", "partly", "cloud", "fog", "rain", "snow", "storm"})
             self.assertTrue(text)
 
-    def test_url_asks_for_springfield_in_fahrenheit(self):
-        q = urllib.parse.parse_qs(urllib.parse.urlparse(weather.url()).query)
+    def test_url_asks_for_the_site_place_in_fahrenheit(self):
+        with mock.patch.multiple(weather.config, WEATHER_LAT=39.8, WEATHER_LON=-89.65, WEATHER_TIMEZONE="America/Chicago"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(weather.url()).query)
         self.assertEqual(q["temperature_unit"], ["fahrenheit"])
         self.assertEqual(q["timezone"], ["America/Chicago"])
-        self.assertAlmostEqual(float(q["latitude"][0]), 39.80)
+        self.assertAlmostEqual(float(q["latitude"][0]), 39.8)
         self.assertEqual(q["forecast_days"], ["6"])                             # today and the next five
         self.assertIn("precipitation_probability_max", q["daily"][0])
 
