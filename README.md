@@ -80,14 +80,3 @@ mode.
 If at any time the phone detects that the handset has been lifted from the cradle, but nothing has happened 
 (in other words, no SIP connection is active), the HDMI screen changes to yellow and displays "Please put the 
 handset back on the phone."
-
-## Keeping private things out of this repository
-
-This repository is public.  A pre-commit hook (`.githooks/pre-commit`) refuses a commit that adds family phone numbers, Judi's
-number, account names, network addresses, keys, or files such as `contacts.txt`.  Turn it on once in each clone:
-
-    git config core.hooksPath .githooks
-
-The private numbers and words it looks for are in `~/.config/judicom/private-words.txt`, which is **not** in the repository
-(the list is private too); see the top of the hook for the format.  `python3 .githooks/pre-commit --all` checks everything
-already committed.

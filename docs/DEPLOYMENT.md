@@ -421,5 +421,6 @@ Removing someone works the same way.  To change who the buttons call, move `left
 - NAS: `/mnt/8tbdrive/Photos/Judi` (Judi's photos; the Judicom only has a copy)
 - Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` and `~/.ssh/judicom_photos` (can be made again),
   `~/judicom-site.conf` (where Judi lives), `~/judicom-splash.png` (the boot picture)
-- Your own computer: `~/.config/judicom/private-words.txt` (what the pre-commit hook keeps out of git)
+- Your own computer: `~/.config/judicom/private-words.txt`, the private list for the pre-commit hook (`.githooks/pre-commit`,
+  turned on per clone with `git config core.hooksPath .githooks`; the top of the hook explains the list)
 - VoIP.ms portal settings (section 1)
