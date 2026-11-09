@@ -57,7 +57,7 @@ class Watching(unittest.TestCase):
         self.assertEqual(len(self.sent), 1)
         self.every_5_minutes(5, UP)
         self.assertEqual(self.subjects()[-1], "Judicom back online")
-        self.assertIn("offline for 4 hours", self.sent[-1][1])
+        self.assertIn("down for 4 hours", self.sent[-1][1])
         self.every_5_minutes(60, UP)
         self.assertEqual(len(self.sent), 2)
 
@@ -100,13 +100,33 @@ class Watching(unittest.TestCase):
         self.assertEqual(len(self.sent), 1)
 
 
+REGISTERED = (" <Registration/ServerURI...>  <Auth...>  <Status.......>\n"
+              "==========================================\n\n"
+              " voipms-registration/sip:chicago4.voip.ms                voipms-auth                 Registered        (exp. 84s)\n\n"
+              "Objects found: 1\n")
+
+
 class Looking(unittest.TestCase):
-    def run_with(self, out, code=0, exc=None):
+    def run_with(self, out, code=0, exc=None, registrations=REGISTERED):
         def run(cmd, **kw):
             if exc:
                 raise exc
+            if cmd[-1] == "pjsip show registrations":
+                return subprocess.CompletedProcess(cmd, 0, registrations, "")
             return subprocess.CompletedProcess(cmd, code, out, "")
         return watch.look(run)
+
+    JUDICOM = "  Contact:  judicom/sip:judicom-0x18fb788@100.64.0.2:5 4bf24453a9 NonQual         nan\n"
+
+    def test_line_to_voipms_down(self):
+        for status in ("Unregistered", "Rejected", "Failed"):
+            seen = self.run_with(self.JUDICOM, registrations=REGISTERED.replace("Registered   ", status + " "))
+            self.assertEqual(seen, ("down", watch.NO_LINE), status)
+        self.assertEqual(self.run_with(self.JUDICOM, registrations="\nObjects found: 0\n"), ("down", watch.NO_LINE))
+
+    def test_both_down_names_both(self):
+        seen = self.run_with("", registrations=REGISTERED.replace("Registered", "Rejected"))
+        self.assertEqual(seen, ("down", watch.NO_JUDICOM + "; " + watch.NO_LINE))
 
     def test_registered(self):
         out = ("  Contact:  judicom/sip:judicom-0x18fb788@100.64.0.2:5 4bf24453a9 NonQual         nan\n"
@@ -121,6 +141,55 @@ class Looking(unittest.TestCase):
         self.assertIn("did not answer", self.run_with("Unable to connect to remote asterisk")[1])
         self.assertIn("did not answer", self.run_with("", code=1)[1])
         self.assertIn("did not answer", self.run_with("", exc=subprocess.TimeoutExpired("docker", 30))[1])
+
+
+class Emails(unittest.TestCase):
+    def test_line_down_has_its_own_subject_and_advice(self):
+        subject, body = watch.message("offline", START, START + 3600, watch.NO_LINE)
+        self.assertTrue(subject.startswith("Judi's phone line down since"))
+        self.assertIn("pjsip show registrations", body)
+        self.assertNotIn("nursing home", body)
+
+    def test_judicom_offline_advice(self):
+        subject, body = watch.message("offline", START, START + 3600, watch.NO_JUDICOM)
+        self.assertTrue(subject.startswith("Judicom offline since"))
+        self.assertIn("nursing home", body)
+        self.assertNotIn("pjsip show registrations", body)
+        both = watch.message("offline", START, START + 3600, watch.NO_JUDICOM + "; " + watch.NO_LINE)
+        self.assertIn("nursing home", both[1])
+        self.assertIn("pjsip show registrations", both[1])
+
+
+class Pinging(unittest.TestCase):
+    class Answer:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self, n):
+            return b"OK"
+
+    def test_ping_and_one_log_line_per_failure(self):
+        logged, urls, broken = [], [], [False]
+
+        def opener(req, timeout):
+            urls.append(req.full_url)
+            if broken[0]:
+                raise OSError("Network is unreachable")
+            return self.Answer()
+        state = watch.ping("https://hc-ping.com/abc", {}, logged.append, opener)
+        self.assertEqual((urls, state["ping_ok"], logged), (["https://hc-ping.com/abc"], True, []))
+        broken[0] = True
+        for _ in range(5):
+            state = watch.ping("https://hc-ping.com/abc", state, logged.append, opener)
+        self.assertFalse(state["ping_ok"])
+        self.assertEqual(len(logged), 1)
+        self.assertNotIn("hc-ping", logged[0])               # the private URL stays out of the log
+        broken[0] = False
+        state = watch.ping("https://hc-ping.com/abc", state, logged.append, opener)
+        self.assertEqual((state["ping_ok"], logged[-1]), (True, "PING_URL works again"))
 
 
 class Words(unittest.TestCase):

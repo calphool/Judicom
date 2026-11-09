@@ -181,10 +181,16 @@ The list leaves out jokes about forgetting, getting old, doctors and hospitals, 
 ### The offline alert
 
 `/home/pi/judicom/watch_judicom.py` (from `deploy/nas/judicom/`; `pi`'s crontab, every 5 minutes) checks that the Judicom is
-registered with Asterisk, and that Asterisk answers.  It emails when the Judicom has been offline for 30 minutes, then once a day
-at about 9 am while it stays offline, and once when it is back (with how long it was gone).  Short blips send nothing.
+registered with Asterisk, that Asterisk answers, and that Asterisk is registered with VoIP.ms (`pjsip show registrations`:
+without it, calls to Judi's number never reach the NAS).  It emails when one of them has been wrong for 30 minutes ("Judicom
+offline", or "Judi's phone line down" when only the VoIP.ms line is), then once a day at about 9 am while it stays that way, and
+once when it is back (with how long it was gone).  Short blips send nothing.
 - Settings: `/home/pi/judicom/watch.env` (not in git): `ALERT_TO=` (who gets it), `DELAY_MINUTES=30`, `REMINDER_HOUR=9`
-  (empty: no daily reminders).
+  (empty: no daily reminders), and optionally `PING_URL=` (below).
+- **When the NAS itself is off, hung, or the home internet is down, the watcher cannot email anyone.**  For that it fetches
+  `PING_URL` on every run: make a free check at [healthchecks.io](https://healthchecks.io) (period 5 minutes, grace 30 minutes,
+  your email), and put its ping URL in `watch.env`.  When the pings stop, healthchecks.io emails you.  The URL is private (anyone
+  with it could fake the pings); a failed ping is logged once, not every 5 minutes.
 - Sent through the mail importer's Gmail account (its `config.env`; read, not copied).
 - `python3 ~/judicom/watch_judicom.py --status` (what it sees now), `--test` (send a test email); log `~/judicom/watch.log`.
 - It cannot tell when only the phone program on the Judicom has crashed while baresip still runs (systemd restarts it anyway).

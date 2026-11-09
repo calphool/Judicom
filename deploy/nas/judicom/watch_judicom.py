@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""Emails when the Judicom is offline (not registered with the PBX), and when it is back.   Run by pi's cron every 5 minutes.
+"""Emails when Judi's phone is not working (the Judicom offline, or the NAS's line to VoIP.ms down), and when it is back.
+Run by pi's cron every 5 minutes.
 
     watch_judicom.py              check (and email if needed)
     watch_judicom.py --status     only say what it sees, send nothing
     watch_judicom.py --test       send a test email now
 
-What counts as offline: the Judicom has no registration with Asterisk (its Wi-Fi or Tailscale is down, it is unplugged or hung,
-baresip stopped), or Asterisk itself does not answer (then Judi's calls fail too).
+What counts as down: the Judicom has no registration with Asterisk (its Wi-Fi or Tailscale is down, it is unplugged or hung,
+baresip stopped); Asterisk itself does not answer (then Judi's calls fail too); or Asterisk is not registered with VoIP.ms
+(home internet down, VoIP.ms login refused, VoIP.ms trouble: calls to Judi's number then never reach the NAS).
 Emails: one when it has been offline for DELAY_MINUTES; then, if REMINDER_HOUR is set, one reminder a day at about that hour while
 it is still offline; and one when it is back, with how long it was gone.  Short blips (a restart, a Wi-Fi hiccup) send nothing.
 Settings: /home/pi/judicom/watch.env (not in git: it has the email address):
     ALERT_TO=someone@example.com
     DELAY_MINUTES=30          (optional)
     REMINDER_HOUR=9           (optional; 0 or empty: no daily reminders)
+    PING_URL=https://hc-ping.com/...   (optional; fetched on every run, so an outside service such as healthchecks.io can
+                                        email you when the runs stop: the NAS is off or hung, or the home internet is down.
+                                        Nothing here can send that email itself.  Keep the URL private.)
 The email goes out through the mail importer's Gmail account (GMAIL_USER / GMAIL_APP_PASSWORD in its config.env; read, never copied).
 State: /home/pi/judicom/watch.state; log: /home/pi/judicom/watch.log.  Only the standard library.
 """
@@ -23,13 +28,20 @@ import os
 import smtplib
 import subprocess
 import sys
+import urllib.request
 from email.message import EmailMessage
 
 SETTINGS = "/home/pi/judicom/watch.env"
 GMAIL = "/home/pi/jellyfin-mail-importer/config.env"
 STATE = "/home/pi/judicom/watch.state"
 LOG = "/home/pi/judicom/watch.log"
-CONTACTS = ["/usr/bin/docker", "exec", "asterisk-test", "asterisk", "-rx", "pjsip show contacts"]
+ASTERISK = ["/usr/bin/docker", "exec", "asterisk-test", "asterisk", "-rx"]
+CONTACTS = ASTERISK + ["pjsip show contacts"]
+REGISTRATIONS = ASTERISK + ["pjsip show registrations"]
+TRUNK = "voipms-registration/"          # the outbound registration's name in voipms.conf
+NO_ASTERISK = "the phone system (Asterisk on the NAS) did not answer"
+NO_JUDICOM = "the Judicom is not connected to the phone system"
+NO_LINE = "the NAS is not registered with VoIP.ms, so calls to Judi's number do not reach it"
 LOG_MAX = 200_000
 
 
@@ -47,19 +59,34 @@ def load_env(path):
     return values
 
 
-def look(run=subprocess.run):
-    """('up', '') or ('down', why)."""
+def ask(run, cmd):
+    """Asterisk's answer to cmd, or None when it does not answer."""
     try:
-        r = run(CONTACTS, capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return "down", "the phone system (Asterisk on the NAS) did not answer: %s" % exc
+        r = run(cmd, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
     out = (r.stdout or "") + (r.stderr or "")
-    if r.returncode != 0 or "Unable to connect" in out:
-        return "down", "the phone system (Asterisk on the NAS) did not answer"
-    for line in out.splitlines():
-        if line.strip().startswith("Contact:") and "judicom/" in line and "Unavail" not in line:
-            return "up", ""
-    return "down", "the Judicom is not connected to the phone system"
+    return None if r.returncode != 0 or "Unable to connect" in out else out
+
+
+def look(run=subprocess.run):
+    """('up', '') or ('down', why); why names every problem seen, joined with '; '."""
+    contacts = ask(run, CONTACTS)
+    if contacts is None:
+        return "down", NO_ASTERISK
+    problems = []
+    if not any(line.strip().startswith("Contact:") and "judicom/" in line and "Unavail" not in line
+               for line in contacts.splitlines()):
+        problems.append(NO_JUDICOM)
+    registrations = ask(run, REGISTRATIONS)
+    if registrations is None:
+        return "down", NO_ASTERISK
+    # " voipms-registration/sip:chicago4.voip.ms   voipms-auth   Registered   (exp. 84s)": the third word is the status
+    # (Registered, Unregistered, Rejected, Failed ...).  No such line at all is a problem too.
+    if not any(line.split()[:1] and line.split()[0].startswith(TRUNK) and line.split()[2:3] == ["Registered"]
+               for line in registrations.splitlines()):
+        problems.append(NO_LINE)
+    return ("down", "; ".join(problems)) if problems else ("up", "")
 
 
 def how_long(seconds):
@@ -90,17 +117,34 @@ If you can, check from a computer on Tailscale:  ssh joe@judicom   (or through t
 Until it is back, callers hear "Judi can't come to the phone right now".
 """
 
+LINE_ADVICE = """About the line to VoIP.ms: until it is back, calls to Judi's number do not reach her (VoIP.ms decides what
+callers hear).  What usually causes it, most likely first:
+  - the home internet is down (then this email may only arrive once it is back)
+  - VoIP.ms refuses the login: the sub-account's password was changed, or the account has a problem (check the portal)
+  - VoIP.ms itself has trouble (their status page)
+On the NAS:  docker exec asterisk-test asterisk -rx "pjsip show registrations"   (Registered = fine)
+"""
+
+
+def what(why):
+    """The subject's words and the advice for this reason."""
+    if why == NO_LINE:
+        return "Judi's phone line down", LINE_ADVICE
+    return "Judicom offline", ADVICE + ("\n" + LINE_ADVICE if NO_LINE in why else "")
+
 
 def message(kind, since, now, why):
+    words, advice = what(why)
     if kind == "offline":
-        return ("Judicom offline since %s" % stamp(since),
-                "The Judicom has been offline since %s (%s).\n\nReason seen: %s.\n\n%s\nYou will get one email when it is back."
-                % (stamp(since), how_long(now - since), why, ADVICE))
+        return ("%s since %s" % (words, stamp(since)),
+                "Judi's phone has not been working since %s (%s).\n\nReason seen: %s.\n\n%s\nYou will get one email when it is back."
+                % (stamp(since), how_long(now - since), why, advice))
     if kind == "reminder":
-        return ("Judicom still offline (%s)" % how_long(now - since),
-                "The Judicom is still offline: since %s, %s now.\n\nReason seen: %s.\n\n%s" % (stamp(since), how_long(now - since), why, ADVICE))
+        return ("%s (%s)" % ("Judi's phone line still down" if why == NO_LINE else "Judicom still offline", how_long(now - since)),
+                "Judi's phone is still not working: since %s, %s now.\n\nReason seen: %s.\n\n%s"
+                % (stamp(since), how_long(now - since), why, advice))
     if kind == "back":
-        return ("Judicom back online", "The Judicom is back online (%s).  It was offline for %s, since %s."
+        return ("Judicom back online", "Judi's phone is working again (%s).  It was down for %s, since %s."
                 % (stamp(now), how_long(now - since), stamp(since)))
     return ("Judicom alert test", "This is a test of the Judicom's offline alerts.  If you can read it, they reach you.\n"
             "Sent %s." % stamp(now))
@@ -189,6 +233,23 @@ def step(now, seen, state, settings, mailer, logger):
     return state
 
 
+def ping(url, state, logger, opener=urllib.request.urlopen):
+    """Tell the outside check-in service this run happened.  A failure is logged once, not every 5 minutes."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "judicom-watch"})
+        with opener(req, timeout=10) as r:
+            r.read(256)
+        ok = True
+    except Exception as exc:                            # noqa: BLE001 - no internet, the service down: try next time
+        ok = False
+        if state.get("ping_ok", True):
+            logger("could not reach PING_URL: %s (logged once until it works again)" % type(exc).__name__)
+    if ok and not state.get("ping_ok", True):
+        logger("PING_URL works again")
+    state["ping_ok"] = ok
+    return state
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Email when the Judicom is offline, and when it is back.")
     ap.add_argument("--status", action="store_true", help="only say what it sees; send nothing")
@@ -213,7 +274,13 @@ def main(argv=None):
         if state.get("down_since"):
             print("offline since %s; email sent: %s" % (stamp(state["down_since"]), "yes" if state.get("alerted") else "not yet"))
         return
-    save_state(STATE, step(now, seen, state, settings, mailer, lambda t: log(t, now=now)))
+    logger = lambda t: log(t, now=now)                                        # noqa: E731
+    ping_ok = state.get("ping_ok", True)
+    state = step(now, seen, state, settings, mailer, logger)
+    if settings.get("PING_URL"):
+        state["ping_ok"] = ping_ok
+        state = ping(settings["PING_URL"], state, logger)
+    save_state(STATE, state)
 
 
 if __name__ == "__main__":
