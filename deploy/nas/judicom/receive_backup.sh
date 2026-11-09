@@ -3,8 +3,9 @@
 #     restrict,command="/home/pi/judicom/receive_backup.sh" ssh-ed25519 ... judicom-backup
 #   store            receive a backup into a hidden, unfinished file (.judicom-<date-time>.img.zst.part); prints its name.
 #                    Refused when the backup drive has less than 40 GB free.
-#   commit NAME SUM  only if that file's SHA-256 is SUM and it unpacks without error: give it its real name, write NAME.sha256
-#                    beside it, and keep the newest 5.  So an upload that was cut off never looks like a backup.
+#   commit NAME [SUM]  only if that file unpacks without error (zstd's own checksum: a cut-off or damaged upload fails) and,
+#                    when SUM is given, its SHA-256 is SUM: give it its real name, write its SHA-256 to NAME.sha256 beside it,
+#                    and keep the newest 5.  So an upload that was cut off never looks like a backup.
 #   discard          read what comes in and throw it away (prints how many bytes): the backup's speed test
 # It cannot read, change or remove anything else.  Unfinished files older than 4 hours are removed at the next store.
 set -eu
@@ -31,14 +32,15 @@ case "${1:-}" in
     cat > "$DIR/.$name.part"
     echo "$name" ;;
   commit)
-    [ $# -eq 3 ] && printf '%s\n' "$2" | grep -Eq "$NAME_RE" && printf '%s\n' "$3" | grep -Eq '^[0-9a-f]{64}$' \
-      && [ -f "$DIR/.$2.part" ] || { echo "receive_backup: commit NAME SUM (of an unfinished upload)" >&2; exit 1; }
+    { [ $# -eq 2 ] || { [ $# -eq 3 ] && printf '%s\n' "$3" | grep -Eq '^[0-9a-f]{64}$'; }; } \
+      && printf '%s\n' "$2" | grep -Eq "$NAME_RE" && [ -f "$DIR/.$2.part" ] \
+      || { echo "receive_backup: commit NAME [SUM] (of an unfinished upload)" >&2; exit 1; }
     part="$DIR/.$2.part"
     have=$(sha256sum "$part" | cut -d' ' -f1)
-    [ "$have" = "$3" ] || { echo "receive_backup: the upload's SHA-256 is $have, not $3: kept unfinished" >&2; exit 1; }
+    [ $# -eq 2 ] || [ "$have" = "$3" ] || { echo "receive_backup: the upload's SHA-256 is $have, not $3: kept unfinished" >&2; exit 1; }
     zstd -tq "$part" || { echo "receive_backup: the upload does not unpack: kept unfinished" >&2; exit 1; }
     mv "$part" "$DIR/$2"
-    printf '%s  %s\n' "$3" "$2" > "$DIR/$2.sha256"
+    printf '%s  %s\n' "$have" "$2" > "$DIR/$2.sha256"
     ls -1t "$DIR"/judicom-*.img.zst | tail -n +$((KEEP + 1)) | while read -r old; do rm -f "$old" "$old.sha256"; done
     echo "committed $2" ;;
   discard)

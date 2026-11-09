@@ -122,23 +122,25 @@ stop
 echo "2. Freezing the card and sending it to the NAS (a few minutes; the phone starts again as soon as the card is unfrozen) ..."
 if [ -t 1 ]; then show_meter "$work/position" & meter=$!; fi
 set +e
-stream backup "$SERVICES $TIMERS" | zstd --single-thread --no-asyncio -1 -q | tee >(sha256sum | cut -d' ' -f1 > "$work/sum") | "${SSH[@]}" store > "$work/name"
+# (No tee / sha256sum in this pipe: on 2026-11-09 tee held the pipe from zstd for good while the card was frozen.  zstd's own
+# checksum, tested on the NAS before the commit, finds a cut-off or damaged upload; the NAS writes the SHA-256 itself.)
+stream backup "$SERVICES $TIMERS" | zstd --single-thread --no-asyncio -1 -q | "${SSH[@]}" store > "$work/name"
 codes=("${PIPESTATUS[@]}")
 set -e
 stop_meter
 sleep 2
 echo "3. The phone: $([ -f "$work/restarted" ] && echo "started again" || echo "starting it again ...")"
 restart
-if [ "${codes[0]}" != 0 ] || [ "${codes[3]}" != 0 ] || [ ! -s "$work/name" ] || [ ! -s "$work/sum" ]; then
+if [ "${codes[0]}" != 0 ] || [ "${codes[1]}" != 0 ] || [ "${codes[2]}" != 0 ] || [ ! -s "$work/name" ]; then
   [ -f "$work/timeout" ] && echo "The copy took longer than 25 minutes and was stopped; the card was unfrozen." >&2
   echo "The backup did not complete (exit codes: ${codes[*]}).  The card is unfrozen and the phone running again." >&2
   echo "(What reached the NAS stays a hidden, unfinished file there: it is never taken for a backup.)" >&2
   echo "How far it got, until the next backup or reboot: /run/judicom-backup-progress.log" >&2
   exit 1
 fi
-name=$(cat "$work/name"); sum=$(cat "$work/sum")
-echo "4. Checking the copy on the NAS (its SHA-256, and that it unpacks): $name ..."
-if result=$("${SSH[@]}" "commit $name $sum" 2>&1); then
+name=$(cat "$work/name")
+echo "4. Checking the copy on the NAS (that it unpacks, with zstd's own checksum): $name ..."
+if result=$("${SSH[@]}" "commit $name" 2>&1); then
   echo "   $result"
   echo "GOOD: the backup is complete and exact: $name"
 else
