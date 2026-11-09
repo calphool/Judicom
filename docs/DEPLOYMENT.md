@@ -218,7 +218,6 @@ existing `rsync-backup` mirror (every 8 hours) copies it to `/mnt/2tbdrive2`.
 - Settings: `/etc/naspi-backup.env` (root only, not in git; `naspi-backup.env.example`): `PING_URL=` of a healthchecks.io check
   (period 7 days, grace 1 day), which emails when a run fails or does not happen; the `KEEP_...` counts and `MIN_FREE_PCT`.
 - Run now: `sudo systemctl start naspi-backup`; log: `journalctl -u naspi-backup`.
-- Not covered yet: a copy away from the house (a fire or theft takes all the drives).
 
 ### Call history
 

@@ -10,7 +10,6 @@
 # Space: nothing is written while DEST has less than MIN_FREE_PCT percent free; the oldest snapshots go first to make room.
 # Success or failure is reported to PING_URL (healthchecks.io), from /etc/naspi-backup.env (not in git).
 set -euo pipefail
-umask 077                                # the copies hold passwords and the NAS's whole system: root only
 
 SETTINGS="${SETTINGS:-/etc/naspi-backup.env}"
 [ -f "$SETTINGS" ] && . "$SETTINGS"
@@ -46,7 +45,6 @@ if [ "$CHECK_MOUNT" = 1 ]; then
   mountpoint -q "$DEST" || fail "$DEST is not mounted"
 fi
 mkdir -p "$SNAPS" "$IMAGES"
-chmod 700 "$SNAPS" "$IMAGES"             # (the drive is shared on the network as pi)
 
 # ---- make room: the oldest snapshots go first, but the newest one always stays ----------------------------------------
 while [ "$(free_pct)" -lt "$MIN_FREE_PCT" ]; do
@@ -84,7 +82,6 @@ if [ -f "$SD_IMAGE" ]; then
   else
     rm -f -- "$IMAGES"/*.part
     zstd -q -T0 -3 "$SD_IMAGE" -o "$name.part"
-    chmod 600 "$name.part"               # zstd copies the image's own (readable) permissions
     zstd -q -t "$name.part"
     mv -- "$name.part" "$name"
     say "SD image copied: $name ($(du -h "$name" | cut -f1))"

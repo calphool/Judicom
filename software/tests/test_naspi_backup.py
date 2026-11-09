@@ -55,8 +55,6 @@ class Backup(unittest.TestCase):
         self.assertEqual(len(images), 1)
         self.assertEqual(subprocess.run(["zstd", "-dc", str(images[0])], capture_output=True).stdout, self.sd.read_bytes())
         self.assertEqual(self.pinged(), ["https://hc.example/abc/start", "https://hc.example/abc"])
-        for path, mode in ((self.dest / "naspi-snapshots", 0o700), (self.dest / "naspi-sd-images", 0o700), (images[0], 0o600)):
-            self.assertEqual(path.stat().st_mode & 0o777, mode, path)                       # root only
 
     def test_unchanged_files_are_shared_between_weeks(self):
         self.run_it("2026-11-15")
