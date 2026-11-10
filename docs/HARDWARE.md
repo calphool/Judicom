@@ -80,8 +80,8 @@ itself, the amplifier is now switched off whenever the speaker has nothing to pl
 - The phone program switches it **on** just before anything plays on the speaker (the ringer, a message's three beeps, the
   maintenance shell's bongs) and **off** once the speaker has been quiet for `AMP_OFF_SECONDS` (1 second), so the end of a sound is
   not cut off.  It stays on through the gaps of a ring.  The handset's sounds (dial tone, dialing) do not use it.
-- While the phone program runs it holds GPIO 25 low between sounds.  The MOSFET's gate has no pull-down resistor and
-  `config.txt` does not set the pin, so at boot and whenever the phone program is not running nothing drives it.
+- The MOSFET's gate has no pull-down resistor, so `gpio=25=op,dl` in `/boot/firmware/config.txt` makes the pin an output, held
+  low, from power-on; it stays low whenever the phone program is not running.  The phone program holds it low between sounds.
 
 **If the ringer is silent,** this switch is the first thing to check: without GPIO 25 high the amplifier is off, so the ringer, the
 message beeps and the bongs all go quiet.  The phone's log says so at start if it cannot get the pin.  To test the switch, stop the

@@ -310,6 +310,7 @@ someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 
 
 | File on the Judicom | From | Notes |
 |---|---|---|
+| `/boot/firmware/config.txt` | the Pi OS default, plus a line at the end | `gpio=25=op,dl`: the ringer amplifier's switch (GPIO 25) is held low (off) from power-on, before the phone program starts (docs/HARDWARE.md, "Ringer amplifier switch").  Backup of the file before it: `config.txt.before-gpio25-2026-11-10` |
 | `~/.asoundrc` | `deploy/judicom/asoundrc` | names the cards: `judicom_handset` (USB card `Device`), `judicom_ring` (`Headphones` jack), `judicom_mic_boost` (USB mic, with a software gain control).  The USB adapter's microphone is **mono** (`slave.channels 1`) |
 | `~/.baresip/config` | `deploy/judicom/baresip/config` | binds to `tailscale0`; `ctrl_tcp` on `127.0.0.1:4444` (the phone program's connection); `call_max_calls 1` (a second caller gets busy); `audio_alert alsa,null` (baresip does not ring: the phone program does); `statmode_default off` (no live call-status line: under systemd it piles up into one huge journal entry, `[blob data]`, during every call) |
 | `~/.baresip/accounts` | `deploy/judicom/baresip/accounts.example` | the password is the one in `judicom.conf` on the NAS |
