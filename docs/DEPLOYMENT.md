@@ -292,7 +292,7 @@ See the live rules: `sudo nft list table inet asterisk_test` (all of them: `sudo
 
 ## 3. The Judicom
 
-Raspberry Pi 3 B+, Raspberry Pi OS without a desktop, user `joe` (in the groups `video render input gpio audio`), Tailscale
+Raspberry Pi 3 Model A+, Raspberry Pi OS without a desktop, user `joe` (in the groups `video render input gpio audio`), Tailscale
 installed and logged in (its name there: `judicom`), **time zone America/Chicago** (`sudo timedatectl set-timezone America/Chicago`:
 the screen's clock and the 9 pm - 6 am night clock go by it).
 

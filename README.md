@@ -24,14 +24,14 @@ The device may eventually support video conferencing as well, but this is a seco
 
 ## Hardware
 
-The hardware enclosure is 3D modeled using FreeCAD.  The phone itself is built around a Raspberry Pi 3b+, 
+The hardware enclosure is 3D modeled using FreeCAD.  The phone itself is built around a Raspberry Pi 3 A+, 
 a small 4 ohm speaker for ringtone, and a Merlin style handset with appropriate hardware interfacing to make 
 the handset appear as a USB audio device to the SBC (the Pi).  The touch screen is a 7 inch HDMI screen (HS-007) 
 from Head Sun, though with appropriate enclosure modification any HDMI touch screen could work.  Touch screen 
 functionality isn't strictly necessary, and for now any use of it will be secondary or supportive rather than 
 required.
 
-The microphone of the Merlin is not an electret mic, and so its circuitry had to be modified.  The wires to the existing microphone were cut, a small holes was drilled into the handset near the mouthpiece, and a standard electric mic was added.  Green and white wires go to the speaker of the handset, and black and red go to the electret microphone.
+The microphone of the Merlin is not an electret mic, and so its circuitry had to be modified.  The wires to the existing microphone were cut, a small hole was drilled into the handset near the mouthpiece, and a standard electret mic was added.  Green and white wires go to the speaker of the handset, and black and red go to the electret microphone.
 
 ## Software
 

@@ -6,9 +6,9 @@ Judicom is a simple, physical communications device intended for a person who ma
 
 ```mermaid
 flowchart LR
-    H["Merlin handset<br/>USB audio, proposed"] --> J["Judicom endpoint<br/>Raspberry Pi 3 B+"]
-    B["Physical buttons +<br/>7-inch HDMI display"] --- J
-    J --> S["Ringtone speaker<br/>3.5 mm + amplifier, proposed"]
+    H["Merlin handset<br/>USB audio"] --> J["Judicom endpoint<br/>Raspberry Pi 3 A+"]
+    B["Physical buttons, hook switch +<br/>7-inch HDMI touch display"] --- J
+    J --> S["Ringtone speaker<br/>3.5 mm + switched amplifier"]
     J -->|Tailscale| N["NAS/PBX<br/>Raspberry Pi 4 Model B Rev 1.5"]
     N -->|Tailscale| J
     N --- A["Asterisk 22<br/>Docker"]
@@ -18,18 +18,18 @@ flowchart LR
 ```
 
 
-The endpoint is designed to communicate with the NAS over a private network. The NAS hosts Asterisk and other application/media services. VoIP.ms provides external SIP connectivity; inbound calling is not yet documented as end-to-end working.
+The endpoint is designed to communicate with the NAS over a private network. The NAS hosts Asterisk and other application/media services. VoIP.ms provides external SIP connectivity; incoming calls are screened by Asterisk (`judicom-inbound.conf`) and ring the Judicom.
 
 ## Components
 
 | Component | Platform / function | Status |
 |---|---|---|
-| Judicom endpoint | Raspberry Pi 3 Model B+; Python / Pygame; 7-inch 1024×600 HDMI display; physical buttons | Target platform; integration ongoing |
-| Handset audio | Merlin handset via USB audio interface | Proposed; handset electrical characteristics TBD |
-| Ringtone | Separate speaker driven by 3.5 mm output through a PAM8403 (class-D) amplifier | Proposed |
+| Judicom endpoint | Raspberry Pi 3 Model A+; Python / Pygame; 7-inch 1024×600 HDMI touch display (portrait); two physical buttons and a hook switch | In use |
+| Handset audio | Merlin handset (microphone replaced with an electret) via a C-Media USB audio adapter | In use |
+| Ringtone | Separate speaker driven by 3.5 mm output through a PAM8403 (class-D) amplifier, switched by GPIO 25 | In use |
 | NAS | Raspberry Pi 4 Model B Rev 1.5; Debian Linux, Docker, storage, network services | Existing; configuration to inventory |
 | Asterisk | Asterisk 22 in Docker on NAS | Running; VoIP.ms registration previously confirmed |
-| SIP service | VoIP.ms, Chicago server | Registration confirmed; inbound call path needs validation |
+| SIP service | VoIP.ms, Chicago server | Registration confirmed; incoming and outgoing calls in use |
 | Private networking | Tailscale between endpoint and NAS; SSH administration | In use / verify current routing and access rules |
 | Family/media workflows | Family-facing messages and media services hosted or mediated by NAS | Partially implemented / evolving |
 
@@ -42,9 +42,9 @@ The endpoint is designed to communicate with the NAS over a private network. The
 
 ## Current state and open decisions
 
-**Established:** Python/Pygame endpoint work on Raspberry Pi hardware; NAS-hosted Asterisk 22; successful VoIP.ms registration; Tailscale connectivity in the project environment.
+**Established:** the Python/Pygame phone on the Pi 3 A+; hook switch and buttons; USB handset audio; the switched ringtone amplifier; NAS-hosted Asterisk 22; VoIP.ms registration and calls in both directions; Tailscale connectivity.
 
-**Still to validate:** complete inbound SIP/RTP call; handset microphone/receiver electronics; USB audio device selection; hook/button interactions; ringtone output; device boot and recovery behavior.
+**Still to validate:** power supply rating (the Pi has reported under-voltage); device boot and recovery behavior; final enclosure.
 
 **Deferred:** video calling and optional migration to Orange Pi.
 
@@ -52,7 +52,7 @@ The endpoint is designed to communicate with the NAS over a private network. The
 
 - `README.md` — purpose and quick start
 - `docs/DEPLOYMENT.md` — installation, services, Asterisk, Docker, and firewall configuration
-- `HARDWARE.md` — wiring, pin assignments, handset tests, and enclosure
-- `DECISION.md` — significant design choices and their rationale
+- `docs/HARDWARE.md` — wiring, pin assignments, handset tests, and enclosure
+- `docs/DECISION.md` — significant design choices and their rationale
 
 > **Documentation rule:** This file describes the architecture. Actual configuration files and repeatable deployment steps belong alongside it in version control, with secrets excluded.
