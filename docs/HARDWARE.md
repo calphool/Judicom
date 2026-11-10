@@ -37,6 +37,25 @@ Do **not** assume the original Merlin microphone is an electret capsule, that it
 
 The Pi 3 B+ analog jack is a four-pole A/V connector; confirm the correct audio contacts using the Pi's documented pinout or a known-compatible breakout. Do not short stereo outputs together to form mono; use software mono routing or an appropriate summing network.
 
+### The handset microphone plug (USB adapter's pink socket)
+
+The handset mic is an electret capsule into the C-Media USB adapter (Unitek Y-247A).  On that adapter's mic socket the
+**sleeve is ground**; the tip carries the signal and the bias that powers the electret.  The plug in use is a four-section
+(TRRS) one, wired so that it works whether the socket's ground spring lands on the second ring or on the sleeve:
+
+| Plug section, from the end | Wired to |
+|---|---|
+| tip | electret signal (+): the pad *not* joined to the capsule's metal can |
+| first ring | nothing (insulated) |
+| second ring | electret ground (−): the pad joined to the can |
+| sleeve | electret ground (−), the same as the second ring |
+
+A plug with only tip and ring wired does **not** work: the electret has no ground and the caller hears only a 60 Hz buzz
+(found 2026-11-09; it had seemed to work only because the plug sat a few millimetres out of the socket).  To check the mic:
+with no call going on, `arecord -D hw:CARD=Device,DEV=0 -f S16_LE -r 48000 -c 1 -d 6 /tmp/mic.wav` while counting into the
+handset, and listen to it, or look at it: speech rises and falls; a steady level of nothing but hum means no ground.
+With the mic plug pulled out, the input records near silence (about -80 dBFS).
+
 ## Ringer amplifier switch (why the amplifier is switched on and off)
 
 The PAM8403 put noise on the ringtone speaker whenever it was powered, even with nothing playing.  Rather than chase the noise
