@@ -429,6 +429,12 @@ if something ever does hang, wait for the guard (28 minutes) or unplug the Judic
   `zstd -dc judicom-....img.zst | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync` (sdX: the new card; check with lsblk!).
   The card is then the Judicom as it was at the backup, with the same Tailscale identity, keys and Wi-Fi networks.
 - Make one after big changes, and keep a spare card with a recent backup on it.
+- **With the card out** (the Judicom shut down, its card in a Linux computer's card reader):
+  `bash deploy/judicom/backup_sd_card.sh /dev/sdX` from a clone of this repository on that computer.  It only reads the card:
+  it checks the device is about the size of the Judicom's card and asks first, unmounts any partitions the computer opened,
+  copies the whole card through zstd to the same NAS folder (`judicom-<date-time>.img.zst` + `.sha256`, over `pi@naspi.local`),
+  then unpacks it on the NAS and compares checksums ("GOOD: the copy is exact").  For when the Judicom cannot run;
+  `naspi.local` is only found on the home network.
 - If the Judicom's card is ever changed for a different size, check `backup_judicom.sh`: it expects the main partition to reach
   the end of the card.
 
