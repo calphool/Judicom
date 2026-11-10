@@ -28,9 +28,9 @@ The device may eventually support video conferencing as well, but this is a seco
 The hardware enclosure is 3D modeled using FreeCAD.  The phone itself is built around a Raspberry Pi 3 A+, 
 a small 4 ohm speaker for ringtone, and a Merlin style handset with appropriate hardware interfacing to make 
 the handset appear as a USB audio device to the SBC (the Pi).  The touch screen is a 7 inch HDMI screen (HS-007) 
-from Head Sun, though with appropriate enclosure modification any HDMI touch screen could work.  Touch screen 
-functionality isn't strictly necessary, and for now any use of it will be secondary or supportive rather than 
-required.
+from Head Sun, though with appropriate enclosure modification any HDMI touch screen could work.  The patient never 
+needs the touch screen (a touch only puts away a message); family use it for the hidden keypad and the maintenance 
+shell.
 
 The microphone of the Merlin is not an electret mic, and so its circuitry had to be modified.  The wires to the existing microphone were cut, a small hole was drilled into the handset near the mouthpiece, and a standard electret mic was added.  Green and white wires go to the speaker of the handset, and black and red go to the electret microphone.
 

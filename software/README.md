@@ -33,7 +33,7 @@ same list), and `python3 -m judicom.sync`, run by the `judicom-contacts-sync` ti
 verses, jokes and people pictures).  Edit the list on
 the NAS; see docs/DEPLOYMENT.md.
 
-## Step 4: the whole phone (photos + call screens + dial tone + ringer)
+## The whole phone (photos + call screens + dial tone + ringer)
 
     python3 -m judicom.main                   # on the Judicom: photos, and the phone screens when the handset is lifted or a call comes in
     python3 -m judicom.main --demo --window   # on a PC: l = lift / hang up, 1 / 2 = buttons
@@ -48,7 +48,7 @@ card is reported at start and stays silent.  `--no-sound` turns both off, `--spe
 Pressing a button plays touch-tone digits in the handset first (about 2 s, the screen already says "Calling ..."), then the call goes
 out.  The digits are the person's number from the contacts file.
 
-## Step 3: the hook switch, the buttons, and what the phone does
+## The hook switch, the buttons, and what the phone does
 
     python3 -m judicom.inputs                 # wiring check: prints "lifted", "hung_up", "button left" ... from the real switches
     python3 -m judicom.machine                # the phone's state machine driven by the real switches, printed (no screen, no calls yet)
@@ -57,7 +57,7 @@ out.  The digits are the person's number from the contacts file.
 Pins, which way round the hook switch works, settle times, who each button calls, and the timeouts are in `judicom/config.py`.
 The modes and how they change are described at the top of `judicom/machine.py`.  Needs `sudo apt install python3-gpiozero python3-lgpio` on the Judicom.
 
-## Step 2: the photo screen
+## The photo screen alone
 
     python3 -m judicom.photo_show             # full screen on the Judicom: pictures from /home/joe/photos, 15 s each, random order
                                               # (the folder is a copy of the NAS's, see judicom/photo_sync.py)
@@ -67,7 +67,7 @@ The modes and how they change are described at the top of `judicom/machine.py`. 
 
 Keys, typed in the terminal you started it from: **space** = next picture, **q** (or Esc, or Ctrl-C) = quit.
 
-## Step 1: the photo folder
+## The photo folder
 
     python3 -m judicom.photos                 # list /home/joe/photos, show the next 10 pictures in random order
     python3 -m judicom.photos DIR -n 20       # another folder / more pictures
@@ -137,4 +137,4 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/ring_test.py    the ringer over and over, to check the speaker and the amplifier switch
     judicom/calls.py        baresip, driven through its ctrl_tcp socket
     judicom/main.py         the program: switches + keys -> machine -> screens, sounds, phone software
-    judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only (step 2)
+    judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only

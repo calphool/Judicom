@@ -40,11 +40,11 @@ The endpoint is designed to communicate with the NAS over a private network. The
 - **Firewall:** an `nftables` rule on the NAS drops SIP on the home network from anyone but VoIP.ms (details in `docs/DEPLOYMENT.md`).
 - **Secrets:** SIP credentials, tokens, private keys, and other secrets must not be committed to Git. Check exported configurations before adding them.
 
-## Current state and open decisions
+## Current state
 
-**Established:** the Python/Pygame phone on the Pi 3 A+; hook switch and buttons; USB handset audio; the switched ringtone amplifier; NAS-hosted Asterisk 22; VoIP.ms registration and calls in both directions; Tailscale connectivity.
+**Built and in use:** the Python/Pygame phone on the Pi 3 A+ in its printed enclosure; hook switch and buttons; USB handset audio; the switched ringtone amplifier; NAS-hosted Asterisk 22; VoIP.ms registration and calls in both directions; Tailscale connectivity.
 
-**Still to validate:** the 5 V at the Pi (it dipped below the under-voltage threshold when the handset was lifted or the ringer started); device boot and recovery behavior; final enclosure.
+**Known problem:** the 5 V at the Pi dips below the under-voltage threshold when the handset is lifted or the ringer starts (`docs/HARDWARE.md`, "Known problems").
 
 **Deferred:** video calling and optional migration to Orange Pi.
 
