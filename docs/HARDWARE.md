@@ -18,14 +18,14 @@ against the actual board before finalizing the enclosure.
 | Component | Details | State |
 |---|---|---|
 | Display | 7-inch HDMI IPS (HS-007), 1024 × 600, mounted sideways (portrait): the software draws 600 × 1024 and turns it 90°. Touch over USB (`1a86:e5e3` USB2IIC_CTP_CONTROL) | In use |
-| Physical controls | Two large illuminated pushbuttons (EG STARTS, 60 mm), on GPIO 23 (left) and 24 (right) | In use; LED wiring and supply not yet recorded here |
-| Hook switch | Three contacts: two normally closed (GPIO 17, 27) and one normally open (GPIO 22); the three vote | In use |
+| Physical controls | Two square photo arcade buttons (33 mm lip, 27 mm square collar, a 21 × 21 mm photo under a clear cap), shortened to 3 mm travel with printed parts and pressing a BLEE microswitch each; on GPIO 23 (left) and 24 (right) | In use |
+| Hook switch | BIS-10 switch (37 × 29 × 14 mm) in a printed holder under the cradle; three contacts: two normally closed (GPIO 17, 27) and one normally open (GPIO 22); the three vote | In use |
 | Handset | Vintage AT&T Merlin handset; its original microphone replaced with an electret capsule | In use |
 | Handset audio | C-Media USB audio adapter (Unitek Y-247A, `0d8c:0014`), ALSA card `Device`; mono mic | In use |
-| Ringtone speaker | 4 Ω, 3 W speaker; approximately 53 × 53 × 25 mm | In use; final mounting TBD |
+| Ringtone speaker | 4 Ω, 3 W speaker, about 52 mm square; on four standoffs behind a grille in the right side wall | In use |
 | Ringtone amplifier | PAM8403 (class-D) module driven from the Pi's 3.5 mm analog output (ALSA card `Headphones`), switched by GPIO 25 | In use |
 | Microphone prototype | INMP441 I²S microphone | Not used by the phone; its overlay (`dtoverlay=inmp441`) is still in `config.txt`, so it still appears as an ALSA capture card |
-| Enclosure | Custom 3D-printed enclosure designed in FreeCAD | In development; mounting geometry may change |
+| Enclosure | Custom 3D-printed, bolt-together enclosure: `hardware/freecad/enclosure/judicom_freecad_macro.py` builds `Judicom.FCStd` and the STLs | In development |
 | Power | External regulated 5 V supply and internal distribution | Final supply rating and wiring TBD |
 
 ## GPIO assignments (BCM numbering)
@@ -101,11 +101,20 @@ In the code: `AMP_PIN` and `AMP_OFF_SECONDS` in `software/judicom/config.py`, `A
 
 ## Mechanical notes
 
-- Display visible opening: approximately **155 × 88 mm**.
-- Button housing/base: approximately **63 mm diameter**; mounting depth to lowest terminal approximately **48 mm**.
-- Speaker: approximately **53 × 53 × 25 mm**, with reported mounting-hole spacing near **43 mm**.
-- Earlier design targeted a roughly **50 mm high base** and removable bottom/rear access panels. Verify these dimensions against the latest FreeCAD model.
-- Account for the Pi 3 A+ port locations (and the USB hub), power distribution, strain relief, handset cradle, and service access before final print.
+From `hardware/freecad/enclosure/judicom_freecad_macro.py`, which builds `Judicom.FCStd`; the macro is the source, so change
+dimensions there.  Its header lists the measurements that are still assumed ("Things I could NOT take from your drawings").
+
+- Body: about **230 wide × 203 deep × 160 tall**; the front is a 35° slope, 248 mm long (so the Panel prints flat on a
+  256 mm bed), above an 18 mm vertical front face.
+- Screen window in the Panel: **87 × 154 mm** (across × along the slope), finished by the press-in ScreenBezel.
+- Buttons: two **27 × 27 mm** square holes, **10 mm apart** (centres **37 mm** apart, which `BUTTON_X` in
+  `software/judicom/config.py` matches), 20 mm below the screen window and 12 mm from the front edge of the slope.
+  The buttons' long barrels and springs are replaced by printed parts (ButtonSlider ×2, ButtonBracket, ButtonBarDirect): 3 mm travel,
+  the microswitch body is the hard stop.  BLEE switch size and hole spacing (27 × 15.9 × 10.3 mm, holes 22.2 × 10.3 mm apart) are
+  taken from a photo, not measured.
+- Speaker: four standoffs on a **42 mm** square (the speaker's ear holes), M3 inserts; the 52 mm frame and the magnet are estimated.
+- Pi 3 A+: snaps onto the four posts of the PiCradle, which is glued to the BottomPlate.
+- Account for the Pi 3 A+ port locations (and the USB hub), power distribution, strain relief, and service access before final print.
 
 ## Validation checklist
 
@@ -113,10 +122,10 @@ In the code: `AMP_PIN` and `AMP_OFF_SECONDS` in `software/judicom/config.py`, `A
 - [x] Determine microphone type and bias (replaced with an electret, biased by the USB adapter).
 - [x] Test clean, full-duplex USB handset audio under ALSA.
 - [x] Test independent ringtone routing through the analog output and the PAM8403.
-- [ ] Measure operating and peak 5 V current draw with display, Pi, amplifier, and button LEDs. (On 2026-11-10 the Pi reported
+- [ ] Measure operating and peak 5 V current draw with display, Pi, and amplifier. (On 2026-11-10 the Pi reported
       that under-voltage and throttling had occurred since boot: `vcgencmd get_throttled` = `0x50000`.)
 - [x] GPIO pins and switch logic (above).
-- [ ] LED resistors/drivers for the buttons, and boot behavior of GPIO 25 (see "Ringer amplifier switch").
+- [ ] Boot behavior of GPIO 25 (see "Ringer amplifier switch").
 - [ ] Confirm final FreeCAD dimensions, mounting holes, and cable clearances.
 
 Record measured pinouts and wiring diagrams here once validated; do not substitute assumed values.
