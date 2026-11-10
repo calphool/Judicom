@@ -27,17 +27,17 @@ The endpoint is designed to communicate with the NAS over a private network. The
 | Judicom endpoint | Raspberry Pi 3 Model A+; Python / Pygame; 7-inch 1024×600 HDMI touch display (portrait); two physical buttons and a hook switch | In use |
 | Handset audio | Merlin handset (microphone replaced with an electret) via a C-Media USB audio adapter | In use |
 | Ringtone | Separate speaker driven by 3.5 mm output through a PAM8403 (class-D) amplifier, switched by GPIO 25 | In use |
-| NAS | Raspberry Pi 4 Model B Rev 1.5; Debian Linux, Docker, storage, network services | Existing; configuration to inventory |
-| Asterisk | Asterisk 22 in Docker on NAS | Running; VoIP.ms registration previously confirmed |
+| NAS | Raspberry Pi 4 Model B Rev 1.5; Debian Linux, Docker, storage, network services (also Jellyfin) | In use; set-up in `docs/DEPLOYMENT.md` |
+| Asterisk | Asterisk 22 in Docker on NAS; screens incoming callers against the caller list | Running |
 | SIP service | VoIP.ms, Chicago server | Registration confirmed; incoming and outgoing calls in use |
-| Private networking | Tailscale between endpoint and NAS; SSH administration | In use / verify current routing and access rules |
-| Family/media workflows | Family-facing messages and media services hosted or mediated by NAS | Partially implemented / evolving |
+| Private networking | Tailscale between endpoint and NAS; SSH administration with restricted keys | In use |
+| Family/media workflows | Housekeeping website (callers, events, pictures, photos, messages to the screen); photos emailed in by family; offline alert emails | In use |
 
 ## Communication and security
 
-- **Endpoint ↔ NAS:** private IP connectivity, preferably over Tailscale; no need to expose the endpoint directly to the internet.
-- **NAS ↔ VoIP.ms:** Asterisk uses SIP signaling and RTP media. Confirm the actual ports, NAT traversal, and inbound media behavior against the live configuration.
-- **Firewall:** NAS uses `nftables` rules for SIP access. Preserve the live rules and their persistence mechanism in deployment documentation, not here.
+- **Endpoint ↔ NAS:** over Tailscale (SIP, the list and photo syncs, the screen and messages); only the SD-card backup uses the home network. The endpoint is not exposed to the internet.
+- **NAS ↔ VoIP.ms:** Asterisk registers with VoIP.ms and uses SIP signaling and RTP media; ports and firewall are in `docs/DEPLOYMENT.md`.
+- **Firewall:** an `nftables` rule on the NAS drops SIP on the home network from anyone but VoIP.ms (details in `docs/DEPLOYMENT.md`).
 - **Secrets:** SIP credentials, tokens, private keys, and other secrets must not be committed to Git. Check exported configurations before adding them.
 
 ## Current state and open decisions
@@ -50,7 +50,8 @@ The endpoint is designed to communicate with the NAS over a private network. The
 
 ## Related documentation
 
-- `README.md` — purpose and quick start
+- `README.md` — purpose and how the phone behaves
+- `software/README.md` — the phone program, its tests and hardware checks
 - `docs/DEPLOYMENT.md` — installation, services, Asterisk, Docker, and firewall configuration
 - `docs/HARDWARE.md` — wiring, pin assignments, handset tests, and enclosure
 - `docs/DECISION.md` — significant design choices and their rationale

@@ -127,7 +127,7 @@ here removes it there.  Not in the Jellyfin photo folder: the faces would turn u
 ### Judi's events
 
 `/home/pi/judicom/events.txt` on the NAS (start from `deploy/nas/judicom/events.example.txt`): birthdays, holidays and visits for
-the Judicom's info screen, which shows the next three with a countdown ("Christmas, December 25 (52 days to go)").  One per line:
+the Judicom's info screen, which shows the next five (fewer when long names leave no room) with a countdown ("Christmas, December 25 (52 days to go)").  One per line:
 `12-25 | Christmas` (every year), `4th Thursday of November | Thanksgiving` / `last Monday of May | Memorial Day` /
 `Easter | Easter`, `4th Sunday before 12-25 | Advent`, `46 days before Easter | Ash Wednesday`, `Pentecost | Pentecost` (every year, moving; the church year's moving days also work by name, see `FEASTS` in `software/judicom/events.py`), or `2026-11-08 10:30 | Visit from Ann` (once; the time is optional).  It starts with the US
 federal holidays and the common family ones (Easter, Mother's Day, Father's Day, Halloween, ...): delete any that are not wanted.  The Judicom fetches it with
@@ -171,8 +171,9 @@ Log: `journalctl -u jellyfin-mail-importer`.
 
 `/home/pi/judicom/verses.txt` on the NAS (start from `deploy/nas/judicom/verses.example.txt`: 50 comforting KJV verses, their
 words taken from a public-domain KJV text): `reference | words`, one per line, `[2]` where verse 2 begins inside a passage.  The
-Judicom fetches it with the caller list every 10 minutes and shows one verse, on a page that looks like an old Bible, every other
-time the info screen would come (so after every 10 photos), for 30 seconds; every verse once before any comes again.
+Judicom fetches it with the caller list every 10 minutes and shows one verse, on a page that looks like an old Bible, when its
+turn comes in the rotation after the photos (info, verse, weather, joke: so after every 20 photos), for 30 seconds; every verse
+once before any comes again.
 
 ### Judi's jokes
 
@@ -225,14 +226,15 @@ existing `rsync-backup` mirror (every 8 hours) copies it to `/mnt/2tbdrive2`.
 
 ### Call history
 
-Asterisk writes one line per call (and per leg of a call) to `/var/log/asterisk/cdr-csv/Master.csv` in the container (a Docker
-volume, so it survives restarts): who called whom, when, how long it rang and was talked, and how it ended (`ANSWERED`,
+Asterisk writes one line per call (and per leg of a call) to `/var/log/asterisk/cdr-csv/Master.csv` in the container, which is
+`/home/pi/asterisk/log/cdr-csv/Master.csv` on the NAS (a folder mounted by `compose.yaml`, so it survives a new container and is in
+the weekly backup): who called whom, when, how long it rang and was talked, and how it ended (`ANSWERED`,
 `NO ANSWER`, `BUSY`, ...).  Times are **UTC** (the container's clock; US Central time is 6 hours behind, 5 in summer).  It holds phone
-numbers: it stays on the NAS.  The folder was made by hand on 2026-11-03 (before that every call logged a harmless
+numbers: it stays on the NAS.  The `cdr-csv` folder must exist (without it every call logs a harmless
 "Unable to open file ... Master.csv" error):
 
-    docker exec asterisk tail -20 /var/log/asterisk/cdr-csv/Master.csv
-    # if the volume is ever made new:  docker exec asterisk sh -c "mkdir -p /var/log/asterisk/cdr-csv && chown asterisk:asterisk /var/log/asterisk/cdr-csv"
+    tail -20 /home/pi/asterisk/log/cdr-csv/Master.csv
+    # if the folder is ever missing:  docker exec asterisk sh -c "mkdir -p /var/log/asterisk/cdr-csv && chown asterisk:asterisk /var/log/asterisk/cdr-csv"
 
 ### Applying a change (safe: no restart, no dropped registrations)
 
@@ -296,9 +298,10 @@ Raspberry Pi 3 Model A+, Raspberry Pi OS without a desktop, user `joe` (in the g
 installed and logged in (its name there: `judicom`), **time zone America/Chicago** (`sudo timedatectl set-timezone America/Chicago`:
 the screen's clock and the 9 pm - 6 am night clock go by it).
 
-**What the screen shows** when no call is going on: the photos; after every 5 photos, for 30 s, the next of three screens in
-turn: the info screen (day, date, time, the next 5 events with countdowns), a Bible verse, and the weather (where Judi lives, today and
-the next 5 days, from Open-Meteo; left out when there is no internet, or when the site file below has no place); from 9 pm to 6 am the night clock (time and date, dim).
+**What the screen shows** when no call is going on: the photos, 15 s each; after every 5 photos, for 30 s, the next of four screens in
+turn: the info screen (day, date, time, the next 5 events with countdowns), a Bible verse, the weather (where Judi lives, today and
+the next 5 days, from Open-Meteo; left out when there is no internet, or when the site file below has no place), and a joke; a screen
+with nothing to show is skipped.  From 9 pm to 6 am the night clock (time and date, dim).
 Settings at the end of `software/judicom/config.py`.  To see the photos and the info screen at night (setting up, showing
 someone): `touch ~/judicom-awake` on the Judicom; it pauses the night clock for 2 hours (or until `rm ~/judicom-awake`).
 
@@ -443,7 +446,10 @@ Removing someone works the same way.  To change who the buttons call, move `left
 - NAS: `/home/pi/judicom/contacts.txt` (Judi's caller list), `voipms.conf`, `judicom.conf` (passwords), the two message WAVs (they
   speak the contact number)
 - NAS: `/mnt/8tbdrive/Photos/Judi` (Judi's photos; the Judicom only has a copy)
-- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync` and `~/.ssh/judicom_photos` (can be made again),
+- NAS: `/home/pi/judicom/watch.env` (alert address, ping URL), `/etc/naspi-backup.env`, `/home/pi/jellyfin-mail-importer/config.env`
+  (Gmail app password, Jellyfin key), `/home/pi/judicom/tls` (the website's key; can be made again).  The NAS's weekly backup
+  (section 2) has all of these, but only on the NAS's own drives.
+- Judicom: `~/.baresip/accounts` (password), `~/.ssh/judicom_sync`, `~/.ssh/judicom_photos` and `~/.ssh/judicom_backup` (can be made again),
   `~/judicom-site.conf` (where Judi lives), `~/judicom-splash.png` (the boot picture)
 - Your own computer: `~/.config/judicom/private-words.txt`, the private list for the pre-commit hook (`.githooks/pre-commit`,
   turned on per clone with `git config core.hooksPath .githooks`; the top of the hook explains the list)

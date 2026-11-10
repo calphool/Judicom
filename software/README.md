@@ -29,7 +29,8 @@ The file is not kept in git (the repository is public, and these are family phon
 The phone reads it again by itself within a few seconds of a change.  Whether a caller gets through at all is up to the PBX.
 
 On the Judicom this file is a **copy**: the master is `/home/pi/judicom/contacts.txt` on the NAS (the PBX screens callers with the
-same list), and `python3 -m judicom.sync`, run by the `judicom-contacts-sync` timer every 10 minutes, fetches it.  Edit the list on
+same list), and `python3 -m judicom.sync`, run by the `judicom-contacts-sync` timer every 10 minutes, fetches it (with the events,
+verses, jokes and people pictures).  Edit the list on
 the NAS; see docs/DEPLOYMENT.md.
 
 ## Step 4: the whole phone (photos + call screens + dial tone + ringer)
@@ -38,9 +39,10 @@ the NAS; see docs/DEPLOYMENT.md.
     python3 -m judicom.main --demo --window   # on a PC: l = lift / hang up, 1 / 2 = buttons
     python3 -m judicom.main --snapshots DIR   # a PNG of every phone screen, to look at (no screen needed)
 
-The phone software (baresip) is not connected yet: "Calling..." turns into "No answer." after 30 s.  Keys pretend to be it:
+Calls go through baresip (`judicom-baresip`; see `judicom/calls.py`).  With `--no-calls` it is left alone and keys pretend to be it:
 **y** = they answer, **f** = the call fails, **e** = they hang up, **i** = an incoming call (from the right button's
-person), **u** = an incoming call from a number that is not in the contacts file.  **space** = next photo, **q** = quit.
+person), **u** = an incoming call from a number that is not in the contacts file.  **space** = next photo, **t** = a touch of the
+screen, **q** = quit.
 The dial tone plays on the USB sound device (the handset), the ringer on the `Headphones` card (the jack -> PAM8403 amplifier -> speaker); a missing
 card is reported at start and stays silent.  `--no-sound` turns both off, `--speed 10` runs the phone's timers faster.
 Pressing a button plays touch-tone digits in the handset first (about 2 s, the screen already says "Calling ..."), then the call goes
@@ -95,7 +97,7 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
 
 ## Files
 
-    judicom/config.py       settings: photo folder, seconds per picture, colours
+    judicom/config.py       every setting: folders, pins, timings, levels, colours
     judicom/photos.py       which picture comes next (shuffled rounds), caption files          (no pygame; runs anywhere)
     judicom/layout.py       where the photo goes so the caption covers as little of it as possible  (no pygame)
     judicom/photo_view.py   the photo screen: fitting, caption band, cross-fade               (pygame)
@@ -105,26 +107,34 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/touch.py        the touch screen: finds it, reads fingers and taps
     judicom/inputs.py       hook switch (3 contacts, majority vote) and buttons -> debounced events   (no pygame)
     judicom/machine.py      the phone's modes: events in, screen / dial tone / ringer / call actions out (no pygame)
-    judicom/home.py         what shows when no call is on: photos; every 5 photos the info, verse or weather screen in turn;
+    judicom/home.py         what shows when no call is on: photos; every 5 photos the info, verse, weather or joke screen in turn;
                             9 pm - 6 am the night clock
-    judicom/screens.py      the screens that take turns between photos (info, verse, weather): one way for each  (no pygame)
+    judicom/screens.py      the screens that take turns between photos (info, verse, weather, joke): one way for each  (no pygame)
     judicom/info_view.py    the info screen (day, date, time, next events with countdowns) and the night clock (pygame)
     judicom/weather_view.py the weather screen: today and the next 5 days                              (pygame)
     judicom/event_icons.py  the little pictures beside the events (a cake, a tree, a turkey ...)    (pygame)
     judicom/verse_view.py   the verse screen: a verse on a page like an old Bible (EB Garamond, judicom/fonts)    (pygame)
     judicom/verses.py       Judi's verse list (KJV) and the shuffled deck                                 (no pygame)
+    judicom/joke_view.py    the joke screen: setup, punchline, and a laughing jester                        (pygame)
+    judicom/jokes.py        Judi's joke list and the shuffled deck                                        (no pygame)
     judicom/events.py       Judi's events list (birthdays, holidays, visits) and the countdowns           (no pygame)
     judicom/weather.py      the local weather and forecast from Open-Meteo, fetched every 30 min       (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
+    judicom/faces.py        the caller pictures on the call screens (from ~/people)
+    judicom/sick_guy.py     the cartoon on the "phone is not working" screen                              (pygame)
     judicom/keypad.py       the hidden keypad: its secret knock, its keys, which numbers it dials     (no pygame)
     judicom/keypad_view.py  the hidden keypad's screen                                                (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/callers.py      how the caller list is read, shared with the NAS and the website (only the standard library)
-    judicom/watched_file.py reads the contacts / events / verses file again only when it changes     (no pygame)
-    judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)
+    judicom/maintenance.py  the maintenance shell: its secret knock, and running it inside the phone program
+    judicom/shell.py        a real bash on a pseudo-terminal, for the maintenance shell                 (no pygame)
+    judicom/shell_view.py   draws the maintenance shell and its touch keyboard                          (pygame)
+    judicom/keyboard.py     the touch keyboard's keys and what they type                               (no pygame)
+    judicom/watched_file.py reads the contacts / events / verses / jokes file again only when it changes (no pygame)
+    judicom/sync.py         fetches the caller list, events, verses, jokes and people pictures from the NAS (no pygame)
     judicom/photo_sync.py   copies the photos from the NAS (/mnt/8tbdrive/Photos/Judi), every hour  (no pygame)
-    judicom/sound.py        dial tone and ringer, looped through aplay                        (no pygame)
+    judicom/sound.py        dial tone, touch-tones, ringer, beeps and bongs, through aplay; the ringer amplifier switch (no pygame)
+    judicom/ring_test.py    the ringer over and over, to check the speaker and the amplifier switch
+    judicom/calls.py        baresip, driven through its ctrl_tcp socket
     judicom/main.py         the program: switches + keys -> machine -> screens, sounds, phone software
     judicom/draw.py         text helpers        judicom/keys.py   key presses        judicom/photo_show.py   photos only (step 2)
-
-Suggested place in the repo: `software/`.
