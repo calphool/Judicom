@@ -51,6 +51,7 @@ from werkzeug.serving import WSGIRequestHandler
 from werkzeug.utils import secure_filename
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "software"))
+from judicom import callers as callers_mod  # noqa: E402
 from judicom import events as events_mod  # noqa: E402
 from judicom import messages as messages_mod  # noqa: E402
 from judicom import photos as photos_mod  # noqa: E402
@@ -205,23 +206,17 @@ CONTACTS_HEADER = """# Judi's caller list: who may ring the Judicom, the names o
 """
 
 
-def digits_of(number):
-    d = "".join(ch for ch in number or "" if ch.isdigit())
-    return d[1:] if len(d) == 11 and d.startswith("1") else d
-
-
-def pretty(d):
-    return "%s-%s-%s" % (d[:3], d[3:6], d[6:]) if len(d) == 10 else d
+digits_of, pretty = callers_mod.normalize, callers_mod.pretty      # the one way numbers are read (judicom/callers.py)
 
 
 def read_callers(s):
+    """Every person line of the list as a row of the form, as written (also lines the phone would skip, so they can be fixed)."""
     rows = []
     for line in read(s.contacts).splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
+        f = callers_mod.fields(line)
+        if f is None:
             continue
-        f = [x.strip() for x in line.split("|")] + ["", "", "", ""]
-        rows.append({"number": pretty(digits_of(f[0])) or f[0], "name": f[1], "relationship": f[2], "button": f[3].lower()})
+        rows.append({"number": pretty(f[0]) or f[0], "name": f[1], "relationship": f[2], "button": f[3]})
     return rows
 
 

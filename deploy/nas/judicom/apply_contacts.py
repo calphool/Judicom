@@ -9,7 +9,9 @@ only when the list has really changed.  It is run by pi's cron every 10 minutes;
 
 A list that cannot be read, or that has nobody in it, changes nothing: the last good allowed list stays (and the reason is logged).
 The Judicom fetches the same master file by itself (judicom.sync), for the names on its screen and the two buttons.
-Only the standard library: it runs on the NAS without the rest of the Judicom software.
+It reads the list with software/judicom/callers.py (the same reading as the Judicom's and the website's), from the copy of the
+repository it is in: on the NAS /home/pi/judicom/apply_contacts.py is a link to /home/pi/Judicom/deploy/nas/judicom/, so a
+git pull there updates both.  Otherwise only the standard library.
 """
 import argparse
 import datetime
@@ -17,6 +19,10 @@ import os
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "software"))       # the repository's software/ (through the link)
+from judicom.callers import read                                                # noqa: E402
 
 MASTER = "/home/pi/judicom/contacts.txt"
 ALLOWED = "/home/pi/asterisk/config/judicom-allowed.conf"
@@ -25,34 +31,11 @@ RELOAD = ["/usr/bin/docker", "exec", "asterisk", "asterisk", "-rx", "dialplan re
 LOG_MAX = 200_000                      # bytes; the log is cut back to half when it grows past this
 
 
-def normalize(number):
-    """Every way of writing a number -> its digits, 10 for North America ('+1 (212) 555-0142' -> '2125550142')."""
-    digits = "".join(ch for ch in (number or "") if ch.isdigit())
-    if len(digits) == 11 and digits.startswith("1"):
-        digits = digits[1:]
-    return digits
-
-
 def parse(text):
     """(people, problems): people = [(10 digits, name)] in file order, one per number; problems = messages about skipped lines.
-    The same rules as the Judicom's judicom/contacts.py."""
-    people, seen, problems = [], {}, []
-    for n, line in enumerate(text.splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        fields = [f.strip() for f in line.split("|")] + ["", "", ""]
-        digits, name = normalize(fields[0]), fields[1]
-        if len(digits) < 3 or not name:
-            problems.append("line %d skipped (needs at least a number and a name): %s" % (n, line))
-            continue
-        if digits in seen:
-            problems.append("line %d: %s is listed twice; the later line wins" % (n, digits))
-            people[seen[digits]] = (digits, name)
-            continue
-        seen[digits] = len(people)
-        people.append((digits, name))
-    return people, problems
+    The reading is judicom/callers.py, the same as the Judicom's."""
+    entries, _, problems = read(text)
+    return [(e.digits, e.name) for e in entries], problems
 
 
 def render(people):

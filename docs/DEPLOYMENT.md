@@ -100,8 +100,11 @@ which can only run `software/tools/nas_request.py` (the picture, a message, and 
 `/home/pi/judicom/contacts.txt` on the NAS is the only list to edit: same format as `software/contacts.example.txt`
 (`number | name | relationship | button`).  Everyone in it may ring the Judicom; `left` / `right` put a person on a button.
 
-- `/home/pi/judicom/apply_contacts.py` (from `deploy/nas/judicom/`) writes `judicom-allowed.conf` from it and reloads the dialplan,
-  only when something changed.  `pi`'s crontab runs it every 10 minutes:
+- `/home/pi/judicom/apply_contacts.py` writes `judicom-allowed.conf` from it and reloads the dialplan, only when something
+  changed.  It is a **link** into the NAS's copy of the repository
+  (`ln -sf /home/pi/Judicom/deploy/nas/judicom/apply_contacts.py /home/pi/judicom/apply_contacts.py`), because it reads the list
+  with `software/judicom/callers.py` from there: the same reading as the Judicom's and the website's.  A `git pull` in
+  `/home/pi/Judicom` updates it.  `pi`'s crontab runs it every 10 minutes:
   `*/10 * * * * /usr/bin/python3 /home/pi/judicom/apply_contacts.py >/dev/null 2>&1`.  Run it by hand for an instant update;
   `--dry-run` shows what it would write.  Its log: `/home/pi/judicom/apply.log`.  The list before each change is kept as
   `judicom-allowed.conf.prev`.

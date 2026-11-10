@@ -119,6 +119,7 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/keypad.py       the hidden keypad: its secret knock, its keys, which numbers it dials     (no pygame)
     judicom/keypad_view.py  the hidden keypad's screen                                                (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
+    judicom/callers.py      how the caller list is read, shared with the NAS and the website (only the standard library)
     judicom/watched_file.py reads the contacts / events / verses file again only when it changes     (no pygame)
     judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)
     judicom/photo_sync.py   copies the photos from the NAS (/mnt/8tbdrive/Photos/Judi), every hour  (no pygame)

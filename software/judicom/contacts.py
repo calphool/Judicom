@@ -24,60 +24,21 @@ If the file is missing, the buttons from config.BUTTONS are used (a PC demo), an
 """
 
 from . import config
+from .callers import BUTTON_KEYS, normalize, pretty, read     # noqa: F401  (normalize, pretty: used from here elsewhere too)
 from .watched_file import WatchedFile
 from .machine import Party, buttons_from_config
 from .sound import dialable
 
-BUTTON_KEYS = ("left", "right")
-
-
-def normalize(number):
-    """The number as 10 digits (North America) so that every way of writing it matches: '+1 (212) 555-0142' -> '2125550142'.
-    A SIP address works too: 'sip:+12125550142@pbx' -> '2125550142'.  Other lengths are kept as their digits."""
-    text = number or ""
-    if ":" in text:
-        text = text.split(":", 1)[1]                 # sip:...  -> the part after the scheme
-    text = text.split("@", 1)[0]                     # ...@host -> the user part
-    digits = "".join(ch for ch in text if ch.isdigit())
-    if len(digits) == 11 and digits.startswith("1"):
-        digits = digits[1:]
-    return digits
-
-
-def pretty(number):
-    """For the screen: '+12125550142' -> '212-555-0142'; other numbers as their digits ('sip:101@pbx' -> '101');
-    '' when there is no number at all (a caller who hides it: 'sip:anonymous@...')."""
-    d = normalize(number)
-    return "%s-%s-%s" % (d[:3], d[3:6], d[6:]) if len(d) == 10 else d
-
 
 def parse(text, log=None):
-    """(people, buttons): people = {10-digit number: Party}, buttons = {"left"/"right": Party}."""
+    """(people, buttons): people = {10-digit number: Party}, buttons = {"left"/"right": Party}.  The reading itself is
+    judicom/callers.py, shared with the NAS (Asterisk's allowed list) and the housekeeping website."""
     log = log or (lambda msg: None)
-    people, buttons = {}, {}
-    for n, line in enumerate(text.splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        fields = [f.strip() for f in line.split("|")]
-        fields += [""] * (4 - len(fields))
-        number, name, relationship, button = fields[:4]
-        digits = normalize(number)
-        if len(digits) < 3 or not name:
-            log("contacts line %d skipped (needs at least a number and a name): %s" % (n, line))
-            continue
-        button = button.lower()
-        if button and button not in BUTTON_KEYS:
-            log("contacts line %d: button must be left or right, not %r (the person is kept, without a button)" % (n, button))
-            button = ""
-        party = Party(name, relationship, digits, dialable(digits))
-        if digits in people:
-            log("contacts line %d: %s is listed twice; the later line wins" % (n, pretty(digits)))
-        people[digits] = party
-        if button:
-            if button in buttons:
-                log("contacts line %d: two people on the %s button; the later line wins" % (n, button))
-            buttons[button] = party
+    entries, on_buttons, problems = read(text)
+    for problem in problems:
+        log("contacts " + problem)
+    people = {e.digits: Party(e.name, e.relationship, e.digits, dialable(e.digits)) for e in entries}
+    buttons = {key: Party(e.name, e.relationship, e.digits, dialable(e.digits)) for key, e in on_buttons.items()}
     return people, buttons
 
 
