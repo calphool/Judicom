@@ -117,11 +117,14 @@ class Site(unittest.TestCase):
                 self.assertEqual(r.status_code, 200 if ok else 403)
 
     def test_other_host_names_are_refused(self):           # DNS rebinding: a page elsewhere pointing its own name at the NAS
-        r = self.client.get("/", base_url="http://evil.example.com", environ_base={"REMOTE_ADDR": "192.168.1.20"})
-        self.assertEqual(r.status_code, 403)
+        for url in ("/", "/login"):
+            r = self.client.get(url, base_url="http://evil.example.com", environ_base={"REMOTE_ADDR": "192.168.1.20"})
+            self.assertEqual(r.status_code, 403, url)
         for host in ("naspi.local:8080", "192.168.1.2:8080", "100.64.0.1:8080", "naspi-1.tail1234.ts.net:8080"):
-            r = self.client.get("/", base_url="http://" + host, environ_base={"REMOTE_ADDR": "192.168.1.20"})
-            self.assertEqual(r.status_code, 200, host)
+            # allowed: not refused (whether it then shows the page or sends you to sign in is up to the sign-in check)
+            for url in ("/", "/login"):
+                r = self.client.get(url, base_url="http://" + host, environ_base={"REMOTE_ADDR": "192.168.1.20"})
+                self.assertIn(r.status_code, (200, 302), (host, url))
 
     def test_a_post_without_the_token_changes_nothing(self):
         r = self.post("/callers", self.callers_form([("312-555-0999", "Scammer", "", "")]), token=False)
