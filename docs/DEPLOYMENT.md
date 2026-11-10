@@ -371,6 +371,23 @@ photos, and so do 10 minutes without a key, **even if a command is still running
 - It needs the touch screen and `python3-pyte`; without them the phone runs as usual and says so in its log.
 - The touch screen comes back by itself after a USB dropout, within about 5 seconds.
 
+## Hidden keypad
+
+A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).
+With the handset **up** (the "Who would you like to call?" screen, or the yellow "please hang up" one):
+
+1. Tap the top left corner twice, then the top right corner twice, each tap within 4 seconds of the last.  Each tap bongs
+   higher, and the fourth opens the keypad.  A wrong tap or a longer wait starts again without a sound.
+2. Dial: the dial tone stops at the first digit and each key plays its touch-tone.  "Delete" takes back the last digit.  The call
+   goes out by itself once the number is complete: 10 digits, or 1 and 10 digits (Asterisk's `from-judicom` allows nothing else).
+   If the number is in the caller list, the screen shows the person's name.
+3. During the call the keypad stays up, and its keys (with `*` and `#`) send touch-tones down the line, for menus (baresip's
+   `sndcode`).  When the call ends or does not get through, the keypad comes back; hanging up closes it.
+
+911 shows "Emergency calls cannot be made from this phone" (the line has no emergency service), and a number starting with 0 or
+1 0 / 1 1 is refused too.  A minute without a key: the "please hang up" screen.  Settings: `KEYPAD_SECONDS` and
+`KEYPAD_KNOCK_SECONDS` in `software/judicom/config.py`; the code is `judicom/keypad.py` and `judicom/keypad_view.py`.
+
 ## Backup of the SD card
 
 The whole card, as an image, while the Judicom runs, **at home only** (it goes over the home network; over Tailscale the copy

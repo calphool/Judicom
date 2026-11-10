@@ -116,6 +116,8 @@ Small programs run by hand on the Judicom while building or fixing it (not part 
     judicom/events.py       Judi's events list (birthdays, holidays, visits) and the countdowns           (no pygame)
     judicom/weather.py      the local weather and forecast from Open-Meteo, fetched every 30 min       (no pygame)
     judicom/call_view.py    the phone screens: arrows to the buttons, calling, speaking, no answer, incoming, please hang up (pygame)
+    judicom/keypad.py       the hidden keypad: its secret knock, its keys, which numbers it dials     (no pygame)
+    judicom/keypad_view.py  the hidden keypad's screen                                                (pygame)
     judicom/contacts.py     the contacts file: the two buttons' people, names for incoming numbers (no pygame)
     judicom/watched_file.py reads the contacts / events / verses file again only when it changes     (no pygame)
     judicom/sync.py         fetches the contacts file from the NAS (the master copy)                (no pygame)

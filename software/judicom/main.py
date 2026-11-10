@@ -11,6 +11,7 @@ works and a button shows "The phone is not working." straight away.  --no-calls 
 A message from the housekeeping website (judicom/messages.py) takes the screen from the photos, and gives it back when it has been
 read.  It is not one of the machine's modes: the machine goes on as ever, so a call or the handset simply takes the screen from it.
 The maintenance shell (judicom/maintenance.py) is the same kind of thing, and needs a touch screen and python3-pyte.
+The hidden keypad (judicom/keypad.py) is one of the machine's modes; its secret knock and its keys are taps on the touch screen.
 
 These keys pretend to be the phone software (useful on a PC):
 y = they answer   f = the call fails   e = they hang up
@@ -27,6 +28,7 @@ from pathlib import Path
 
 from . import config
 from .calls import NoCalls
+from .keypad import OPEN, Keypad, Knock
 from .machine import Machine, Mode, Party
 
 SIMULATED = {"y": ("answered",), "f": ("call_failed",), "e": ("remote_ended",)}
@@ -47,8 +49,10 @@ class Phone:
         self._version = None
         self._buttons_changed = False
         self._checked = clock()
+        self.keypad, self.keypad_knock = Keypad(clock), Knock(clock)
         if contacts is not None:
             machine.buttons = contacts.buttons()
+            machine.lookup = contacts.lookup            # a number dialled on the keypad: their name, if they are in the list
 
     def simulated(self, key):
         """The pretend phone-software event for a key, or None."""
@@ -78,9 +82,12 @@ class Phone:
             sim = self.simulated(key)
             for event in self.controls.key(key) + ([sim] if sim else []):
                 self._handle(event)
+        key_tones = self._keypad(taps)
         for action in self.machine.tick():
             self.calls.do(action)
         self.sounds.update(self.machine.dial_tone, self.machine.ringing, self.machine.dialing_tones)
+        for key in key_tones:                           # after update(): the dial tone has let the handset's card go
+            self.sounds.key_tone(key)
         self._check_contacts()
         changed = self.machine.version != self._version or self._buttons_changed
         self._buttons_changed = False
@@ -101,6 +108,33 @@ class Phone:
         elif idle and not self.message and not self.shell_showing:
             self.photos.tick()
         return changed
+
+    def _keypad(self, taps):
+        """The hidden keypad: its knock while the handset is up, then its keys.  Returns the keys whose touch-tone to play now."""
+        mode, tones = self.machine.mode, []
+        if mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP):
+            bong = self.keypad_knock.update(self.machine.off_hook, taps)
+            if bong is not None:
+                self.sounds.bong(bong)
+            if bong == OPEN:
+                self._handle(("keypad",))
+            return tones
+        self.keypad_knock.reset()
+        if self.machine.keypad_showing:
+            in_call, typing = mode in (Mode.DIALING, Mode.CALLING, Mode.ONGOING), mode == Mode.KEYPAD
+            for x, y in taps:
+                key = self.keypad.press(x, y, in_call, typing)
+                if key is None:
+                    continue
+                self._handle(("key", key))
+                if self.machine.mode == Mode.KEYPAD and key.isdigit():
+                    tones.append(key)                   # (the digit that completes the number is played by DIALING)
+        self.keypad.tick()
+        return tones
+
+    @property
+    def keypad_needs_draw(self):
+        return self.machine.keypad_showing and self.keypad.dirty
 
     @property
     def message(self):
@@ -157,8 +191,20 @@ def snapshots(folder, buttons):
         pygame.image.save(display.logical, str(folder / (name + ".png")))
     message_view.show(display.logical, Message("", left.name or "Ann", "Hi Mom! We will come by on Sunday after church. Love you!"), Faces())
     pygame.image.save(display.logical, str(folder / "10_message.png"))
+    from types import SimpleNamespace
+    from . import keypad_view
+    from .keypad import EMERGENCY, Keypad
+    pad = Keypad()
+    keypads = [("11_keypad", SimpleNamespace(mode=Mode.KEYPAD, digits="312555", notice="", party=None)),
+               ("12_keypad_refused", SimpleNamespace(mode=Mode.KEYPAD, digits="", notice=EMERGENCY, party=None)),
+               ("13_keypad_calling", SimpleNamespace(mode=Mode.CALLING, digits="", notice="", party=Party(dial="3125550123", shown="312-555-0123"))),
+               ("14_keypad_call", SimpleNamespace(mode=Mode.ONGOING, digits="", notice="", party=Party(dial="3125550123", shown="312-555-0123")))]
+    for name, state in keypads:
+        keypad_view.show(display.logical, state, pad, Faces())
+        pygame.image.save(display.logical, str(folder / (name + ".png")))
     display.close()
-    return [folder / (name + ".png") for name, _, _ in shots] + [folder / "10_message.png"]
+    return ([folder / (name + ".png") for name, _, _ in shots] + [folder / "10_message.png"] +
+            [folder / (name + ".png") for name, _ in keypads])
 
 
 def main(argv=None):
@@ -237,6 +283,7 @@ def main(argv=None):
                   log, postbox=postbox, taps=taps, maintenance=maintenance)
     call_view = CallView(buttons, faces)
     call_view.preload()
+    from . import keypad_view
     log("Screen %dx%d%s.  Photos: %s.  Switches: %s.  %s" % (display.size[0], display.size[1],
         ", turned 90 degrees" if display.rotate else "", args.folder, source, sounds.describe()))
     log("Pretend phone software: y = answer, f = fail, e = they hang up, i = incoming call (right button's person), "
@@ -269,6 +316,11 @@ def main(argv=None):
                     message_view.show_hint(display.logical, postbox.more, level)
                     display.present()
                 hint_level = level
+            elif phone.machine.keypad_showing:
+                if changed or phone.keypad_needs_draw:
+                    keypad_view.show(display.logical, phone.machine, phone.keypad, faces)
+                    phone.keypad.dirty = False
+                    display.present()
             elif mode == Mode.IDLE:
                 if changed or photos.needs_redraw():
                     photos.draw(display.logical)

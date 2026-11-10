@@ -47,7 +47,7 @@ class Screens(unittest.TestCase):
 
     def test_every_phone_mode_fills_the_screen(self):
         for mode in Mode:
-            if mode == Mode.IDLE:
+            if mode in (Mode.IDLE, Mode.KEYPAD):                 # the photos; the keypad's own screen (keypad_view.py)
                 continue
             with self.subTest(mode=mode):
                 s = self.drawn(mode, FRANK)

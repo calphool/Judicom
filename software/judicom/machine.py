@@ -7,7 +7,7 @@ No pygame, no GPIO, no SIP: events go in, actions come out, so all of it can be 
     actions = machine.tick()                        # call often: the timed changes
     machine.mode, machine.party, machine.dial_tone, machine.ringing, machine.dialing_tones
 
-Actions are tuples for the call software:  ("dial", party)  ("answer",)  ("hangup",)  ("reject",)
+Actions are tuples for the call software:  ("dial", party)  ("answer",)  ("hangup",)  ("reject",)  ("dtmf", key)
 
 THE MODES (what the screen shows)
   IDLE         family photos (later also the info screen and the night clock)
@@ -24,6 +24,12 @@ THE MODES (what the screen shows)
   ONGOING      "Speaking with ..."                  -> ENDED when either side hangs up
   ENDED        "Call just ended with ..." for CALL_ENDED_SECONDS -> IDLE, or PLEASE_HANG_UP if the handset is still up
   PLEASE_HANG_UP  yellow: "Please put the handset back on the phone."  (the buttons still work)
+  KEYPAD       the hidden keypad (judicom/keypad.py): with the handset up, the top left corner tapped twice, then the top right
+               twice.  The dial tone until the first digit; each key's touch-tone; the call goes out by itself once the number is
+               complete (10 digits, or 11 starting with 1) -> DIALING (the last digit's tone) -> CALLING.  911 and numbers that
+               cannot be North American ones (starting with 0, or 1 and then 0 or 1) are refused with a notice.
+               A keypad call keeps the keypad on the screen: during it the keys send touch-tones down the line (menus).  When it
+               does not get through, or ends, the keypad comes back (handset still up).  KEYPAD_SECONDS without a key: PLEASE_HANG_UP.
 
 Incoming calls are only taken while the handset is down and no call is going on; otherwise they are rejected (busy).
 Time comes from `clock` (time.monotonic), which tests replace with a fake.
@@ -33,6 +39,7 @@ import time
 from dataclasses import dataclass
 
 from . import config
+from .keypad import check_number, pretty_number
 from .sound import dialable, dialing_seconds
 
 
@@ -47,23 +54,26 @@ class Mode(enum.Enum):
     ONGOING = "ongoing"
     ENDED = "ended"
     PLEASE_HANG_UP = "please hang up"
+    KEYPAD = "keypad"
 
 
 @dataclass(frozen=True)
 class Party:
     """Someone on the other end.  name / relationship may be empty for an unknown caller (then the number is shown).
-    tones: the touch-tone digits heard in the handset when calling them ("" = none)."""
+    tones: the touch-tone digits heard in the handset when calling them ("" = none).
+    shown: how the number is written on the screen when there is no name (a call from the keypad: "312-555-0123")."""
     name: str = ""
     relationship: str = ""
     dial: str = ""
     tones: str = ""
+    shown: str = ""
 
     @property
     def label(self):
         """'Ann (daughter)', 'Ann', or the number."""
         if self.name and self.relationship:
             return "%s (%s)" % (self.name, self.relationship)
-        return self.name or self.dial or "someone"
+        return self.name or self.shown or self.dial or "someone"
 
 
 def buttons_from_config(buttons=None):
@@ -76,24 +86,35 @@ class Machine:
     def __init__(self, buttons=None, lifted_seconds=config.LIFTED_SECONDS, ring_out_seconds=config.RING_OUT_SECONDS,
                  no_answer_seconds=config.NO_ANSWER_SECONDS, call_ended_seconds=config.CALL_ENDED_SECONDS,
                  dialing_seconds=dialing_seconds, clock=time.monotonic, log=None,
-                 out_of_order_seconds=config.OUT_OF_ORDER_SECONDS, phone_ok=None):
+                 out_of_order_seconds=config.OUT_OF_ORDER_SECONDS, phone_ok=None, keypad_seconds=config.KEYPAD_SECONDS,
+                 lookup=None):
         self.dialing_seconds = dialing_seconds          # tones -> how long dialing them takes
         self.phone_ok = phone_ok or (lambda: True)      # False: the phone cannot make calls now (from the call software)
         self.buttons = buttons if buttons is not None else buttons_from_config()
         self.timeouts = {Mode.LIFTED: lifted_seconds, Mode.CALLING: ring_out_seconds,
                          Mode.NO_ANSWER: no_answer_seconds, Mode.ENDED: call_ended_seconds,
-                         Mode.OUT_OF_ORDER: out_of_order_seconds}
+                         Mode.OUT_OF_ORDER: out_of_order_seconds, Mode.KEYPAD: keypad_seconds}
+        # A dialled number -> the Party to call: with the name and relationship when the number is in the contacts file.
+        self.lookup = lookup or (lambda digits: Party())
         self.clock, self.log = clock, log or (lambda msg: None)
         self.off_hook = False
         self.party = None
         self.mode = Mode.IDLE
         self.mode_since = clock()
         self.version = 0                               # goes up with every change of mode or party: time to redraw
+        self.digits = ""                               # typed on the keypad so far
+        self.notice = ""                               # why the keypad refused a number ("" = none); shown until the next key
+        self.keypad_call = False                       # the call now going on was made from the keypad
 
     # ---- what the rest of the program asks ----
     @property
     def dial_tone(self):
-        return self.mode == Mode.LIFTED
+        return self.mode == Mode.LIFTED or (self.mode == Mode.KEYPAD and not self.digits)
+
+    @property
+    def keypad_showing(self):
+        """The keypad has the screen: while typing, and during a call made from it."""
+        return self.mode == Mode.KEYPAD or (self.keypad_call and self.mode in (Mode.DIALING, Mode.CALLING, Mode.ONGOING))
 
     @property
     def ringing(self):
@@ -133,10 +154,20 @@ class Machine:
             self._go(self._failed_mode())
             return [("hangup",)]
         elif self.mode in (Mode.NO_ANSWER, Mode.OUT_OF_ORDER):
-            self._go(Mode.LIFTED if self.off_hook else Mode.IDLE)
+            self._go(self._back_to_keypad() or (Mode.LIFTED if self.off_hook else Mode.IDLE))
         elif self.mode == Mode.ENDED:
-            self._go(Mode.PLEASE_HANG_UP if self.off_hook else Mode.IDLE)
+            self._go(self._back_to_keypad() or (Mode.PLEASE_HANG_UP if self.off_hook else Mode.IDLE))
+        elif self.mode == Mode.KEYPAD:
+            self._go(Mode.PLEASE_HANG_UP)
         return []
+
+    def _back_to_keypad(self):
+        """After a keypad call that did not get through or has ended: the keypad again, if the handset is still up."""
+        if self.keypad_call and self.off_hook:
+            self.keypad_call = False
+            self.digits = ""
+            return Mode.KEYPAD
+        return None
 
     def _on_lifted(self, _):
         self.off_hook = True
@@ -158,7 +189,7 @@ class Machine:
         if self.mode == Mode.ONGOING:
             self._go(Mode.ENDED)
             return [("hangup",)]
-        if self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP):
+        if self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP, Mode.KEYPAD):
             self._go(Mode.IDLE)
         # NO_ANSWER, OUT_OF_ORDER, ENDED: their screen stays up for its time, then IDLE
 
@@ -179,6 +210,50 @@ class Machine:
             self._go(Mode.CALLING)
             return [("dial", party)]
         self.log("      (%s button ignored: %s)" % (key, self.mode.value))
+        return None
+
+    def _on_keypad(self, _):
+        """The secret knock is done: the keypad."""
+        if self.off_hook and self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP):
+            self.digits, self.notice, self.keypad_call = "", "", False
+            self._go(Mode.KEYPAD)
+        else:
+            self.log("      (keypad ignored: %s)" % self.mode.value)
+
+    def _on_key(self, key):
+        """A key of the keypad: "0".."9", "*", "#", or "back"."""
+        if self.mode == Mode.ONGOING and self.keypad_call:
+            return [("dtmf", key)] if key != "back" else None          # a menu at the other end ("press 1 for ...")
+        # (in DIALING and CALLING a key does nothing: there is no one to hear it yet)
+        if self.mode != Mode.KEYPAD:
+            return None                                                 # e.g. while it is still ringing out: nothing to answer yet
+        self.mode_since = self.clock()                                  # KEYPAD_SECONDS count from the last key
+        self.notice = ""
+        if key == "back":
+            self.digits = self.digits[:-1]
+        elif key.isdigit():
+            self.digits += key
+        else:
+            self.version += 1                                           # * and # only matter during a call
+            return None
+        self.version += 1
+        verdict = check_number(self.digits)
+        if verdict == "incomplete":
+            return None
+        if verdict != "complete":                                       # refused: say why, and start again
+            self.notice, self.digits = verdict, ""
+            self.log("      keypad: number refused (%s)" % verdict)
+            return None
+        found = self.lookup(self.digits)
+        # The last digit's tone is played by DIALING, as for a button: the call goes out once it is over, so the handset's
+        # sound card is free again for the call's own sound.
+        self.party = Party(found.name, found.relationship, self.digits, dialable(key), pretty_number(self.digits))
+        self.digits, self.keypad_call = "", True
+        if not self.phone_ok():
+            self.log("      the phone cannot make calls now (no connection to the PBX)")
+            self._go(Mode.OUT_OF_ORDER)
+            return None
+        self._go(Mode.DIALING)
         return None
 
     def _on_incoming(self, party):
@@ -218,8 +293,10 @@ class Machine:
     def _go(self, mode):
         self.mode, self.mode_since = mode, self.clock()
         self.version += 1
-        if mode in (Mode.IDLE, Mode.LIFTED, Mode.PLEASE_HANG_UP):
+        if mode in (Mode.IDLE, Mode.LIFTED, Mode.PLEASE_HANG_UP, Mode.KEYPAD):
             self.party = None
+        if mode in (Mode.IDLE, Mode.LIFTED, Mode.PLEASE_HANG_UP):
+            self.keypad_call, self.digits, self.notice = False, "", ""
         self.log("-> %s%s" % (mode.value.upper(), " - " + self.party.label if self.party else ""))
 
 

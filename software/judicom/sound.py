@@ -33,6 +33,7 @@ RING_ON, RING_OFF = 2.0, 4.0     # seconds of ringing, then of silence (the Nort
 CHUNK = 3200                     # bytes written at a time (0.1 s; under the 4096-byte pipe limit, so never a short write)
 LEAD_SECONDS = 0.3               # silence written before any sound: USB adapters swallow the very start
 BEEP_HZ, BEEPS, BEEP_ON, BEEP_OFF = 1000.0, 3, 0.15, 0.15     # a new message: three short beeps
+KEY_TONE_SECONDS = 0.15                                     # a keypad key's touch-tone (a little longer than a dialer's)
 BONG_HZ, BONG_SECONDS = (392.0, 523.3, 659.3, 784.0, 1046.5), 0.5     # the maintenance sequence: armed, then the four corners
 DIALING_TAIL = 0.4               # after the last digit: aplay's buffer drains and the card is let go before the call opens it
 
@@ -307,6 +308,15 @@ class Sounds:
             self.digits.start()
         self.log("      dial tone %s, ringer %s%s" % ("ON" if want[0] else "off", "ON" if want[1] else "off",
                                                     ", dialing %s" % want[2] if want[2] else ""))
+
+    def key_tone(self, key):
+        """One key's touch-tone in the handset, now (the hidden keypad).  Cuts off the one before.  Call it after update(),
+        which has already stopped the dial tone at the first digit, so the card is free."""
+        if not (self.handset_card and dialable(key)):
+            return
+        self.digits.stop()
+        self.digits = self.make_loop(self.handset_card, digits_pcm(key, on=KEY_TONE_SECONDS), "key tone", self.log, repeat=False)
+        self.digits.start()
 
     def beep(self):
         """The three beeps of a new message (not over the ringer: a call matters more)."""

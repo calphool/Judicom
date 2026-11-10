@@ -99,6 +99,8 @@ BARESIP_CTRL = ("127.0.0.1", 4444)   # baresip's ctrl_tcp_listen (in ~/.baresip/
 
 # ---- the phone: timing ------------------------------------------------------------------------------------------------------
 LIFTED_SECONDS = 60.0         # handset up, no button pressed: after this long the yellow "please hang up" screen (dial tone stops)
+KEYPAD_SECONDS = 60.0         # the hidden keypad (judicom/keypad.py) with no key pressed for this long: "please hang up" too
+KEYPAD_KNOCK_SECONDS = 4.0    # its secret knock (top left twice, top right twice): each tap within this long of the last
 RING_OUT_SECONDS = 30.0       # calling someone who does not pick up: give up after this long -> "No answer."
 NO_ANSWER_SECONDS = 10.0      # the "No answer." screen
 OUT_OF_ORDER_SECONDS = 15.0   # "The phone is not working.": a button pressed while the phone cannot reach the PBX

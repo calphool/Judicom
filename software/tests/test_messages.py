@@ -329,9 +329,9 @@ class FakeTaps:
     def __init__(self):
         self.tap = False
 
-    def poll(self):
+    def poll(self):                                 # like touch.Taps: where fingers came down (here: the middle, once)
         tap, self.tap = self.tap, False
-        return tap
+        return [(300, 500)] if tap else []
 
 
 class WithThePhone(Folder):

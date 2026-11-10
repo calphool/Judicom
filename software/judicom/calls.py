@@ -147,6 +147,8 @@ class Baresip:
             self.call_id = ""                               # ours, id not known yet: the next outgoing call event tells it
         elif what == "answer":
             self._send("accept")
+        elif what == "dtmf":
+            self._send("sndcode", action[1])                # a touch-tone to the other end, during the call (menus)
         elif what in ("hangup", "reject"):
             self._send("hangup")
             self.call_id = None                             # whatever baresip says about that call from now on is old news
