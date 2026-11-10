@@ -6,8 +6,7 @@
 #
 # Needs ffmpeg, and Piper in a Python virtual environment (made on first run in ./.tts, about 60 MB with the voice; not in git).
 # Then put them on the NAS (see docs/DEPLOYMENT.md):
-#     scp judicom-*.wav pi@naspi.local:/tmp/
-#     ssh pi@naspi.local 'for f in /tmp/judicom-*.wav; do docker cp $f asterisk-test:/var/lib/asterisk/sounds/custom/; done'
+#     scp judicom-*.wav pi@naspi.local:asterisk/sounds-custom/       (Asterisk reads them from there; no restart needed)
 set -euo pipefail
 cd "$(dirname "$0")"
 number="${1:-}"

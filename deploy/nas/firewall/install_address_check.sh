@@ -11,7 +11,7 @@ echo "1. What the check would do (nothing is changed yet):"
 sudo python3 voipms_address_check.py --dry-run
 stamp=$(date +%Y-%m-%d-%H%M)
 sudo cp -p /etc/asterisk-firewall.nft "/etc/asterisk-firewall.nft.before-address-check-$stamp"
-cp -p /home/pi/asterisk-test/config/voipms.conf "/home/pi/asterisk-test/config/voipms.conf.before-address-check-$stamp"
+cp -p /home/pi/asterisk/config/voipms.conf "/home/pi/asterisk/config/voipms.conf.before-address-check-$stamp"
 echo "2. Backups: /etc/asterisk-firewall.nft.before-address-check-$stamp and voipms.conf.before-address-check-$stamp"
 echo "3. Checking the new firewall rules before loading them:"
 tmp=$(mktemp)

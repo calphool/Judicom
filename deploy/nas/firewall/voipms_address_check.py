@@ -25,9 +25,9 @@ import tempfile
 
 HOST = "chicago4.voip.ms"
 NFT_FILE = "/etc/asterisk-firewall.nft"
-PJSIP_FILE = "/home/pi/asterisk-test/config/voipms.conf"
+PJSIP_FILE = "/home/pi/asterisk/config/voipms.conf"
 NFT = "/usr/sbin/nft"
-RELOAD = ["/usr/bin/docker", "exec", "asterisk-test", "asterisk", "-rx", "module reload res_pjsip.so"]
+RELOAD = ["/usr/bin/docker", "exec", "asterisk", "asterisk", "-rx", "module reload res_pjsip.so"]
 MAX_ADDRESSES = 6              # a lookup giving more than this is not believed
 MAX_KEPT = 12                  # never more than this many addresses in the firewall set (the oldest added go first)
 

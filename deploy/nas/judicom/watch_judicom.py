@@ -35,7 +35,7 @@ SETTINGS = "/home/pi/judicom/watch.env"
 GMAIL = "/home/pi/jellyfin-mail-importer/config.env"
 STATE = "/home/pi/judicom/watch.state"
 LOG = "/home/pi/judicom/watch.log"
-ASTERISK = ["/usr/bin/docker", "exec", "asterisk-test", "asterisk", "-rx"]
+ASTERISK = ["/usr/bin/docker", "exec", "asterisk", "asterisk", "-rx"]
 CONTACTS = ASTERISK + ["pjsip show contacts"]
 REGISTRATIONS = ASTERISK + ["pjsip show registrations"]
 TRUNK = "voipms-registration/"          # the outbound registration's name in voipms.conf
@@ -122,7 +122,7 @@ callers hear).  What usually causes it, most likely first:
   - the home internet is down (then this email may only arrive once it is back)
   - VoIP.ms refuses the login: the sub-account's password was changed, or the account has a problem (check the portal)
   - VoIP.ms itself has trouble (their status page)
-On the NAS:  docker exec asterisk-test asterisk -rx "pjsip show registrations"   (Registered = fine)
+On the NAS:  docker exec asterisk asterisk -rx "pjsip show registrations"   (Registered = fine)
 """
 
 

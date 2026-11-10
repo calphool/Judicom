@@ -17,7 +17,7 @@ Judi's phone number (VoIP.ms DID) --SIP--> NAS: Asterisk in Docker --Tailscale--
 | VoIP.ms account, DID, caller ID | voip.ms web portal | the settings, below | everything |
 | Judi's caller list (master) | NAS: `/home/pi/judicom/contacts.txt` | `deploy/nas/judicom/` (the script) | the list itself |
 | Family photos (master) | NAS: `/mnt/8tbdrive/Photos/Judi` (shared with Jellyfin) | | the photos and `.meta` captions |
-| Asterisk (PBX) | NAS `naspi`, Docker container `asterisk-test` | `deploy/nas/asterisk/` | passwords, the two messages |
+| Asterisk (PBX) | NAS `naspi`, Docker container `asterisk` | `deploy/nas/asterisk/` | passwords, the two messages |
 | baresip (phone line) | Judicom, service `judicom-baresip` | `deploy/judicom/` | `~/.baresip/accounts` (password) |
 | The phone program | Judicom, service `judicom-phone` | `software/` | `~/contacts.txt`, `~/photos/` |
 
@@ -33,7 +33,7 @@ Judi's phone number (VoIP.ms DID) --SIP--> NAS: Asterisk in Docker --Tailscale--
 ## 2. The NAS: Asterisk
 
 Asterisk 22 runs in Docker (`deploy/nas/asterisk/compose.yaml`, image `andrius/asterisk:22`, host networking).  Its config folder is
-`/home/pi/asterisk-test/config` on the NAS, mounted as `/etc/asterisk`.  **The NAS also runs Jellyfin**: change only this folder and
+`/home/pi/asterisk/config` on the NAS, mounted as `/etc/asterisk`.  **The NAS also runs Jellyfin**: change only this folder and
 reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 
 | File | What it does |
@@ -41,19 +41,21 @@ reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 | `pjsip.conf` | two transports: home network (VoIP.ms) and Tailscale (the Judicom), both port 5060; put the NAS's two addresses in place of `NAS_HOME_ADDRESS` and `NAS_TAILSCALE_ADDRESS`; includes the next two |
 | `voipms.conf` | the VoIP.ms registration and endpoint; incoming calls land in context `from-voipms`.  From `voipms.conf.example` |
 | `judicom.conf` | the Judicom's account (endpoint `judicom`, Tailscale only); its calls land in `from-judicom`.  From `judicom.conf.example` |
-| `voipms-test.conf` | `from-judicom`: test numbers 100 (melody) and 101 (records 5 s and plays it back), and 10-digit North American numbers out through VoIP.ms (nothing else can be dialled out).  `from-voipms`: hands every call to `judicom-inbound` |
+| `voipms-dialplan.conf` | `from-judicom`: test numbers 100 (melody) and 101 (records 5 s and plays it back), and 10-digit North American numbers out through VoIP.ms (nothing else can be dialled out).  `from-voipms`: hands every call to `judicom-inbound` |
 | `judicom-inbound.conf` | screening: caller on the allowed list -> the Judicom rings 40 s, then "can't come to the phone" (also when busy); anyone else, or a hidden number -> the protected-number message |
 | `judicom-allowed.conf` | the allowed callers, 10 digits each.  **Written by `apply_contacts.py`** from the caller list (below): do not edit it |
 
 `extensions.conf` is Asterisk's stock file with these lines at the end (the first was there already):
 
-    #include "voipms-test.conf"
+    #include "voipms-dialplan.conf"
     #include "judicom-inbound.conf"
     #include "judicom-allowed.conf"
 
-The two messages are `custom/judicom-protected.wav` and `custom/judicom-unavailable.wav` in the container's
-`/var/lib/asterisk/sounds/custom/` (a Docker volume).  Make them with `deploy/prompts/make_prompts.sh <contact number>` (Piper
-text-to-speech; the wording is in `protected.txt` / `unavailable.txt`) and copy them in with `docker cp` (the script says how).
+The two messages are `custom/judicom-protected.wav` and `custom/judicom-unavailable.wav`: the files
+`/home/pi/asterisk/sounds-custom/judicom-*.wav` on the NAS, which the container sees as `/var/lib/asterisk/sounds/custom/`.
+Make them with `deploy/prompts/make_prompts.sh <contact number>` (Piper text-to-speech; the wording is in `protected.txt` /
+`unavailable.txt`) and copy them into that folder (the script says how).  Asterisk's logs, with the call history, are in
+`/home/pi/asterisk/log/` the same way.
 
 ### The housekeeping website
 
@@ -226,33 +228,33 @@ volume, so it survives restarts): who called whom, when, how long it rang and wa
 numbers: it stays on the NAS.  The folder was made by hand on 2026-11-03 (before that every call logged a harmless
 "Unable to open file ... Master.csv" error):
 
-    docker exec asterisk-test tail -20 /var/log/asterisk/cdr-csv/Master.csv
-    # if the volume is ever made new:  docker exec asterisk-test sh -c "mkdir -p /var/log/asterisk/cdr-csv && chown asterisk:asterisk /var/log/asterisk/cdr-csv"
+    docker exec asterisk tail -20 /var/log/asterisk/cdr-csv/Master.csv
+    # if the volume is ever made new:  docker exec asterisk sh -c "mkdir -p /var/log/asterisk/cdr-csv && chown asterisk:asterisk /var/log/asterisk/cdr-csv"
 
 ### Applying a change (safe: no restart, no dropped registrations)
 
 Back up the file first (`cp -p x.conf x.conf.before-<what>-<date>`), edit, then:
 
-    docker exec asterisk-test asterisk -rx "dialplan reload"        # extensions*.conf, voipms-test.conf, judicom-*.conf
-    docker exec asterisk-test asterisk -rx "module reload res_pjsip.so"   # only for pjsip.conf / voipms.conf / judicom.conf
+    docker exec asterisk asterisk -rx "dialplan reload"        # extensions*.conf, voipms-dialplan.conf, judicom-*.conf
+    docker exec asterisk asterisk -rx "module reload res_pjsip.so"   # only for pjsip.conf / voipms.conf / judicom.conf
 
 ### Checks
 
-    docker exec asterisk-test asterisk -rx "pjsip show registrations"   # voipms ... Registered
-    docker exec asterisk-test asterisk -rx "pjsip show contacts"        # judicom/sip:...@(its Tailscale address) = the Judicom is registered
-    docker exec asterisk-test asterisk -rx "dialplan show judicom-allowed"
-    docker exec asterisk-test asterisk -rx "core show channels"         # calls up right now
+    docker exec asterisk asterisk -rx "pjsip show registrations"   # voipms ... Registered
+    docker exec asterisk asterisk -rx "pjsip show contacts"        # judicom/sip:...@(its Tailscale address) = the Judicom is registered
+    docker exec asterisk asterisk -rx "dialplan show judicom-allowed"
+    docker exec asterisk asterisk -rx "core show channels"         # calls up right now
 
 A call from Asterisk to the Judicom, for testing (rings it as "unknown caller"; lift the handset and the melody plays):
 
-    docker exec asterisk-test asterisk -rx "channel originate PJSIP/judicom extension 100@from-judicom"
+    docker exec asterisk asterisk -rx "channel originate PJSIP/judicom extension 100@from-judicom"
 
 To see why a call failed, turn on detailed logging for one call, then off again:
 
-    A="docker exec asterisk-test asterisk -rx"
+    A="docker exec asterisk asterisk -rx"
     $A "logger add channel /var/log/asterisk/judicom-debug.log notice,warning,error,verbose"; $A "core set verbose 3"
     $A "pjsip set logger host 208.100.60.6"                 # SIP messages to and from VoIP.ms
-    # ... make the call, then read:  docker exec asterisk-test cat /var/log/asterisk/judicom-debug.log
+    # ... make the call, then read:  docker exec asterisk cat /var/log/asterisk/judicom-debug.log
     $A "pjsip set logger off"; $A "core set verbose 0"; $A "logger remove channel /var/log/asterisk/judicom-debug.log"
 
 (The log holds the VoIP.ms account name and login exchanges: delete it afterwards.)

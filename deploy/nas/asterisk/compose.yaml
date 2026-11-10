@@ -1,8 +1,12 @@
 services:
   asterisk:
     image: andrius/asterisk:22
-    container_name: asterisk-test
+    container_name: asterisk
     restart: "unless-stopped"
     volumes:
       - ./config:/etc/asterisk
+      # Kept here rather than in Docker's unnamed volumes, so a new container keeps them (and the NAS's weekly
+      # backup of /home/pi copies them): the Judicom's two messages, and Asterisk's logs with the call history.
+      - ./sounds-custom:/var/lib/asterisk/sounds/custom
+      - ./log:/var/log/asterisk
     network_mode: host

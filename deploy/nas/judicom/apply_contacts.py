@@ -19,9 +19,9 @@ import sys
 import tempfile
 
 MASTER = "/home/pi/judicom/contacts.txt"
-ALLOWED = "/home/pi/asterisk-test/config/judicom-allowed.conf"
+ALLOWED = "/home/pi/asterisk/config/judicom-allowed.conf"
 LOG = "/home/pi/judicom/apply.log"
-RELOAD = ["/usr/bin/docker", "exec", "asterisk-test", "asterisk", "-rx", "dialplan reload"]
+RELOAD = ["/usr/bin/docker", "exec", "asterisk", "asterisk", "-rx", "dialplan reload"]
 LOG_MAX = 200_000                      # bytes; the log is cut back to half when it grows past this
 
 
