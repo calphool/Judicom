@@ -8,6 +8,7 @@ auth=judicom-auth
 aors=judicom
 direct_media=no
 rtp_symmetric=yes
+dtmf_mode=info
 force_rport=yes
 rewrite_contact=yes
 media_address=NAS_TAILSCALE_ADDRESS

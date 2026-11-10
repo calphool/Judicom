@@ -381,8 +381,10 @@ With the handset **up** (the "Who would you like to call?" screen, or the yellow
 2. Dial: the dial tone stops at the first digit and each key plays its touch-tone.  "Delete" takes back the last digit.  The call
    goes out by itself once the number is complete: 10 digits, or 1 and 10 digits (Asterisk's `from-judicom` allows nothing else).
    If the number is in the caller list, the screen shows the person's name.
-3. During the call the keypad stays up, and its keys (with `*` and `#`) send touch-tones down the line, for menus (baresip's
-   `sndcode`).  When the call ends or does not get through, the keypad comes back; hanging up closes it.
+3. During the call the keypad stays up, and its keys (with `*` and `#`) send touch-tones down the line, for menus.  They go as
+   SIP INFO (`;dtmfmode=info` in `~/.baresip/accounts`, `dtmf_mode=info` in `judicom.conf`): baresip's RTP touch-tones last no
+   time at all, and Asterisk ignores them.  Nothing is heard in the earpiece when a key is pressed (the call has the handset's
+   sound card), and a cell phone called this way often plays nothing either; a menu (voicemail, a pharmacy) hears them.  When the call ends or does not get through, the keypad comes back; hanging up closes it.
 
 911 shows "Emergency calls cannot be made from this phone" (the line has no emergency service), and a number starting with 0 or
 1 0 / 1 1 is refused too.  A minute without a key: the "please hang up" screen.  Settings: `KEYPAD_SECONDS` and
