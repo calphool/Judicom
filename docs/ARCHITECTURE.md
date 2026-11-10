@@ -44,7 +44,7 @@ The endpoint is designed to communicate with the NAS over a private network. The
 
 **Established:** the Python/Pygame phone on the Pi 3 A+; hook switch and buttons; USB handset audio; the switched ringtone amplifier; NAS-hosted Asterisk 22; VoIP.ms registration and calls in both directions; Tailscale connectivity.
 
-**Still to validate:** power supply rating (the Pi has reported under-voltage); device boot and recovery behavior; final enclosure.
+**Still to validate:** the 5 V at the Pi (it dipped below the under-voltage threshold when the handset was lifted or the ringer started); device boot and recovery behavior; final enclosure.
 
 **Deferred:** video calling and optional migration to Orange Pi.
 

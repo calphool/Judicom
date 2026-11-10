@@ -18,7 +18,7 @@ against the actual board before finalizing the enclosure.
 | Component | Details | State |
 |---|---|---|
 | Display | 7-inch HDMI IPS (HS-007), 1024 × 600, mounted sideways (portrait): the software draws 600 × 1024 and turns it 90°. Touch over USB (`1a86:e5e3` USB2IIC_CTP_CONTROL) | In use |
-| Physical controls | Two square photo arcade buttons (33 mm lip, 27 mm square collar, a 21 × 21 mm photo under a clear cap), shortened to 3 mm travel with printed parts and pressing a BLEE microswitch each; on GPIO 23 (left) and 24 (right) | In use |
+| Physical controls | Two square photo arcade buttons (33 mm lip, 27 mm square collar, a 21 × 21 mm photo under a clear cap), shortened to 3 mm travel with printed parts and pressing a BLEE microswitch each; on GPIO 23 (left) and 24 (right). Not lit (an LED could be fitted in each later) | In use |
 | Hook switch | BIS-10 switch (37 × 29 × 14 mm) in a printed holder under the cradle; three contacts: two normally closed (GPIO 17, 27) and one normally open (GPIO 22); the three vote | In use |
 | Handset | Vintage AT&T Merlin handset; its original microphone replaced with an electret capsule | In use |
 | Handset audio | C-Media USB audio adapter (Unitek Y-247A, `0d8c:0014`), ALSA card `Device`; mono mic | In use |
@@ -122,8 +122,11 @@ dimensions there.  Its header lists the measurements that are still assumed ("Th
 - [x] Determine microphone type and bias (replaced with an electret, biased by the USB adapter).
 - [x] Test clean, full-duplex USB handset audio under ALSA.
 - [x] Test independent ringtone routing through the analog output and the PAM8403.
-- [ ] Measure operating and peak 5 V current draw with display, Pi, and amplifier. (On 2026-11-10 the Pi reported
-      that under-voltage and throttling had occurred since boot: `vcgencmd get_throttled` = `0x50000`.)
+- [ ] Measure the 5 V at the Pi (GPIO header pins 2/4 and 6) while the handset is lifted and while it rings. On the evening of
+      2026-11-09 the kernel logged 27 "Undervoltage detected!" dips, each lasting 4-7 s (`journalctl -k | grep -i voltage`).
+      In the latest boot every one came 1-2 s after the handset was lifted (dial tone starting on the USB adapter) or the
+      ringer started; nothing in the 14 idle hours after that. The supply is rated 5.5 V / 6 A, so the loss is probably
+      between the supply and the Pi, or the supply sagging when a load switches on.
 - [x] GPIO pins and switch logic (above).
 - [ ] Boot behavior of GPIO 25 (see "Ringer amplifier switch").
 - [ ] Confirm final FreeCAD dimensions, mounting holes, and cable clearances.
