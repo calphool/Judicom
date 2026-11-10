@@ -1,7 +1,7 @@
 # Judicom
 VoIP Project For Memory Care Patients - simplified /safe telephone interface with family photo frame functionality
 
-![Concept Photo](<img/Judicom 2.0 Family Video Phone Concept.png>)
+<img src="img/judicom.jpg" alt="The Judicom: a black 3D-printed phone with a Merlin handset in its cradle, a portrait touch screen, and two square photo buttons below it" width="600">
 
 Judicom is an open initiative to build a fully customizable specialty audio / video conferencing device
 specially tailored for use by elderly patients dealing with degraded memory.  It has an extremely simple 
@@ -33,6 +33,10 @@ needs the touch screen (a touch only puts away a message); family use it for the
 shell.
 
 The microphone of the Merlin is not an electret mic, and so its circuitry had to be modified.  The wires to the existing microphone were cut, a small hole was drilled into the handset near the mouthpiece, and a standard electret mic was added.  Green and white wires go to the speaker of the handset, and black and red go to the electret microphone.
+
+The original concept:
+
+![Concept Photo](<img/Judicom 2.0 Family Video Phone Concept.png>)
 
 ## Software
 
