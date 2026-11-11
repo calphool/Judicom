@@ -45,6 +45,12 @@ reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 | `judicom-inbound.conf` | screening: caller on the allowed list -> the Judicom rings 40 s, then "can't come to the phone" (also when busy); anyone else, or a hidden number -> the protected-number message |
 | `judicom-allowed.conf` | the allowed callers, 10 digits each.  **Written by `apply_contacts.py`** from the caller list (below): do not edit it |
 
+**Leave the NAT settings in `voipms.conf` alone** unless you test after: `expiration=120` (the registration is renewed every
+couple of minutes), `qualify_frequency=60`, and on the endpoint `rtp_symmetric`, `force_rport`, `rewrite_contact` and
+`rtp_keepalive=1`.  They came out of getting the voice to work both ways through the home router (one side of the conversation
+went missing before); which of them did it was not recorded.  After changing any of them, make test calls both ways and talk
+from both ends, including an incoming call after the line has been idle for more than 10 minutes.
+
 `extensions.conf` is Asterisk's stock file with these lines at the end (the first was there already):
 
     #include "voipms-dialplan.conf"
