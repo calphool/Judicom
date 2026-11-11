@@ -314,7 +314,7 @@ values from the design you approved.
 
 THE PI CRADLE  (PiCradle; the BottomPlate loses its four screw standoffs and gets one shallow pocket)
 -----------------------------------------------------------------------------------------------------
-A holder for the Raspberry Pi 3A+ (65 x 56 mm).  The 3B+ has the same four holes but is 85 mm long: set PI_L = 85 for it.  The cradle is a
+A holder for the Raspberry Pi 3A+ (65 x 56 mm).  The cradle is a
 separate part that you glue to the bottom plate; the Pi snaps onto it by hand, with no screws, and comes off again with a pair of tweezers.
   * Nothing is beside or over the board: the cradle is a flat base 1.0 mm inside the board's outline (63 x 54 x 2 mm) and four posts, and
     that is all it is.  Everything the Pi has at its edges - the USB port, HDMI, power, audio, the camera and display ribbons, the GPIO
@@ -379,7 +379,7 @@ Things I could NOT take from your drawings - please check them:
     Raspberry Pi figures as I know them (I could not open the official drawing here), and not measured on your board.  Please check them
     with calipers before you print.  PI_BOARD_Z = 6.0 and PI_BACK_GAP = 24 are unchanged from before.  The cradle does not decide which
     way round the board sits (it is the same turned 180 degrees), and I do not know where on the 3A+ the ports are in this layout, so
-    check that they face the right way.  The older notes and docs/DECISION.md D-001 still say 3B+.
+    check that they face the right way.
 
   * Speaker: the 42 mm hole spacing is from you; the frame size (52 mm square), magnet
     (42 mm) and depth (18 mm) are estimated from the photo and are used only for the grey
@@ -695,7 +695,7 @@ BOSS_H = 10.0                  # boss height (the insert hole opens on its botto
 BACK_BOSS_X = [30.0, 60.0, 170.0, 200.0]   # x of the 4 bosses along the bottom of the back wall
                                # (kept clear of the plate's cable slot, x 70..160, and of the DC-jack tower)
 SCREW_HOLE_D, SCREW_HEAD_D = 3.4, 6.4           # plate screw holes (countersunk)
-PI_L, PI_W = 65.0, 56.0        # the Raspberry Pi 3A+ board (the 3B+ is 85 x 56 and has the same four holes)
+PI_L, PI_W = 65.0, 56.0        # the Raspberry Pi 3A+ board
 PI_HOLE_DX, PI_HOLE_DY, PI_HOLE_OFF = 58.0, 49.0, 3.5      # mounting holes: 58 x 49 mm apart, 3.5 mm in from the edges
 PI_HOLE_D, PI_PCB_T = 2.75, 1.4                            # their diameter, and the thickness of the board
 PI_BACK_GAP = 24.0   # Pi back edge to inside of back wall
