@@ -39,7 +39,7 @@ reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 | File | What it does |
 |---|---|
 | `pjsip.conf` | two transports: home network (VoIP.ms) and Tailscale (the Judicom), both port 5060; put the NAS's two addresses in place of `NAS_HOME_ADDRESS` and `NAS_TAILSCALE_ADDRESS`; includes the next two |
-| `voipms.conf` | the VoIP.ms registration and endpoint; incoming calls land in context `from-voipms`.  From `voipms.conf.example` |
+| `voipms.conf` | the VoIP.ms registration and endpoint; incoming calls land in context `from-voipms`.  From `voipms.conf.example`.  A refused login is tried again every 15 minutes (`fatal_retry_interval=900`): without it, one `401` from VoIP.ms (2026-11-11, a glitch on their side) stopped the registration for good, until it was re-registered by hand (`pjsip send register voipms-registration`) |
 | `judicom.conf` | the Judicom's account (endpoint `judicom`, Tailscale only); its calls land in `from-judicom`.  From `judicom.conf.example` |
 | `voipms-dialplan.conf` | `from-judicom`: test numbers 100 (melody) and 101 (records 5 s and plays it back), and 10-digit North American numbers out through VoIP.ms (nothing else can be dialled out).  `from-voipms`: hands every call to `judicom-inbound` |
 | `judicom-inbound.conf` | screening: caller on the allowed list -> the Judicom rings 40 s, then "can't come to the phone" (also when busy); anyone else, or a hidden number -> the protected-number message |

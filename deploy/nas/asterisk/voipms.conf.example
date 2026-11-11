@@ -11,6 +11,7 @@ server_uri=sip:chicago4.voip.ms
 client_uri=sip:VOIPMS_ACCOUNT_asterisk@chicago4.voip.ms
 retry_interval=60
 forbidden_retry_interval=300
+fatal_retry_interval=900
 expiration=120
 line=yes
 endpoint=voipms
