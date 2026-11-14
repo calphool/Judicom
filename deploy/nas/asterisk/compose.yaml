@@ -1,6 +1,9 @@
 services:
   asterisk:
-    image: andrius/asterisk:22
+    # Pinned to the exact build that is known to work (Asterisk 22.11.0, built 2026-10-14): the digest after @ is what Docker
+    # uses, the tag is for people.  A plain "22" moves several times a month, so "docker compose pull" or a new container
+    # could change Asterisk without anyone choosing to.  To upgrade on purpose, see "Upgrading Asterisk" in docs/DEPLOYMENT.md.
+    image: andrius/asterisk:22.11.0_debian-trixie-427809d@sha256:1817983370bf2bcd645e836f9149cd1a743fef2f48a47b59bd77a86fd4b48b9b
     container_name: asterisk
     restart: "unless-stopped"
     volumes:

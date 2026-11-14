@@ -32,8 +32,8 @@ Judi's phone number (VoIP.ms DID) --SIP--> NAS: Asterisk in Docker --Tailscale--
 
 ## 2. The NAS: Asterisk
 
-Asterisk 22 runs in Docker (`deploy/nas/asterisk/compose.yaml`, image `andrius/asterisk:22`, host networking).  Its config folder is
-`/home/pi/asterisk/config` on the NAS, mounted as `/etc/asterisk`.  **The NAS also runs Jellyfin**: change only this folder and
+Asterisk 22 runs in Docker (`deploy/nas/asterisk/compose.yaml`, image `andrius/asterisk` pinned to one exact build of 22.11.0,
+host networking).  Its config folder is `/home/pi/asterisk/config` on the NAS, mounted as `/etc/asterisk`.  **The NAS also runs Jellyfin**: change only this folder and
 reload Asterisk's pieces; never restart Docker or the NAS for a phone change.
 
 | File | What it does |
@@ -62,6 +62,19 @@ The two messages are `custom/judicom-protected.wav` and `custom/judicom-unavaila
 Make them with `deploy/prompts/make_prompts.sh <contact number>` (Piper text-to-speech; the wording is in `protected.txt` /
 `unavailable.txt`) and copy them into that folder (the script says how).  Asterisk's logs, with the call history, are in
 `/home/pi/asterisk/log/` the same way.
+
+### Upgrading Asterisk
+
+`compose.yaml` names one exact image (tag and digest), so Asterisk changes only when that line is changed.  To upgrade, at a
+quiet time (calls drop while the container is replaced):
+
+1. Choose a build on Docker Hub (`andrius/asterisk`, tags like `22.11.0_debian-trixie-<build>`) and note its digest.
+2. On the NAS, keep the old line, change the `image:` line in `/home/pi/asterisk/compose.yaml`, then
+   `cd ~/asterisk && docker compose up -d` (this replaces only the Asterisk container; config, messages and logs are in the
+   mounted folders).
+3. Check: `docker exec asterisk asterisk -rx "pjsip show registrations"` shows VoIP.ms `Registered`, `pjsip show contacts` shows
+   the Judicom `Avail`, and a test call both ways works.  If not, put the old line back and `docker compose up -d` again.
+4. Commit the same change to `deploy/nas/asterisk/compose.yaml` in the repository.
 
 ### The housekeeping website
 
