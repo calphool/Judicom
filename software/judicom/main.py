@@ -10,7 +10,8 @@ works and a button shows "The phone is not working." straight away.  --no-calls 
 
 A message from the housekeeping website (judicom/messages.py) takes the screen from the photos, and gives it back when it has been
 read.  It is not one of the machine's modes: the machine goes on as ever, so a call or the handset simply takes the screen from it.
-The maintenance shell (judicom/maintenance.py) is the same kind of thing, and needs a touch screen and python3-pyte.
+The maintenance shell (judicom/maintenance.py) is the same kind of thing, and needs a touch screen and python3-pyte; so is the
+hidden game (judicom/game.py), opened the same way, which is drawn at 60 frames a second while it is on.
 The hidden keypad (judicom/keypad.py) is one of the machine's modes; its secret knock and its keys are taps on the touch screen.
 
 These keys pretend to be the phone software (useful on a PC):
@@ -35,6 +36,7 @@ SIMULATED = {"y": ("answered",), "f": ("call_failed",), "e": ("remote_ended",)}
 UNKNOWN_NUMBER = "+13125550199"                 # the "u" key: a caller who is not in the contacts file
 CONTACTS_CHECK_SECONDS = 5.0                    # how often the contacts file is looked at for changes
 SHELL_DRAW_SECONDS = 0.1                        # the maintenance shell is drawn at most this often: the phone comes first
+FPS, GAME_FPS = 30, 60                          # frames a second: usually, and while the hidden game is on
 
 
 class Phone:
@@ -74,6 +76,8 @@ class Phone:
         taps = self.taps.poll() if self.taps else []
         touched = bool(taps)
         for event in self.controls.poll() + self.calls.poll():
+            if event[0] == "button" and self.game_showing:
+                continue                                # the game's controls: nothing for the phone (nor its log)
             self._handle(event)
         for key in keys:                                # in order: "lift, then next photo" must not change the photo
             touched = touched or key == "t"
@@ -143,8 +147,13 @@ class Phone:
 
     @property
     def shell_showing(self):
-        """The maintenance shell has the screen (it stays open behind a call, without it)."""
+        """The maintenance shell or the game has the screen (the shell stays open behind a call, without it)."""
         return self.maintenance is not None and self.maintenance.open and self.machine.mode == Mode.IDLE
+
+    @property
+    def game_showing(self):
+        """The hidden game has the screen."""
+        return self.maintenance is not None and self.maintenance.game is not None and self.machine.mode == Mode.IDLE
 
     def _check_contacts(self):
         now = self.clock()
@@ -273,10 +282,13 @@ def main(argv=None):
     maintenance = shell_view = None
     if taps is not None:
         try:
+            from .game import Session
+            from .game_view import GameView
             from .maintenance import Maintenance
             from .shell import Shell
             from .shell_view import ShellView
-            maintenance, shell_view = Maintenance(sounds, lambda: Shell(log=log), log=log), ShellView()
+            maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, make_game=lambda: Session(sounds, time.monotonic, log))
+            shell_view, game_view = ShellView(), GameView()
         except ImportError as exc:                       # the phone is what matters: it goes on without the shell
             log("(no maintenance shell: %s - sudo apt install python3-pyte)" % exc)
     phone = Phone(Machine(buttons, clock=clock, log=log, phone_ok=lambda: calls.ready), controls, calls, sounds, photos, contacts,
@@ -301,7 +313,10 @@ def main(argv=None):
                 break
             changed = phone.step(keys)
             mode = phone.machine.mode
-            if phone.shell_showing:
+            if phone.game_showing:
+                if changed or maintenance.game.steps:
+                    display.present_small(game_view.draw(maintenance.game.game))
+            elif phone.shell_showing:
                 now = time.monotonic()
                 if changed or (maintenance.needs_draw and now - shell_drawn >= SHELL_DRAW_SECONDS):
                     shell_view.draw(display.logical, maintenance.shell, maintenance.keyboard)
@@ -329,7 +344,7 @@ def main(argv=None):
                 call_view.buttons = phone.machine.buttons
                 call_view.draw(display.logical, mode, phone.machine.party, time.monotonic())
                 display.present()
-            frames.tick(30)
+            frames.tick(GAME_FPS if phone.game_showing else FPS)
     except KeyboardInterrupt:
         pass
     finally:

@@ -397,6 +397,24 @@ photos, and so do 10 minutes without a key, **even if a command is still running
 - It needs the touch screen and `python3-pyte`; without them the phone runs as usual and says so in its log.
 - The touch screen comes back by itself after a USB dropout, within about 5 seconds.
 
+## Hidden game
+
+An arcade game (`software/judicom/game.py`): a formation of raiders marches from side to side and down, and you shoot them
+from a turret at the bottom, behind four shelters.  It opens like the maintenance shell, with the corners the other way round:
+
+1. Hold both buttons for 3 seconds until you hear a bong, then let go.
+2. Within 10 seconds tap the corners counter-clockwise, starting **bottom right** (bottom right, bottom left, top left,
+   top right).  Each one bongs higher, and the fourth opens the game.  The first corner decides: top left is the shell.
+
+- Left button: move left.  Right button: move right.  Both together: fire (hold them to keep firing).
+- **Lifting the handset ends it**, and so does a call coming in (its sound stops first, so the ringer has the speaker).
+  After "game over", both buttons start a new game; left alone for 30 seconds it goes back to the photos.
+- The sound is on the ringer speaker (`GAME_LEVEL` in `config.py`).  The high score is kept in `/home/joe/.judicom-game-best`;
+  delete the file to start it again.
+- The game moves in fixed steps of 1/60 s.  The Pi 3A+ draws about 40 frames a second (the log says how many when it closes);
+  the game's speed does not depend on that.
+- All its pictures and sounds were made for the Judicom (`game_art.py`, `game_sound.py`).
+
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).

@@ -200,6 +200,9 @@ class Silent:
     def start(self):
         pass
 
+    def play(self, names):
+        pass
+
     def stop(self):
         pass
 
@@ -238,13 +241,15 @@ def make_amp(log=None):
 
 
 class Sounds:
-    def __init__(self, log=None, enabled=True, handset_card=None, ringer_card=None, make_loop=Loop, amp=None, clock=time.monotonic):
+    def __init__(self, log=None, enabled=True, handset_card=None, ringer_card=None, make_loop=Loop, amp=None, clock=time.monotonic,
+                 make_mixer=None):
         self.log = log or (lambda msg: None)
         self.make_loop = make_loop
         self.amp, self.clock = amp, clock
         self._quiet_since = None
         self.dial = self.ring = self.digits = self.beeps = Silent()
         self.bongs, self._bong = [], Silent()
+        self.game, self.make_mixer = Silent(), make_mixer             # the hidden game's sound (judicom/game_sound.py), made when needed
         self.handset_card = self.ringer_card = None
         if enabled:
             self.handset_card = handset_card or find_usb_card()
@@ -272,7 +277,7 @@ class Sounds:
         """Off once the speaker has been quiet for AMP_OFF_SECONDS (so the end of a sound is not cut, and a ring's gaps keep it on)."""
         if self.amp is None or not self.amp.is_on:
             return
-        if self.ring.playing or self.beeps.playing or self._bong.playing:
+        if self.ring.playing or self.beeps.playing or self._bong.playing or self.game.playing:
             self._quiet_since = None
         elif self._quiet_since is None:
             self._quiet_since = self.clock()
@@ -302,6 +307,7 @@ class Sounds:
         if want[1]:
             self.beeps.stop()                           # the ringer needs the card
             self._bong.stop()
+            self.game.stop()
             self._speaker_on()
             self.ring.start()
         if digits_changed and want[2]:
@@ -334,7 +340,30 @@ class Sounds:
         self._speaker_on()
         self._bong.start()
 
+    def game_on(self):
+        """The hidden game's sound on the ringer speaker, from now until game_off() (not over the ringer: a call matters more)."""
+        if self._want[1] or not self.ringer_card:
+            return
+        if isinstance(self.game, Silent):
+            if self.make_mixer is None:
+                from .game_sound import Mixer
+                self.make_mixer = Mixer
+            self.game = self.make_mixer(self.ringer_card, self.log)
+        self.beeps.stop()                               # one aplay at a time on this card
+        self._bong.stop()
+        self._speaker_on()
+        self.game.start()
+
+    def game_play(self, names):
+        """The game's sounds, by name (game.py's events)."""
+        if names and self.game.playing:
+            self.game.play(names)
+
+    def game_off(self):
+        self.game.stop()
+
     def close(self):
+        self.game.stop()
         self.dial.stop()
         self.ring.stop()
         self.beeps.stop()

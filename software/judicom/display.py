@@ -49,6 +49,18 @@ class Display:
         self.screen.blit(out, (0, 0))
         pygame.display.flip()
 
+    def present_small(self, small):
+        """A small upright picture (the hidden game's canvas) straight onto the screen, scaled up with square pixels: turning and
+        scaling the small picture is much quicker than the full-size one, which matters at 60 pictures a second."""
+        out = small
+        if self.rotate:
+            out = pygame.transform.rotate(out, -90 if self.flip else 90)
+        try:
+            pygame.transform.scale(out, self.screen.get_size(), self.screen)     # straight into the screen: half the time
+        except ValueError:                                                      # (only when the two pixel formats match)
+            self.screen.blit(pygame.transform.scale(out, self.screen.get_size()), (0, 0))
+        pygame.display.flip()
+
     def close(self):
         from . import draw
         draw.reset()

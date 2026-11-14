@@ -130,6 +130,12 @@ SHELL_TOP = 36                # the first row starts this far down: the bezel co
 SHELL_RIGHT = 20              # and the shell and the keyboard stop this far from the right edge, which the bezel covers too
 BONG_LEVEL = 0.4              # on the ringer speaker
 
+# ---- the hidden game (judicom/game.py) ---------------------------------------------------------------------------------------
+# Opened like the maintenance shell, but with the corners counter-clockwise from the bottom right.  Lifting the handset ends it.
+GAME_LEVEL = 0.35             # its sounds, on the ringer speaker
+GAME_SOUND_AFTER = 1.0        # its sound starts this long after it opens (the last bong has finished with the speaker by then)
+GAME_BEST_FILE = Path(os.environ.get("JUDICOM_GAME_BEST", "/home/joe/.judicom-game-best"))    # the high score
+
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
 INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or
 INFO_SECONDS = 30.0           # the weather ... the info screen for this long, then the photos again
