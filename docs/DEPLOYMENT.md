@@ -385,7 +385,7 @@ the **hidden menu**, with the games.  With the handset on the hook and nothing e
 
 1. Hold both buttons for 3 seconds until you hear a bong, then let go.
 2. Within 10 seconds tap the corners clockwise, starting top left.  Each one bongs higher, and the fourth opens the menu.
-3. Touch **Shell** (or a game, or "Back to the photos").  The menu goes back to the photos by itself after a minute untouched,
+3. Touch **Shell** (or a game, or "Back to the photos"; with seven entries or more they are in two columns).  The menu goes back to the photos by itself after a minute untouched,
    and closes when the handset is lifted or a call comes in.
 
 A wrong tap, a wait of more than 10 seconds, the handset or a call ends the sequence without a sound.  `exit` goes back to the
@@ -463,6 +463,20 @@ shots).  The ship and controls are Meteoroids' (`meteor.Pilot`): Left / Right tu
   would get through the rings as they will have turned.
 - Fixes found in play: a lost ship's mines no longer guard the start (no new ship came); mines no longer pass through
   intact segments, and were calmed down.  Its high score is in `/home/joe/.judicom-stronghold-best`.
+
+## Lunica
+
+The sixth game on the hidden menu (`software/judicom/lunica.py`): groups of alien craft swoop in on curving paths (two of
+the five ways in come down through the fighter's row) and settle into a formation of 4 commanders, 16 interceptors and
+20 scouts; then they dive at the fighter, shooting, and climb back.  A commander may hover half-way down with a capture
+beam: a fighter caught in it is carried off.  Shoot that commander while it dives and the fighter comes back to dock
+beside yours: two fighters, two streams of shots.  Stage 3, and every fourth after it, is a bonus stage.  Left / Right:
+move.  Both held: stop and fire again and again (two shots up at a time per fighter).
+
+- Its own tunes: a three-part C-major opening as a game starts, a rapid A-minor run when a fighter is caught.
+- The flight paths are joined Bezier curves and arcs (`Path`); enemies turn to the way they fly.
+- Its high score is in `/home/joe/.judicom-lunica-best`.  With seven entries the hidden menu is in two columns
+  (`menu.MIN_H`).
 
 ## Hidden keypad
 

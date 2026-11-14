@@ -102,8 +102,20 @@ def _stronghold(n):
     return s
 
 
+def _lunica(n):
+    from .lunica_view import COMMANDER, FIGHTER, PALETTE as LP
+    k = max(2, int(n * 0.6) // len(COMMANDER[0][0]))
+    boss, ship = _pixels(COMMANDER[0], LP, k), _pixels(FIGHTER[0], LP, k)
+    boss = pygame.transform.rotate(boss, 180)          # (it faces down, at the fighter)
+    s = pygame.Surface((n, n), pygame.SRCALPHA)
+    s.blit(boss, ((n - boss.get_width()) // 2, int(n * 0.06)))
+    s.blit(ship, ((n - ship.get_width()) // 2, n - ship.get_height() - int(n * 0.04)))
+    s.fill((255, 255, 170), (n // 2 - max(1, k // 2), int(n * 0.5), max(2, k), max(4, 3 * k)))     # a shot going up
+    return s
+
+
 ICONS = {"Shell": _shell, "Invaders": _invaders, "Brick Breaker": _bricks, "Mars Patrol": _mars, "Meteoroids": _meteoroids,
-         "Stellar Stronghold": _stronghold}
+         "Stellar Stronghold": _stronghold, "Lunica": _lunica}
 
 
 def icon(label, size):
@@ -131,6 +143,12 @@ def show(surf, menu):
         if pic is None:
             img = draw.text(label, "reg" if back else "bold", 38 if back else 64, INK if back else DARK, max_w=w - 48)
             draw.centered(surf, img, rect.centery - img.get_height() // 2, rect.centerx)
+            continue
+        if w < h * 2.2:                                     # a button in two columns: the picture on top, the name under it
+            img = draw.text(label, "bold", 30, DARK, max_w=w - 16)
+            pic = icon(label, min(h - img.get_height() - 22, w - 40))
+            surf.blit(pic, (rect.centerx - pic.get_width() // 2, y + 8))
+            draw.centered(surf, img, y + h - 8 - img.get_height(), rect.centerx)
             continue
         surf.blit(pic, (x + 10, y + 10))
         left = x + 10 + pic.get_width() + 20                  # the name, beside the picture, in the room that is left

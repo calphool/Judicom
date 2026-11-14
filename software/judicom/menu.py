@@ -17,6 +17,8 @@ RIGHT = config.SHELL_RIGHT       # the bezel covers the right edge
 WIDE = 460
 BACK_W, BACK_H = 380, 100
 BACK_BOTTOM = 60                 # "Back to the photos" sits this far above the bottom
+MIN_H = 70                       # buttons lower than this in one column: two columns instead (from 7 entries)
+COL_GAP = 20
 
 
 class Menu:
@@ -26,11 +28,20 @@ class Menu:
         self._touched = clock()
 
     def buttons(self):
+        """One column of wide buttons; or, when that would make them lower than MIN_H, two columns (left to right, then
+        down).  "Back to the photos" stays wide, at the bottom."""
         middle = (config.SCREEN_W - RIGHT) // 2
         back_y = config.SCREEN_H - BACK_BOTTOM - BACK_H
+        room = back_y - GAP - TOP
         n = max(1, len(self.labels))
-        h = min(BUTTON_H, (back_y - GAP - TOP - (n - 1) * GAP) // n)          # more buttons: lower ones, all still above "Back"
-        out = [(label, middle - WIDE // 2, TOP + i * (h + GAP), WIDE, h) for i, label in enumerate(self.labels)]
+        cols = 1 if (room - (n - 1) * GAP) // n >= MIN_H else 2
+        rows = -(-n // cols)
+        h = min(BUTTON_H, (room - (rows - 1) * GAP) // rows)
+        w = WIDE if cols == 1 else (WIDE - COL_GAP) // 2
+        out = []
+        for i, label in enumerate(self.labels):
+            row, col = divmod(i, cols)
+            out.append((label, middle - WIDE // 2 + col * (w + COL_GAP), TOP + row * (h + GAP), w, h))
         out.append((BACK, middle - BACK_W // 2, back_y, BACK_W, BACK_H))
         return out
 

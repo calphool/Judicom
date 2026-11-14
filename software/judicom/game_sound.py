@@ -278,6 +278,90 @@ def stronghold_sounds(level=None):
     return _cache["stronghold"]
 
 
+def hum_pcm(level):
+    """The capture beam: a low hum, throbbing eight times a second (one loop of whole cycles)."""
+    n, out = int(0.5 * RATE), []
+    for i in range(n):
+        throb = 0.55 + 0.45 * math.sin(2 * math.pi * 8 * i / n * 0.5)
+        out.append(throb * (0.6 * _square(i * 220 / RATE) + 0.4 * math.sin(2 * math.pi * i * 330 / RATE)))
+    return _pcm(out, level)
+
+
+_SEMITONE = {"C": -9, "D": -7, "E": -5, "F": -4, "G": -2, "A": 0, "B": 2}
+
+
+def note_hz(name):
+    """'A4' -> 440.0; 'G#5', 'Bb3' ..."""
+    letter, rest = name[0], name[1:]
+    shift = 1 if rest.startswith("#") else -1 if rest.startswith("b") else 0
+    octave = int(rest.lstrip("#b"))
+    return 440.0 * 2 ** ((_SEMITONE[letter] + shift + 12 * (octave - 4)) / 12)
+
+
+def parts_pcm(parts, step, level):
+    """Several parts played together: each (notes, voice, loudness), notes [(name or None, steps)], voice "square" (bright),
+    "soft" (a rounder mix) or "bass".  Each note plucked: loud at first, then fading through its length."""
+    length = max(sum(n for _, n in notes) for notes, _, _ in parts)
+    out = [0.0] * int(length * step * RATE + 1)
+    for notes, voice, loud in parts:
+        at = 0
+        for name, n in notes:
+            if name:
+                hz, count = note_hz(name), int(n * step * RATE)
+                for i in range(count):
+                    ph = i * hz / RATE
+                    if voice == "square":
+                        v = _square(ph)
+                    elif voice == "soft":
+                        v = 0.5 * _square(ph) + 0.5 * math.sin(2 * math.pi * ph)
+                    else:
+                        v = 0.3 * _square(ph) + 0.7 * math.sin(2 * math.pi * ph)
+                    fade = min(1.0, i / (0.004 * RATE)) * (1 - 0.7 * i / count)
+                    out[int(at * step * RATE) + i] += loud * v * fade
+            at += n
+    return _pcm(out, level)
+
+
+# Lunica's two tunes, written for the Judicom.
+CAUGHT_TUNE = (                 # caught in the beam: a rapid run in A minor (the raised seventh, G#, for its edge)
+    ([(n, 1) for n in "A5 E5 C5 A4 B4 E5 G#5 E5 F5 D5 B4 G#4 A4 C5 E5 A5".split()] + [("A4", 4)], "square", 0.5),
+    ([("A3", 4), ("E3", 4), ("D3", 4), ("E3", 4), ("A2", 4)], "bass", 0.45),
+)
+START_TUNE = (                  # a game begins: three parts in C major, a tune, a harmony under it, a bouncing bass
+    ([("C5", 1), ("E5", 1), ("G5", 1), ("E5", 1), ("F5", 1), ("A5", 1), ("G5", 2),
+      ("E5", 1), ("G5", 1), ("C6", 1), ("B5", 1), ("C6", 4)], "square", 0.4),
+    ([("E4", 1), ("G4", 1), ("E5", 1), ("C5", 1), ("A4", 1), ("C5", 1), ("B4", 2),
+      ("C5", 1), ("E5", 1), ("E5", 1), ("D5", 1), ("E5", 4)], "soft", 0.3),
+    ([("C3", 2), ("C3", 2), ("F3", 2), ("G3", 2), ("C3", 2), ("E3", 1), ("G3", 1), ("C3", 4)], "bass", 0.45),
+)
+
+
+def lunica_sounds(level=None):
+    """Lunica's sounds, made once.  (No music during play: a short tune as each stage begins.)"""
+    if "lunica" not in _cache:
+        level = config.GAME_LEVEL if level is None else level
+        _cache["lunica"] = {
+            "fire": tone_pcm(1600.0, 0.05, level * 0.6, to_hz=900.0),
+            "hit": noise_pcm(0.12, level * 0.8, hold_from=1, hold_to=3, seed=41),
+            "boss_hit": chord_pcm((1100.0, 1650.0), 0.07, level * 0.6),
+            "boss_die": noise_pcm(0.3, level, hold_from=2, hold_to=10, seed=42),
+            "die": die_pcm(level),
+            "entry": notes_pcm((880.0, 1174.7, 880.0), 0.04, 0.02, level * 0.35),
+            "dive": tone_pcm(1300.0, 0.35, level * 0.4, to_hz=380.0),
+            "beam": hum_pcm(level * 0.45),
+            "captured": parts_pcm(CAUGHT_TUNE, 0.09, level),
+            "start": parts_pcm(START_TUNE, 0.18, level),
+            "rescue": notes_pcm((523.3, 659.3, 784.0, 1046.5, 1318.5), 0.07, 0.01, level * 0.8),
+            "docked": notes_pcm((784.0, 1046.5), 0.08, 0.02, level * 0.8),
+            "stage": notes_pcm((392.0, 523.3, 659.3, 523.3, 659.3, 784.0, 1046.5), 0.11, 0.03, level * 0.6),
+            "bonus": notes_pcm((659.3, 784.0, 1046.5), 0.1, 0.03, level * 0.8),
+            "perfect": notes_pcm((523.3, 659.3, 784.0, 1046.5, 784.0, 1046.5, 1318.5), 0.1, 0.03, level),
+            "extra": notes_pcm((1318.5, 1318.5, 1318.5), 0.06, 0.04, level),
+            "over": notes_pcm((659.3, 587.3, 523.3, 440.0, 392.0), 0.18, 0.04, level),
+        }
+    return _cache["lunica"]
+
+
 def mix(voices, n):
     """n samples of everything in voices ([samples, position, loops?]), moving each on; finished ones are dropped."""
     out = [0] * n

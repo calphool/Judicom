@@ -426,6 +426,9 @@ class Game:
         self._release_seen = False
 
 
+EARLY_KEPT = 3.0                # sounds asked for this recently before the sound was ready are played when it is
+
+
 def _invaders_view():
     from .game_view import GameView
     return GameView()
@@ -461,6 +464,7 @@ class Session:
         self._sound_at = clock() + config.GAME_SOUND_AFTER
         self._sound = False
         self._sound_set = None                          # made in the background: it takes a second or two on the Pi
+        self._early = []                                # (sounds asked for before then: [(when, name)], played late)
         import threading
         self.sound_maker = threading.Thread(target=self._make_sounds, name="game sounds", daemon=True)
         self.sound_maker.start()
@@ -478,10 +482,15 @@ class Session:
             self.sounds.game_on(self._sound_set)
             if hasattr(self.game, "loops"):             # loops it asked for before there was sound
                 self.sounds.game_play([name + "_on" for name in self.game.loops()])
+            late = [e for t, e in self._early if now - t < EARLY_KEPT and not e.endswith(("_on", "_off"))]
+            self.sounds.game_play(late)
+            self._early = []
         self.steps = self.game.update(now, held)
         events = self.game.take_events()
         if self._sound:
             self.sounds.game_play(events)
+        else:                                           # no sound yet: keep them a moment (a game's opening tune, say)
+            self._early = [(t, e) for t, e in self._early if now - t < EARLY_KEPT] + [(now, e) for e in events]
         state = self.game.state
         if state != self._was:
             if state == "over":

@@ -144,6 +144,8 @@ MARS_BEST_FILE = Path(os.environ.get("JUDICOM_MARS_BEST", "/home/joe/.judicom-ma
 METEOR_BEST_FILE = Path(os.environ.get("JUDICOM_METEOR_BEST", "/home/joe/.judicom-meteor-best"))
 # Stellar Stronghold (judicom/stronghold.py): its own high score.
 STRONGHOLD_BEST_FILE = Path(os.environ.get("JUDICOM_STRONGHOLD_BEST", "/home/joe/.judicom-stronghold-best"))
+# Lunica (judicom/lunica.py): its own high score.
+LUNICA_BEST_FILE = Path(os.environ.get("JUDICOM_LUNICA_BEST", "/home/joe/.judicom-lunica-best"))
 
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
 INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or
