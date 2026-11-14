@@ -302,6 +302,9 @@ def main(argv=None):
             from .game_sound import lunica_sounds, meteor_sounds, stronghold_sounds
             from .lunica import LunicaGame
             from .lunica_view import LunicaView
+            from .game_sound import plume_sounds
+            from .plume import PlumeGame
+            from .plume_view import PlumeView
             from .stronghold import StrongholdGame
             from .stronghold_view import StrongholdView
             games = {                                                                   # the hidden menu's games, in its order
@@ -317,6 +320,8 @@ def main(argv=None):
                                                       make_sounds=stronghold_sounds),
                 "Lunica": lambda: Session(sounds, time.monotonic, log, best_file=config.LUNICA_BEST_FILE,
                                           make_game=LunicaGame, make_view=LunicaView, make_sounds=lunica_sounds),
+                "Plume Knights": lambda: Session(sounds, time.monotonic, log, best_file=config.PLUME_BEST_FILE,
+                                                 make_game=PlumeGame, make_view=PlumeView, make_sounds=plume_sounds),
             }
             maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games)
             shell_view = ShellView()

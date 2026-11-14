@@ -362,6 +362,59 @@ def lunica_sounds(level=None):
     return _cache["lunica"]
 
 
+
+# Plume Knights' opening tune, written for the Judicom: a little march in D major, a tune over a harmony and a bass.
+PLUME_TUNE = (
+    ([("D5", 1), ("F#5", 1), ("A5", 2), ("F#5", 1), ("A5", 1), ("D6", 2), ("C#6", 1), ("B5", 1), ("A5", 1), ("F#5", 1),
+      ("G5", 1), ("E5", 1), ("D5", 4)], "square", 0.4),
+    ([("A4", 2), ("D5", 2), ("F#5", 2), ("A5", 2), ("E5", 2), ("D5", 2), ("B4", 1), ("C#5", 1), ("D5", 4)], "soft", 0.3),
+    ([("D3", 2), ("A3", 2), ("D3", 2), ("F#3", 2), ("A2", 2), ("B2", 2), ("G2", 2), ("A2", 2), ("D3", 2)], "bass", 0.45),
+)
+
+
+def screech_pcm(level):
+    """The raptor about: a harsh, falling screech, then quiet (one loop: about one screech a second)."""
+    rng, n, out, phase = random.Random(51), int(1.1 * RATE), [], 0.0
+    cry = int(0.22 * RATE)
+    for i in range(n):
+        if i < cry:
+            phase += (1900.0 - 900.0 * i / cry + rng.uniform(-150, 150)) / RATE
+            out.append(_square(phase) * 0.5 * (1 - i / cry) ** 0.5)
+        else:
+            out.append(0.0)
+    return _pcm(out, level)
+
+
+def plume_sounds(level=None):
+    """Plume Knights' sounds, made once.  (No music in play: a march as a game begins.)"""
+    if "plume" not in _cache:
+        level = config.GAME_LEVEL if level is None else level
+        _cache["plume"] = {
+            "flap": noise_pcm(0.07, level * 0.35, hold_from=8, hold_to=14, seed=52),        # a soft, low flutter
+            "land": tone_pcm(110.0, 0.05, level * 0.6),
+            "joust": chord_pcm((1250.0, 1870.0, 2500.0), 0.18, level * 0.8),                 # steel on steel
+            "bounce": chord_pcm((520.0, 780.0), 0.07, level * 0.6),
+            "die": die_pcm(level),
+            "lava": noise_pcm(0.45, level * 0.7, hold_from=1, hold_to=3, seed=53),           # a sizzle
+            "egg": tone_pcm(900.0, 0.09, level * 0.7, to_hz=1900.0),
+            "egg_lost": noise_pcm(0.2, level * 0.5, hold_from=1, hold_to=2, seed=54),
+            "hatch": notes_pcm((330.0, 440.0, 330.0, 440.0, 554.4), 0.05, 0.02, level * 0.6),
+            "spawn": notes_pcm((523.3, 784.0), 0.04, 0.01, level * 0.3),
+            "grab": chord_pcm((110.0, 165.0), 0.4, level * 0.8, to=0.6),
+            "serpent": rumble_pcm(0.5, level * 0.4, seed=55),
+            "escape": tone_pcm(300.0, 0.2, level * 0.7, to_hz=1000.0),
+            "raptor": notes_pcm((1046.5, 740.0, 1046.5, 740.0), 0.1, 0.02, level * 0.7),      # the warning
+            "raptor_loop": screech_pcm(level * 0.35),
+            "raptor_die": noise_pcm(0.5, level, hold_from=2, hold_to=14, seed=56),
+            "start": parts_pcm(PLUME_TUNE, 0.15, level),
+            "wave": notes_pcm((392.0, 523.3, 659.3), 0.08, 0.02, level * 0.6),
+            "wave_done": notes_pcm((523.3, 659.3, 784.0, 659.3, 784.0, 1046.5), 0.08, 0.02, level * 0.7),
+            "bonus": notes_pcm((523.3, 659.3, 784.0, 1046.5, 784.0, 1046.5, 1318.5), 0.1, 0.03, level),
+            "extra": notes_pcm((1318.5, 1318.5, 1318.5), 0.06, 0.04, level),
+            "over": notes_pcm((659.3, 587.3, 523.3, 440.0, 392.0, 293.7), 0.2, 0.04, level),
+        }
+    return _cache["plume"]
+
 def mix(voices, n):
     """n samples of everything in voices ([samples, position, loops?]), moving each on; finished ones are dropped."""
     out = [0] * n

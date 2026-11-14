@@ -882,7 +882,8 @@ class Drawing(unittest.TestCase):
         from judicom.menu import Menu
         main = (Path(__file__).resolve().parents[1] / "judicom" / "main.py").read_text()
         games = re.findall(r'^\s+"([^"]+)": lambda: Session', main, re.M)
-        self.assertEqual(games, ["Invaders", "Brick Breaker", "Mars Patrol", "Meteoroids", "Stellar Stronghold", "Lunica"])
+        self.assertEqual(games, ["Invaders", "Brick Breaker", "Mars Patrol", "Meteoroids", "Stellar Stronghold", "Lunica",
+                                 "Plume Knights"])
         for label in ["Shell"] + games:
             pic = menu_view.icon(label, 80)
             self.assertEqual(pic.get_size(), (80, 80), label)

@@ -114,8 +114,19 @@ def _lunica(n):
     return s
 
 
+def _plume(n):
+    from .plume_view import knight_picture, mount_picture
+    pic = mount_picture("knight", "up", "tuck")
+    pic.blit(knight_picture("knight"), (0, 0))
+    k = int(n * 0.95) // pic.get_width()
+    if k < 1:                                          # (smaller than the picture itself: shrunk to fit)
+        return pygame.transform.smoothscale(pic, (n, n * pic.get_height() // pic.get_width()))
+    return pygame.transform.scale(pic, (pic.get_width() * k, pic.get_height() * k))
+
+
 ICONS = {"Shell": _shell, "Invaders": _invaders, "Brick Breaker": _bricks, "Mars Patrol": _mars, "Meteoroids": _meteoroids,
-         "Stellar Stronghold": _stronghold, "Lunica": _lunica}
+         "Stellar Stronghold": _stronghold, "Lunica": _lunica,
+         "Plume Knights": _plume}
 
 
 def icon(label, size):

@@ -478,6 +478,24 @@ move.  Both held: stop and fire again and again (two shots up at a time per figh
 - Its high score is in `/home/joe/.judicom-lunica-best`.  With seven entries the hidden menu is in two columns
   (`menu.MIN_H`).
 
+## Plume Knights
+
+The seventh game on the hidden menu (`software/judicom/plume.py`): a knight on a golden plume-bird jousts with riders on
+drakes (novices, veterans, elites) over a molten lake.  Left / Right held: face that way and speed up (with inertia).  Both
+pressed together: one flap; press them together again for the next (about four a second holds you level).  Meet a rider
+with your lance higher and they are unhorsed, leaving an egg: pick it up (250, 500, 750, then 1000 in a row) before it
+hatches into a better rider.  Lances within 8 pixels: both bounce.
+
+- A single button turns the knight only once it has been held 0.12 s on its own (the other up): a button let go a
+  moment late after a flap is no turn.
+- Waves 1-7 follow the specification's table, then eight riders, more of them elite.  Waves 3, 7, 11 ... are survival waves
+  (3000 for losing no knight); 8, 13, 18 ... are egg waves (eggs everywhere; 3000 for gathering all of them).
+- The shore crumbles at waves 4 and 7.  From wave 4 the fire serpent rises at a knight flying low over the lake: three flaps
+  within 1.2 s to break free.  A wave that goes on past 45 s (less later) brings the raptor: only a lance in its head
+  brings it down (1000).
+- The cast is its own (plume-bird, drakes, serpent, raptor); the opening march (D major, three parts) was written for it.
+- Its high score is in `/home/joe/.judicom-plume-best`.
+
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).
