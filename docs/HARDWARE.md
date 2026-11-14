@@ -24,7 +24,7 @@ The Pi 3 A+ has a single USB-A port, so the USB sound adapter and the touch pane
 | Ringtone amplifier | PAM8403 (class-D) module driven from the Pi's 3.5 mm analog output (ALSA card `Headphones`), switched by GPIO 25 | In use |
 | Microphone prototype | INMP441 I²S microphone | Not used by the phone; its overlay (`dtoverlay=inmp441`) is still in `config.txt`, so it still appears as an ALSA capture card |
 | Enclosure | Custom 3D-printed, bolt-together enclosure: `hardware/freecad/enclosure/judicom_freecad_macro.py` builds `Judicom.FCStd` and the STLs | Built |
-| Power | External regulated 5.5 V / 6 A supply, into a DC barrel jack in the back wall | In use; see "Known problems" |
+| Power | External regulated 5.5 V / 6 A supply, into a DC barrel jack in the back wall | In use; see "Fixed problems" |
 
 ## GPIO assignments (BCM numbering)
 
@@ -106,9 +106,16 @@ dimensions there.
 - Speaker: four standoffs on a **42 mm** square (the speaker's ear holes), M3 inserts.
 - Pi 3 A+: snaps onto the four posts of the PiCradle, which is glued to the BottomPlate.
 
-## Known problems
+## Fixed problems
 
-- **Under-voltage dips.** On the evening of 2026-11-09 the kernel logged 27 "Undervoltage detected!" dips, each lasting 4-7 s
-  (`journalctl -k | grep -i voltage`; `vcgencmd get_throttled` shows whether any happened since boot).  In the latest boot every
-  one came 1-2 s after the handset was lifted (the dial tone starting on the USB adapter) or the ringer started.  The supply is
-  rated 5.5 V / 6 A, so the voltage is probably lost between the supply and the Pi, or the supply sags when a load switches on.
+- **Under-voltage dips (fixed 2026-11-13).** On the evening of 2026-11-09 the kernel logged 27 "Undervoltage detected!" dips,
+  each lasting 4-7 s, every one 1-2 s after the handset was lifted (the dial tone starting on the USB adapter) or the ringer
+  started.  Two causes, both fixed:
+  - the PAM8403's switch-on surge: fixed with a soft start on the amplifier's MOSFET switch;
+  - the thin micro-USB cable from the supply to the Pi (about 0.25 Ω), which lost too much voltage under the whole load:
+    replaced with a heavy-gauge micro-USB cable.
+
+  After the new cable, none of these dipped: all four CPU cores flat out for 90 s, lifting the handset, and the ringer for
+  several rings.  To check again: `vcgencmd get_throttled` (bit 0x1 = under-voltage now, 0x10000 = some since boot) and
+  `journalctl -k -b | grep -i voltage`.  Under the full CPU load the Pi reached 60 °C and slowed itself a little (flags
+  0x80000 / 0x80008, the heat limit, not power); in normal use it runs at about 45 °C.
