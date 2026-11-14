@@ -292,7 +292,14 @@ def main(argv=None):
             from .maintenance import Maintenance
             from .shell import Shell
             from .shell_view import ShellView
-            games = {"Invaders": lambda: Session(sounds, time.monotonic, log)}         # the hidden menu's games, in its order
+            from .bricks import BrickGame
+            from .bricks_view import BrickView
+            from .game_sound import bricks_sounds
+            games = {                                                                   # the hidden menu's games, in its order
+                "Invaders": lambda: Session(sounds, time.monotonic, log),
+                "Brick Breaker": lambda: Session(sounds, time.monotonic, log, best_file=config.BRICKS_BEST_FILE,
+                                                 make_game=BrickGame, make_view=BrickView, make_sounds=bricks_sounds),
+            }
             maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games)
             shell_view = ShellView()
         except ImportError as exc:                       # the phone is what matters: it goes on without the shell

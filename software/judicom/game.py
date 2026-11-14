@@ -166,6 +166,9 @@ class Game:
         events, self.events = self.events, []
         return events
 
+    def summary(self):
+        return "%d points, wave %d%s" % (self.score, self.wave, ", a raider got down" if self.invaded else "")
+
     # ---- time --------------------------------------------------------------------------------------------------------------
 
     def update(self, now, held):
@@ -423,6 +426,16 @@ class Game:
         self._release_seen = False
 
 
+def _invaders_view():
+    from .game_view import GameView
+    return GameView()
+
+
+def _invaders_sounds():
+    from .game_sound import invaders_sounds
+    return invaders_sounds()
+
+
 def read_best(path):
     try:
         return max(0, int(path.read_text().strip()))
@@ -432,14 +445,19 @@ def read_best(path):
 
 class Session:
     """A game on the Judicom: the game, its sound (Sounds.game_on / game_play / game_off) and the high score kept in a file.
-    maintenance.py makes one when the knock is done, calls step() every frame and close() at the end."""
+    maintenance.py makes one when the game is chosen on the hidden menu, calls step() every frame and close() at the end.
 
-    def __init__(self, sounds, clock, log=None, best_file=None, seed=None):
+    Any game will do (Invaders, the default, or Brick Breaker: judicom/bricks.py) that has: update(now, held) -> steps run,
+    take_events(), state ("over" when the game is over), score, best, finished, summary(); with make_view() giving its drawing
+    (draw(game) -> a canvas for display.present_small) and make_sounds() its sounds ({event name: samples})."""
+
+    def __init__(self, sounds, clock, log=None, best_file=None, seed=None, make_game=None, make_view=None, make_sounds=None):
         from . import config
         self.sounds, self.clock = sounds, clock
         self.log = log or (lambda msg: None)
         self.best_file = config.GAME_BEST_FILE if best_file is None else best_file
-        self.game = Game(best=read_best(self.best_file), seed=seed)
+        self.make_view, self.make_sounds = make_view or _invaders_view, make_sounds or _invaders_sounds
+        self.game = (make_game or Game)(best=read_best(self.best_file), seed=seed)
         self._sound_at = clock() + config.GAME_SOUND_AFTER
         self._sound = False
         self._was = self.game.state
@@ -453,7 +471,7 @@ class Session:
         self._frames += 1
         if not self._sound and now >= self._sound_at:
             self._sound = True
-            self.sounds.game_on()
+            self.sounds.game_on(self.make_sounds())
         self.steps = self.game.update(now, held)
         events = self.game.take_events()
         if self._sound:
@@ -461,8 +479,7 @@ class Session:
         state = self.game.state
         if state != self._was:
             if state == "over":
-                self.log("game over: %d points, wave %d%s" % (self.game.score, self.game.wave,
-                                                              ", a raider got down" if self.game.invaded else ""))
+                self.log("game over: %s" % self.game.summary())
                 self._save_best()
             elif self._was == "over":
                 self.log("game: a new game")
@@ -479,8 +496,7 @@ class Session:
     def draw(self):
         """The game's picture now (a W x H canvas, for display.present_small)."""
         if self._view is None:
-            from .game_view import GameView
-            self._view = GameView()
+            self._view = self.make_view()
         return self._view.draw(self.game)
 
     def close(self):

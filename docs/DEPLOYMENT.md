@@ -414,6 +414,14 @@ knock that opens the menu).  The games on the menu, in order, are the `games` li
   the game's speed does not depend on that.
 - All its pictures and sounds were made for the Judicom (`game_art.py`, `game_sound.py`).
 
+## Brick Breaker
+
+The second game on the hidden menu (`software/judicom/bricks.py`): a paddle, a ball and 8 rows of 14 bricks (red 7 points,
+orange 5, yellow 3, green 1).  Left and right buttons move the paddle; both together (a new press) launch the ball, and start a
+new game after "game over".  Where the ball meets the paddle steers it: the middle straight up, the ends up to 60° off.
+The ball quickens every 12 bricks and the first time it gets above the wall; each new wall starts a little quicker.
+Three balls; the handset ends it, as with Invaders.  Its high score is in `/home/joe/.judicom-bricks-best`.
+
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).

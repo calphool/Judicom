@@ -340,15 +340,16 @@ class Sounds:
         self._speaker_on()
         self._bong.start()
 
-    def game_on(self):
-        """The hidden game's sound on the ringer speaker, from now until game_off() (not over the ringer: a call matters more)."""
+    def game_on(self, sounds=None):
+        """A hidden game's sound on the ringer speaker, from now until game_off() (not over the ringer: a call matters more).
+        sounds: the game's own ({name: samples}; None: Invaders')."""
         if self._want[1] or not self.ringer_card:
             return
-        if isinstance(self.game, Silent):
-            if self.make_mixer is None:
-                from .game_sound import Mixer
-                self.make_mixer = Mixer
-            self.game = self.make_mixer(self.ringer_card, self.log)
+        if self.make_mixer is None:
+            from .game_sound import Mixer
+            self.make_mixer = Mixer
+        self.game.stop()
+        self.game = self.make_mixer(self.ringer_card, self.log, sounds)
         self.beeps.stop()                               # one aplay at a time on this card
         self._bong.stop()
         self._speaker_on()

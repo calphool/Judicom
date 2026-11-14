@@ -91,6 +91,16 @@ def notes_pcm(notes, on, off, level):
     return _pcm(out, level)
 
 
+_cache = {}
+
+
+def invaders_sounds():
+    """Invaders' sounds, made once (it takes a moment on the Pi)."""
+    if "invaders" not in _cache:
+        _cache["invaders"] = make_sounds()
+    return _cache["invaders"]
+
+
 def make_sounds(level=None):
     level = config.GAME_LEVEL if level is None else level
     sounds = {"shoot": shoot_pcm(level), "hit": hit_pcm(level), "die": die_pcm(level), "bonus": bonus_pcm(level),
@@ -99,6 +109,29 @@ def make_sounds(level=None):
     for i, hz in enumerate(MARCH_HZ):
         sounds["march%d" % i] = march_pcm(hz, level)
     return sounds
+
+
+def tone_pcm(hz, seconds, level, to_hz=None):
+    """A square tone, quickly faded; with to_hz it slides there."""
+    n, phase, out = int(seconds * RATE), 0.0, []
+    for i in range(n):
+        phase += (hz + ((to_hz or hz) - hz) * i / n) / RATE
+        out.append(_square(phase) * _env(i, n) * 0.5)
+    return _pcm(out, level)
+
+
+def bricks_sounds(level=None):
+    """Brick Breaker's sounds, made once."""
+    if "bricks" not in _cache:
+        level = config.GAME_LEVEL if level is None else level
+        sounds = {"paddle": tone_pcm(196.0, 0.06, level), "wall": tone_pcm(1200.0, 0.015, level * 0.7),
+                  "lost": tone_pcm(600.0, 0.5, level, to_hz=140.0),
+                  "level": notes_pcm((523.3, 659.3, 784.0, 1046.5), 0.09, 0.02, level),
+                  "over": notes_pcm((784.0, 659.3, 523.3, 392.0, 261.6), 0.2, 0.05, level)}
+        for i, hz in enumerate((987.8, 784.0, 659.3, 523.3)):          # the top bricks ring highest
+            sounds["brick%d" % i] = tone_pcm(hz, 0.05, level)
+        _cache["bricks"] = sounds
+    return _cache["bricks"]
 
 
 def mix(voices, n):
@@ -126,12 +159,13 @@ def mix(voices, n):
 
 
 class Mixer:
-    """The game's sound on one card.  start() / stop(); play(names) with the game's events (game.py)."""
+    """The game's sound on one card.  start() / stop(); play(names) with the game's events.  sounds: {name: samples}
+    (a looping sound is played by "<name>_on" and stopped by "<name>_off")."""
 
     def __init__(self, card_id, log=None, sounds=None, popen=subprocess.Popen, clock=time.monotonic):
         self.device = "plughw:CARD=%s,DEV=0" % card_id
         self.log = log or (lambda msg: None)
-        self.sounds = sounds if sounds is not None else make_sounds()
+        self.sounds = sounds if sounds is not None else invaders_sounds()
         self.popen, self.clock = popen, clock
         self._voices, self._loops = [], {}
         self._lock = threading.Lock()
@@ -144,12 +178,13 @@ class Mixer:
     def play(self, names):
         with self._lock:
             for name in names:
-                if name == "bonus_on":
-                    if "bonus" not in self._loops:
-                        self._loops["bonus"] = [self.sounds["bonus"], 0, True]
-                        self._voices.append(self._loops["bonus"])
-                elif name == "bonus_off":
-                    v = self._loops.pop("bonus", None)
+                if name.endswith("_on") and name[:-3] in self.sounds:
+                    loop = name[:-3]
+                    if loop not in self._loops:
+                        self._loops[loop] = [self.sounds[loop], 0, True]
+                        self._voices.append(self._loops[loop])
+                elif name.endswith("_off"):
+                    v = self._loops.pop(name[:-4], None)
                     if v in self._voices:
                         self._voices.remove(v)
                 elif name in self.sounds:

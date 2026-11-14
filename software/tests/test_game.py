@@ -730,7 +730,7 @@ class GameSoundOnTheSpeaker(unittest.TestCase):
     def sounds(self, **kw):
         self.made = []
 
-        def mixer(card, log):
+        def mixer(card, log, sounds=None):
             self.made.append(FakeMixer(card))
             return self.made[-1]
         return Sounds(enabled=True, handset_card="Device", ringer_card="Headphones", make_loop=NullLoop, amp=FakeAmp(),
@@ -911,8 +911,9 @@ class FakeSounds:
     def beep(self):
         pass
 
-    def game_on(self):
+    def game_on(self, sounds=None):
         self.game.append("on")
+        self.sound_sets = getattr(self, "sound_sets", []) + [sounds]
 
     def game_play(self, names):
         self.played += names
