@@ -876,6 +876,22 @@ class Drawing(unittest.TestCase):
         canvas = view.draw(game)
         self.assertFalse(any(canvas.get_at((x + i, y + j))[:3] != (0, 0, 0) for i in range(w) for j in range(h)))
 
+    def test_every_choice_on_the_menu_has_its_little_picture(self):
+        import re
+        from judicom import menu_view
+        from judicom.menu import Menu
+        main = (Path(__file__).resolve().parents[1] / "judicom" / "main.py").read_text()
+        games = re.findall(r'^\s+"([^"]+)": lambda: Session', main, re.M)
+        self.assertEqual(games, ["Invaders", "Brick Breaker", "Mars Patrol", "Meteoroids"])
+        for label in ["Shell"] + games:
+            pic = menu_view.icon(label, 80)
+            self.assertEqual(pic.get_size(), (80, 80), label)
+            lit = sum(1 for x in range(8, 72) for y in range(8, 72) if pic.get_at((x, y))[:3] != menu_view.BADGE)
+            self.assertGreater(lit, 40, label)            # a picture, not an empty square
+        self.assertIsNone(menu_view.icon("A game still to come", 80))   # (its button simply shows its name)
+        surface = pygame.Surface((W, H))
+        menu_view.show(surface, Menu(["Shell"] + games + ["A game still to come"]))
+
     def test_shelters_show_their_damage(self):
         from judicom.game_view import GameView
         view = GameView()
