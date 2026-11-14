@@ -440,6 +440,17 @@ last checkpoint; three rovers, one more every 10,000 points; a time bonus at the
 - The tune is an original bass groove in E over hi-hats, kept quiet.  There is no engine sound (tried, and taken out).
 - Its high score is in `/home/joe/.judicom-mars-best`.  It draws in about 6 ms a frame on the Pi 3A+.
 
+## Meteoroids
+
+The fourth game on the hidden menu (`software/judicom/meteor.py`): a ship among drifting rocks in a world that wraps round at
+every edge.  Large rocks split into two medium, medium into two small (20, 50 and 100 points); enemy craft cross now and then
+and shoot back (200 and 1,000 points).  A cleared field brings a bigger wave.  Left / Right: turn.  Both, tapped (let go
+within half a second): fire.  Both, held half a second: thrust, never a shot.  The ship drifts on after thrust: no friction.
+
+- It uses the whole visible screen (a wrapping world does not care about its shape) and is drawn in lines straight onto the
+  screen, not turned and scaled as a picture: sharp lines, about 5 ms a frame on the Pi 3A+ (10 ms with 30 rocks).
+- Its high score is in `/home/joe/.judicom-meteor-best`.
+
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).

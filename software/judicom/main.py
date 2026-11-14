@@ -297,12 +297,17 @@ def main(argv=None):
             from .game_sound import bricks_sounds, mars_sounds
             from .mars import MarsGame
             from .mars_view import MarsView
+            from .meteor import MeteorGame
+            from .meteor_view import MeteorView
+            from .game_sound import meteor_sounds
             games = {                                                                   # the hidden menu's games, in its order
                 "Invaders": lambda: Session(sounds, time.monotonic, log),
                 "Brick Breaker": lambda: Session(sounds, time.monotonic, log, best_file=config.BRICKS_BEST_FILE,
                                                  make_game=BrickGame, make_view=BrickView, make_sounds=bricks_sounds),
                 "Mars Patrol": lambda: Session(sounds, time.monotonic, log, best_file=config.MARS_BEST_FILE,
                                                make_game=MarsGame, make_view=MarsView, make_sounds=mars_sounds),
+                "Meteoroids": lambda: Session(sounds, time.monotonic, log, best_file=config.METEOR_BEST_FILE,
+                                              make_game=MeteorGame, make_view=MeteorView, make_sounds=meteor_sounds),
             }
             maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games)
             shell_view = ShellView()
@@ -332,7 +337,7 @@ def main(argv=None):
             mode = phone.machine.mode
             if phone.game_showing:
                 if changed or maintenance.game.steps:
-                    display.present_small(maintenance.game.draw())
+                    maintenance.game.present(display)
             elif phone.menu_showing:
                 if changed:
                     menu_view.show(display.logical, maintenance.menu)

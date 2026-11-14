@@ -61,6 +61,24 @@ class Display:
             self.screen.blit(pygame.transform.scale(out, self.screen.get_size()), (0, 0))
         pygame.display.flip()
 
+    def mapper(self):
+        """A function from the upright picture's (x, y) to the screen's own, for drawing straight onto self.screen (a game drawn
+        in lines needs no turning or scaling of a whole picture: much quicker, and the lines stay sharp).  The same turn as
+        present(): pygame turns counter-clockwise for positive angles, so (x, y) goes to (y, W - 1 - x)."""
+        sw, sh = self.screen.get_size()
+        if self.rotate and not self.flip:
+            kx, ky = sw / H, sh / W
+            return lambda x, y: (y * kx, (W - 1 - x) * ky)
+        if self.rotate:
+            kx, ky = sw / H, sh / W
+            return lambda x, y: ((H - 1 - y) * kx, x * ky)
+        kx, ky = sw / W, sh / H
+        return lambda x, y: (x * kx, y * ky)
+
+    def show(self):
+        """What has been drawn straight onto self.screen, on the screen."""
+        pygame.display.flip()
+
     def close(self):
         from . import draw
         draw.reset()

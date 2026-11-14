@@ -140,6 +140,8 @@ GAME_BEST_FILE = Path(os.environ.get("JUDICOM_GAME_BEST", "/home/joe/.judicom-ga
 BRICKS_BEST_FILE = Path(os.environ.get("JUDICOM_BRICKS_BEST", "/home/joe/.judicom-bricks-best"))
 # Mars Patrol (judicom/mars.py): its own high score.
 MARS_BEST_FILE = Path(os.environ.get("JUDICOM_MARS_BEST", "/home/joe/.judicom-mars-best"))
+# Meteoroids (judicom/meteor.py): its own high score.
+METEOR_BEST_FILE = Path(os.environ.get("JUDICOM_METEOR_BEST", "/home/joe/.judicom-meteor-best"))
 
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
 INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or

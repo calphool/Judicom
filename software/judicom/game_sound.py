@@ -200,6 +200,48 @@ def mars_sounds(level=None):
     return _cache["mars"]
 
 
+def rumble_pcm(seconds, level, seed=12):
+    """A low rumble for as long as it is wanted (a loop: no fade, so it joins up)."""
+    rng, n, out, held, hold = random.Random(seed), int(seconds * RATE), [], 0.0, 0
+    for i in range(n):
+        if hold <= 0:
+            held, hold = rng.uniform(-1, 1), rng.randint(6, 14)
+        hold -= 1
+        out.append(held * 0.7)
+    return _pcm(out, level)
+
+
+def warble_pcm(level):
+    """An enemy craft about: two notes by turns, eight times a second (one loop, whole cycles)."""
+    n, out = int(0.25 * RATE), []
+    for i in range(n):
+        hz = 880.0 if (i * 8 // RATE) % 2 == 0 else 660.0
+        out.append(0.5 * _square(i * hz / RATE))
+    return _pcm(out, level)
+
+
+def meteor_sounds(level=None):
+    """Meteoroids' sounds, made once."""
+    if "meteor" not in _cache:
+        level = config.GAME_LEVEL if level is None else level
+        _cache["meteor"] = {
+            "fire": tone_pcm(1300.0, 0.06, level * 0.8, to_hz=700.0),
+            "bang0": noise_pcm(0.4, level, hold_from=4, hold_to=22, seed=21),           # large rock: low
+            "bang1": noise_pcm(0.28, level, hold_from=2, hold_to=12, seed=22),          # medium
+            "bang2": noise_pcm(0.18, level * 0.9, hold_from=1, hold_to=5, seed=23),     # small: high
+            "die": die_pcm(level),
+            "craft_die": noise_pcm(0.45, level, hold_from=2, hold_to=16, seed=24),
+            "craft_fire": tone_pcm(900.0, 0.07, level * 0.6, to_hz=500.0),
+            "beat0": tone_pcm(123.5, 0.09, level * 0.9), "beat1": tone_pcm(110.0, 0.09, level * 0.9),
+            "extra": notes_pcm((1318.5, 1318.5, 1318.5), 0.06, 0.04, level),
+            "wave": notes_pcm((659.3, 880.0), 0.07, 0.02, level * 0.7),
+            "over": notes_pcm((659.3, 587.3, 523.3, 440.0, 392.0), 0.18, 0.04, level),
+            "thrust": rumble_pcm(0.4, level * 0.45),
+            "craft": warble_pcm(level * 0.35),
+        }
+    return _cache["meteor"]
+
+
 def mix(voices, n):
     """n samples of everything in voices ([samples, position, loops?]), moving each on; finished ones are dropped."""
     out = [0] * n

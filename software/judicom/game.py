@@ -511,6 +511,16 @@ class Session:
             self._view = self.make_view()
         return self._view.draw(self.game)
 
+    def present(self, display):
+        """Show the game now: a game drawn in lines draws straight onto the screen (its view has present()); the others give
+        a small canvas for display.present_small()."""
+        if self._view is None:
+            self._view = self.make_view()
+        if hasattr(self._view, "present"):
+            self._view.present(self.game, display)
+        else:
+            display.present_small(self._view.draw(self.game))
+
     def close(self):
         self._save_best()
         self.sounds.game_off()
