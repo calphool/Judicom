@@ -9,7 +9,7 @@ from judicom.inputs import Controls, KeyControls
 from judicom.keyboard import KEY_H, Keyboard
 from judicom.machine import Machine, Mode, Party
 from judicom.main import Phone
-from judicom.maintenance import LAST_BONG, Knock, Maintenance, corner
+from judicom.maintenance import LAST_BONG, SHELL, Knock, Maintenance, corner
 from judicom.sound import BONG_HZ, Sounds, bong_pcm
 
 try:
@@ -24,6 +24,14 @@ W, H = config.SCREEN_W, config.SCREEN_H
 TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT = (20, 20), (W - 20, 20), (W - 20, H - 20), (20, H - 20)
 CLOCKWISE = (TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT)
 BOTH = {"left", "right"}
+
+
+def button(maintenance, label):
+    """A spot on the hidden menu's button for label."""
+    for name, x, y, w, h in maintenance.menu.buttons():
+        if name == label:
+            return (x + w // 2, y + h // 2)
+    raise AssertionError("no %r on the menu" % label)
 
 
 class Clock:
@@ -376,7 +384,8 @@ class Opened(unittest.TestCase):
         self.clock.t += config.ARM_SECONDS
         self.maintenance.step(True, True, BOTH, [])
         results = [self.maintenance.step(True, True, set(), [c]) for c in CLOCKWISE]
-        self.assertEqual(results, [False, False, False, True])
+        self.assertEqual(results, [False, False, False, True])                # the menu
+        self.assertTrue(self.maintenance.step(True, True, set(), [button(self.maintenance, SHELL)]))
         return self.shells[-1]
 
     def key(self, label):
@@ -394,7 +403,7 @@ class Opened(unittest.TestCase):
         self.maintenance.step(True, True, set(), [self.key("s")])
         self.assertEqual(shell.sent, [b"s"])
         self.assertFalse([line for line in self.said if "s" == line.strip()])
-        self.assertEqual(self.said, ["maintenance shell open"])
+        self.assertEqual(self.said, ["menu open", "maintenance shell open"])
 
     def test_taps_do_not_type_while_a_call_has_the_screen(self):
         shell = self.open()
@@ -431,7 +440,8 @@ class Opened(unittest.TestCase):
         self.maintenance.step(True, True, BOTH, [])
         self.clock.t += config.ARM_SECONDS
         self.maintenance.step(True, True, BOTH, [])
-        self.assertEqual([self.maintenance.step(True, True, set(), [c]) for c in CLOCKWISE], [False] * 4)
+        self.assertEqual([self.maintenance.step(True, True, set(), [c]) for c in CLOCKWISE], [False, False, False, True])
+        self.assertTrue(self.maintenance.step(True, True, set(), [button(self.maintenance, SHELL)]))   # back to the photos
         self.assertFalse(self.maintenance.open)
         self.assertIn("out of ptys", self.said[-1])
 
@@ -455,7 +465,8 @@ class TheWholeWay(unittest.TestCase):
         maintenance.step(True, True, BOTH, [])
         for spot in CLOCKWISE:
             maintenance.step(True, True, set(), [spot])
-        self.assertTrue(maintenance.open)
+        maintenance.step(True, True, set(), [button(maintenance, SHELL)])
+        self.assertIsNotNone(maintenance.shell)
         for label in ("e", "x", "i", "t", "Enter"):
             key = [k for k in maintenance.keyboard.keys() if k[0] == label][0]
             maintenance.step(True, True, set(), [(key[1] + 5, key[2] + 5)])
@@ -464,7 +475,7 @@ class TheWholeWay(unittest.TestCase):
             maintenance.step(True, True, set(), [])
             time.sleep(0.01)
         self.assertFalse(maintenance.open)
-        self.assertEqual(said, ["maintenance shell open", "maintenance shell ended"])
+        self.assertEqual(said, ["menu open", "maintenance shell open", "maintenance shell ended"])
 
 
 class Switches:
@@ -542,15 +553,18 @@ class WithThePhone(unittest.TestCase):
         self.switches.down = set()
 
     def open(self):
+        """The knock, then Shell on the menu; returns what step() said at each corner and at the menu."""
         self.arm()
         results = []
         for spot in CLOCKWISE:
             self.taps.next = [spot]
             results.append(self.phone.step())
+        self.taps.next = [button(self.maintenance, SHELL)]
+        results.append(self.phone.step())
         return results
 
     def test_the_screen_changes_when_it_opens_and_the_photos_stop(self):
-        self.assertEqual(self.open(), [False, False, False, True])
+        self.assertEqual(self.open(), [False, False, False, True, True])
         self.assertTrue(self.phone.shell_showing)
         ticks = self.photos.ticks
         self.phone.step()

@@ -11,7 +11,8 @@ from judicom import game_sound
 from judicom.game import Game, Session
 from judicom.machine import Machine, Mode, Party
 from judicom.main import Phone
-from judicom.maintenance import GAME_CORNERS, LAST_BONG, Maintenance, corner
+from judicom.maintenance import LAST_BONG, SHELL, Maintenance
+from judicom.menu import BACK
 from judicom.sound import Sounds
 
 try:
@@ -22,7 +23,6 @@ except ImportError:
 W, H = config.SCREEN_W, config.SCREEN_H
 TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT = (20, 20), (W - 20, 20), (W - 20, H - 20), (20, H - 20)
 CLOCKWISE = (TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT)
-ANTICLOCKWISE = (BOTTOM_RIGHT, BOTTOM_LEFT, TOP_LEFT, TOP_RIGHT)
 BOTH = {"left", "right"}
 
 
@@ -468,110 +468,156 @@ class Time(unittest.TestCase):
         self.assertGreater(game.score, 0)
 
 
-class TheKnock(unittest.TestCase):
+def button(maintenance, label):
+    for name, x, y, w, h in maintenance.menu.buttons():
+        if name == label:
+            return (x + w // 2, y + h // 2)
+    raise AssertionError("no %r on the menu" % label)
+
+
+class TheMenu(unittest.TestCase):
+    """The maintenance knock opens the hidden menu; the game is one of its buttons."""
+
     def setUp(self):
-        self.clock, self.sounds, self.said, self.games = Clock(), FakeSounds(), [], []
-        self.maintenance = Maintenance(self.sounds, self.no_shell, log=self.said.append, clock=self.clock, make_game=self.make)
+        self.clock, self.sounds, self.said, self.games, self.shells = Clock(), FakeSounds(), [], [], []
+        self.maintenance = Maintenance(self.sounds, self.make_shell, log=self.said.append, clock=self.clock,
+                                       games={"Invaders": self.make})
         self.maintenance.step(True, True, set(), [])
 
-    def no_shell(self):
-        raise AssertionError("the shell should not open")
+    def make_shell(self):
+        self.shells.append(FakeShell())
+        return self.shells[-1]
 
     def make(self):
         self.games.append(FakeSession())
         return self.games[-1]
 
-    def arm(self):
-        self.maintenance.step(True, True, BOTH, [])
+    def knock(self, maintenance=None):
+        m = maintenance or self.maintenance
+        m.step(True, True, BOTH, [])
         self.clock.t += config.ARM_SECONDS
-        self.maintenance.step(True, True, BOTH, [])
+        m.step(True, True, BOTH, [])
+        return [m.step(True, True, set(), [c]) for c in CLOCKWISE]
 
-    def test_the_corners_are_counter_clockwise_from_the_bottom_right(self):
-        self.assertEqual([corner(*c) for c in ANTICLOCKWISE], list(GAME_CORNERS))
-
-    def test_the_knock_opens_the_game_with_rising_bongs(self):
-        self.arm()
-        results = [self.maintenance.step(True, True, set(), [c]) for c in ANTICLOCKWISE]
-        self.assertEqual(results, [False, False, False, True])
+    def test_the_knock_opens_the_menu_with_rising_bongs(self):
+        self.assertEqual(self.knock(), [False, False, False, True])
         self.assertEqual(self.sounds.bongs, [0, 1, 2, 3, LAST_BONG])
-        self.assertIsNotNone(self.maintenance.game)
+        self.assertIsNotNone(self.maintenance.menu)
         self.assertTrue(self.maintenance.open)
-        self.assertEqual(self.said, ["game open"])
+        self.assertEqual((self.shells, self.games), ([], []))
+        self.assertEqual(self.said, ["menu open"])
 
-    def test_the_shell_s_knock_still_opens_the_shell(self):
-        shells = []
-        maintenance = Maintenance(self.sounds, lambda: shells.append(1) or FakeShell(), clock=self.clock, make_game=self.make)
-        maintenance.step(True, True, set(), [])
-        maintenance.step(True, True, BOTH, [])
+    def test_it_offers_the_shell_the_games_and_a_way_back(self):
+        self.knock()
+        self.assertEqual([b[0] for b in self.maintenance.menu.buttons()], [SHELL, "Invaders", BACK])
+
+    def test_touching_invaders_opens_the_game(self):
+        self.knock()
+        self.assertTrue(self.maintenance.step(True, True, set(), [button(self.maintenance, "Invaders")]))
+        self.assertIsNone(self.maintenance.menu)
+        self.assertEqual(len(self.games), 1)
+        self.assertEqual(self.said[-1], "Invaders open")
+
+    def test_touching_shell_opens_the_shell(self):
+        self.knock()
+        self.maintenance.step(True, True, set(), [button(self.maintenance, SHELL)])
+        self.assertEqual((len(self.shells), self.games), (1, []))
+
+    def test_back_goes_back_to_the_photos(self):
+        self.knock()
+        self.assertTrue(self.maintenance.step(True, True, set(), [button(self.maintenance, BACK)]))
+        self.assertFalse(self.maintenance.open)
+        self.assertEqual(self.said[-1], "menu closed")
+
+    def test_a_touch_between_the_buttons_does_nothing(self):
+        self.knock()
+        self.assertFalse(self.maintenance.step(True, True, set(), [(5, 5)]))
+        self.assertIsNotNone(self.maintenance.menu)
+
+    def test_left_untouched_it_goes_back_to_the_photos(self):
+        self.knock()
+        self.clock.t += config.MENU_SECONDS - 1
+        self.assertFalse(self.maintenance.step(True, True, set(), []))
+        self.maintenance.step(True, True, set(), [(5, 5)])          # a touch, even off the buttons, keeps it
+        self.clock.t += config.MENU_SECONDS - 1
+        self.assertFalse(self.maintenance.step(True, True, set(), []))
+        self.clock.t += 1
+        self.assertTrue(self.maintenance.step(True, True, set(), []))
+        self.assertFalse(self.maintenance.open)
+
+    def test_the_handset_or_a_call_closes_it(self):
+        self.knock()
+        self.assertTrue(self.maintenance.step(True, False, set(), []))
+        self.assertFalse(self.maintenance.open)
+        self.knock_again()
+        self.assertTrue(self.maintenance.step(False, True, set(), []))
+        self.assertFalse(self.maintenance.open)
+        self.assertEqual(self.said[-1], "menu closed: a call")
+
+    def knock_again(self):
+        self.maintenance.step(True, True, set(), [])
+        self.assertEqual(self.knock(), [False, False, False, True])
+
+    def test_the_old_game_knock_does_nothing(self):
+        self.maintenance.step(True, True, BOTH, [])
         self.clock.t += config.ARM_SECONDS
-        maintenance.step(True, True, BOTH, [])
-        for c in CLOCKWISE:
-            maintenance.step(True, True, set(), [c])
-        self.assertEqual((len(shells), self.games), (1, []))
+        self.maintenance.step(True, True, BOTH, [])
+        for c in (BOTTOM_RIGHT, BOTTOM_LEFT, TOP_LEFT, TOP_RIGHT):
+            self.maintenance.step(True, True, set(), [c])
+        self.assertFalse(self.maintenance.open)
 
-    def test_mixing_the_two_ends_it(self):
-        self.arm()
-        self.maintenance.step(True, True, set(), [BOTTOM_RIGHT])
-        self.maintenance.step(True, True, set(), [TOP_RIGHT])          # the shell's way round from here: wrong
-        self.assertFalse(self.maintenance.knock.armed)
-        self.assertIsNone(self.maintenance.game)
+    def test_without_games_only_the_shell(self):
+        m = Maintenance(self.sounds, self.make_shell, clock=self.clock)
+        m.step(True, True, set(), [])
+        self.knock(m)
+        self.assertEqual([b[0] for b in m.menu.buttons()], [SHELL, BACK])
 
-    def test_clockwise_from_the_bottom_right_is_wrong(self):
-        self.arm()
-        self.maintenance.step(True, True, set(), [BOTTOM_RIGHT])
-        self.maintenance.step(True, True, set(), [TOP_RIGHT])
-        self.maintenance.step(True, True, set(), [TOP_LEFT])
-        self.maintenance.step(True, True, set(), [BOTTOM_LEFT])
-        self.assertIsNone(self.maintenance.game)
+    def test_the_buttons_fit_the_screen_and_clear_the_bezel(self):
+        self.knock()
+        for _, x, y, w, h in self.maintenance.menu.buttons():
+            self.assertGreaterEqual(x, 0)
+            self.assertLessEqual(x + w, W - config.SHELL_RIGHT)
+            self.assertGreaterEqual(y, config.SHELL_TOP)
+            self.assertLessEqual(y + h, H)
 
-    def test_without_a_game_the_bottom_right_starts_nothing(self):
-        maintenance = Maintenance(self.sounds, FakeShell, clock=self.clock)
-        maintenance.step(True, True, set(), [])
-        maintenance.step(True, True, BOTH, [])
-        self.clock.t += config.ARM_SECONDS
-        maintenance.step(True, True, BOTH, [])
-        maintenance.step(True, True, set(), [BOTTOM_RIGHT])
-        self.assertFalse(maintenance.knock.armed)
+    def test_room_for_more_games(self):
+        m = Maintenance(self.sounds, self.make_shell, clock=self.clock, games={"Invaders": self.make, "A": self.make, "B": self.make})
+        m.step(True, True, set(), [])
+        self.knock(m)
+        buttons = m.menu.buttons()
+        for (_, _, y1, _, h1), (_, _, y2, _, _) in zip(buttons, buttons[1:]):
+            self.assertLessEqual(y1 + h1, y2)                 # none overlaps the next
 
-    def test_lifting_the_handset_ends_the_game(self):
-        self.open()
+    def test_the_buttons_reach_the_game_and_the_handset_ends_it(self):
+        self.knock()
+        self.maintenance.step(True, True, set(), [button(self.maintenance, "Invaders")])
+        self.maintenance.step(True, True, {"left"}, [])
+        self.assertEqual(self.games[0].held, [{"left"}])
         self.assertTrue(self.maintenance.step(True, False, set(), []))
         self.assertIsNone(self.maintenance.game)
         self.assertTrue(self.games[0].closed)
-        self.assertEqual(self.said[-1], "game ended: the handset was lifted")
+        self.assertEqual(self.said[-1], "Invaders ended: the handset was lifted")
 
     def test_a_call_ends_the_game(self):
-        self.open()
+        self.knock()
+        self.maintenance.step(True, True, set(), [button(self.maintenance, "Invaders")])
         self.assertTrue(self.maintenance.step(False, True, set(), []))
-        self.assertIsNone(self.maintenance.game)
-        self.assertEqual(self.said[-1], "game ended: a call")
-
-    def test_the_buttons_reach_the_game(self):
-        self.open()
-        self.maintenance.step(True, True, {"left"}, [])
-        self.assertEqual(self.games[0].held, [{"left"}])
+        self.assertEqual(self.said[-1], "Invaders ended: a call")
 
     def test_the_game_can_close_itself(self):
-        self.open()
+        self.knock()
+        self.maintenance.step(True, True, set(), [button(self.maintenance, "Invaders")])
         self.games[0].wants_open = False
         self.assertTrue(self.maintenance.step(True, True, set(), []))
         self.assertIsNone(self.maintenance.game)
 
     def test_a_game_that_cannot_start_is_only_logged(self):
-        maintenance = Maintenance(self.sounds, FakeShell, clock=self.clock, log=self.said.append, make_game=lambda: 1 / 0)
-        maintenance.step(True, True, set(), [])
-        maintenance.step(True, True, BOTH, [])
-        self.clock.t += config.ARM_SECONDS
-        maintenance.step(True, True, BOTH, [])
-        results = [maintenance.step(True, True, set(), [c]) for c in ANTICLOCKWISE]
-        self.assertEqual(results, [False] * 4)
-        self.assertIn("cannot start", self.said[-1])
-
-    def open(self):
-        self.arm()
-        for c in ANTICLOCKWISE:
-            self.maintenance.step(True, True, set(), [c])
-        self.assertIsNotNone(self.maintenance.game)
+        m = Maintenance(self.sounds, FakeShell, clock=self.clock, log=self.said.append, games={"Invaders": lambda: 1 / 0})
+        m.step(True, True, set(), [])
+        self.knock(m)
+        self.assertTrue(m.step(True, True, set(), [button(m, "Invaders")]))
+        self.assertFalse(m.open)
+        self.assertIn("Invaders cannot start", self.said[-1])
 
 
 class TheSession(unittest.TestCase):
@@ -625,7 +671,7 @@ class WithThePhone(unittest.TestCase):
         self.clock, self.sounds, self.switches, self.photos, self.taps = Clock(), FakeSounds(), Switches(), Photos(), Taps()
         self.said, self.games = [], []
         self.machine = Machine({"left": Party("Ann", "daughter", "ann")}, clock=self.clock, phone_ok=lambda: True, log=self.said.append)
-        self.maintenance = Maintenance(self.sounds, FakeShell, clock=self.clock, make_game=self.make)
+        self.maintenance = Maintenance(self.sounds, FakeShell, clock=self.clock, games={"Invaders": self.make})
         self.phone = Phone(self.machine, self.switches, NoCalls(), self.sounds, self.photos, clock=self.clock, taps=self.taps,
                            maintenance=self.maintenance, log=self.said.append)
         self.phone.step()
@@ -634,9 +680,12 @@ class WithThePhone(unittest.TestCase):
         self.clock.t += config.ARM_SECONDS
         self.phone.step()
         self.switches.down = set()
-        for spot in ANTICLOCKWISE:
+        for spot in CLOCKWISE:
             self.taps.next = [spot]
             self.phone.step()
+        self.assertTrue(self.phone.menu_showing)
+        self.taps.next = [button(self.maintenance, "Invaders")]
+        self.phone.step()
 
     def make(self):
         self.games.append(FakeSession())

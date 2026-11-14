@@ -1,12 +1,13 @@
-"""The maintenance shell: a way in on the Judicom itself, when SSH cannot help (a new Wi-Fi network, say).
+"""The hidden menu and what is behind it: the maintenance shell, a way in on the Judicom itself when SSH cannot help (a new
+Wi-Fi network, say), and the games.
 
-To open it, with the handset on the hook and nothing going on:
+To open the menu, with the handset on the hook and nothing going on:
   1. hold both buttons for ARM_SECONDS: a bong, and they can be let go;
   2. tap the four corners clockwise from the top left, each within KNOCK_SECONDS of the last: a higher bong each time.
 Anything else (a wrong tap, too long a wait, lifting the handset, a call) ends it, without a sound.
 
-The same knock with the corners counter-clockwise from the bottom right opens the hidden game instead (judicom/game.py): the
-first corner tapped decides which.  The game ends when the handset is lifted or a call comes in.
+The menu (judicom/menu.py) has a button for the shell and one for each game; touch one to open it.  The menu and the games
+close when the handset is lifted or a call comes in, and the menu after MENU_SECONDS untouched.
 
 The shell is an ordinary bash (judicom/shell.py) with a touch keyboard (judicom/keyboard.py).  "exit" goes back to the photos, and
 so do SHELL_IDLE_SECONDS without a key, so that it is never left on Judi's screen.  The phone goes on working underneath: a call or
@@ -20,11 +21,11 @@ import time
 
 from . import config
 from .keyboard import Keyboard
+from .menu import Menu
 
 BOTH = {"left", "right"}
-CORNERS = ((0, 0), (1, 0), (1, 1), (0, 1))           # clockwise from the top left, as (right?, bottom?): the shell
-GAME_CORNERS = ((1, 1), (0, 1), (0, 0), (1, 0))      # counter-clockwise from the bottom right: the game
-SEQUENCES = {"shell": CORNERS, "game": GAME_CORNERS}
+CORNERS = ((0, 0), (1, 0), (1, 1), (0, 1))           # clockwise from the top left, as (right?, bottom?)
+SHELL = "Shell"                                      # the menu's button for the shell
 LAST_BONG = len(CORNERS)
 
 
@@ -36,14 +37,11 @@ def corner(x, y, size=config.CORNER_PX):
 
 
 class Knock:
-    """Follows the sequence.  update() -> the number of the bong to play now (0 = armed .. LAST_BONG = all four corners), or None.
-    After LAST_BONG, which says whose sequence it was: "shell" or "game"."""
+    """Follows the sequence.  update() -> the number of the bong to play now (0 = armed .. LAST_BONG = all four corners), or None."""
 
-    def __init__(self, clock=time.monotonic, arm_seconds=config.ARM_SECONDS, knock_seconds=config.KNOCK_SECONDS, sequences=SEQUENCES):
+    def __init__(self, clock=time.monotonic, arm_seconds=config.ARM_SECONDS, knock_seconds=config.KNOCK_SECONDS):
         self.clock, self.arm_seconds, self.knock_seconds = clock, arm_seconds, knock_seconds
-        self.sequences = sequences
         self.corners = None                          # how many are done; None while not armed
-        self.which = None                            # "shell" or "game": the first corner decides; after the last, the one done
         self._deadline = self._held_since = None
         self._let_go = False                         # the buttons must come up before they can arm it (again)
 
@@ -74,9 +72,7 @@ class Knock:
             self.reset()
             return None
         for x, y in taps:
-            if self.corners == 0:
-                self.which = next((name for name, seq in self.sequences.items() if seq[0] == corner(x, y)), None)
-            if self.which is None or corner(x, y) != self.sequences[self.which][self.corners]:
+            if corner(x, y) != CORNERS[self.corners]:
                 self.reset()
                 return None
             self.corners += 1
@@ -89,23 +85,26 @@ class Knock:
 
 
 class Maintenance:
-    """What main.py asks each frame: step() -> True when the shell has just opened or closed (the screen must be drawn again)."""
+    """What main.py asks each frame: step() -> True when the menu, the shell or a game has just opened or closed (the screen must
+    be drawn again)."""
 
-    def __init__(self, sounds, make_shell, log=None, clock=time.monotonic, idle_seconds=config.SHELL_IDLE_SECONDS, make_game=None):
-        """make_game(): a new game.Session, or None for no game (the knock for it then does nothing)."""
+    def __init__(self, sounds, make_shell, log=None, clock=time.monotonic, idle_seconds=config.SHELL_IDLE_SECONDS, games=None):
+        """games: {menu label: make()} for each game, make() giving a new session like game.Session: step(held) -> keep open?,
+        steps (0: nothing new to draw), draw() -> its small canvas, close()."""
         self.sounds, self.make_shell, self.clock, self.idle_seconds = sounds, make_shell, clock, idle_seconds
-        self.make_game = make_game
+        self.games = dict(games or {})
         self.log = log or (lambda msg: None)
-        self.knock = Knock(clock, sequences=SEQUENCES if make_game else {"shell": CORNERS})
+        self.knock = Knock(clock)
         self.keyboard = None
+        self.menu = None
         self.shell = None
-        self.game = None
+        self.game = self.game_name = None
         self._typed = None
 
     @property
     def open(self):
-        """The shell or the game is open."""
-        return self.shell is not None or self.game is not None
+        """The menu, the shell or a game is open."""
+        return self.menu is not None or self.shell is not None or self.game is not None
 
     @property
     def busy(self):
@@ -126,6 +125,26 @@ class Maintenance:
                 self.close_game("closed: no new game")
                 return True
             return False
+        if self.menu is not None:
+            if not (idle and on_hook):
+                self.close_menu("closed: the handset was lifted" if not on_hook else "closed: a call")
+                return True
+            for x, y in taps:
+                choice = self.menu.press(x, y)
+                if choice is None:
+                    continue
+                self.menu = None
+                if choice == SHELL:
+                    self._open()
+                elif choice in self.games:
+                    self._open_game(choice)
+                else:
+                    self.log("menu closed")
+                return True
+            if self.menu.idle:
+                self.close_menu("closed: nothing touched")
+                return True
+            return False
         if self.shell is None:
             bong = self.knock.update(idle and on_hook, BOTH <= set(held), taps)
             if bong is None:
@@ -133,7 +152,9 @@ class Maintenance:
             self.sounds.bong(bong)
             if bong != LAST_BONG:
                 return False
-            return self._open_game() if self.knock.which == "game" else self._open()
+            self.menu = Menu([SHELL] + list(self.games), self.clock)
+            self.log("menu open")
+            return True
         if not self.shell.poll():
             self.close("ended")
             return True
@@ -159,22 +180,29 @@ class Maintenance:
         self.log("maintenance shell open")
         return True
 
-    def _open_game(self):
+    def _open_game(self, name):
         try:
-            self.game = self.make_game()
+            self.game = self.games[name]()
         except Exception as exc:                        # noqa: BLE001 - the phone is what matters: it goes on without the game
-            self.log("(the game cannot start: %s)" % exc)
+            self.log("(%s cannot start: %s)" % (name, exc))
             return False
-        self.log("game open")
+        self.game_name = name
+        self.log("%s open" % name)
         return True
+
+    def close_menu(self, why="closed"):
+        if self.menu is not None:
+            self.menu = None
+            self.log("menu %s" % why)
 
     def close_game(self, why="closed"):
         if self.game is not None:
             self.game.close()
             self.game = None
-            self.log("game %s" % why)
+            self.log("%s %s" % (self.game_name, why))
 
     def close(self, why="closed"):
+        self.close_menu()
         self.close_game()
         if self.shell is not None:
             self.shell.close()

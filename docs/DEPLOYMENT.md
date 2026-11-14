@@ -380,11 +380,13 @@ or through the NAS: `ssh -J pi@naspi.local joe@judicom`.
 
 ## Maintenance shell
 
-A bash on the Judicom's own screen with a touch keyboard, for when SSH cannot help (a new Wi-Fi network, for instance).  With the
-handset on the hook and nothing else going on:
+A bash on the Judicom's own screen with a touch keyboard, for when SSH cannot help (a new Wi-Fi network, for instance).  It is on
+the **hidden menu**, with the games.  With the handset on the hook and nothing else going on:
 
 1. Hold both buttons for 3 seconds until you hear a bong, then let go.
-2. Within 10 seconds tap the corners clockwise, starting top left.  Each one bongs higher, and the fourth opens the shell.
+2. Within 10 seconds tap the corners clockwise, starting top left.  Each one bongs higher, and the fourth opens the menu.
+3. Touch **Shell** (or a game, or "Back to the photos").  The menu goes back to the photos by itself after a minute untouched,
+   and closes when the handset is lifted or a call comes in.
 
 A wrong tap, a wait of more than 10 seconds, the handset or a call ends the sequence without a sound.  `exit` goes back to the
 photos, and so do 10 minutes without a key, **even if a command is still running**: start anything long with `nohup`.
@@ -400,11 +402,8 @@ photos, and so do 10 minutes without a key, **even if a command is still running
 ## Hidden game
 
 An arcade game (`software/judicom/game.py`): a formation of raiders marches from side to side and down, and you shoot them
-from a turret at the bottom, behind four shelters.  It opens like the maintenance shell, with the corners the other way round:
-
-1. Hold both buttons for 3 seconds until you hear a bong, then let go.
-2. Within 10 seconds tap the corners counter-clockwise, starting **bottom right** (bottom right, bottom left, top left,
-   top right).  Each one bongs higher, and the fourth opens the game.  The first corner decides: top left is the shell.
+from a turret at the bottom, behind four shelters.  It is **Invaders** on the hidden menu (see "Maintenance shell" for the
+knock that opens the menu).  The games on the menu, in order, are the `games` list in `software/judicom/main.py`.
 
 - Left button: move left.  Right button: move right.  Both together: fire (hold them to keep firing).
 - **Lifting the handset ends it**, and so does a call coming in (its sound stops first, so the ringer has the speaker).

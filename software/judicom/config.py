@@ -120,18 +120,19 @@ DIGIT_LEVEL = 0.15            # each of the two notes of a touch-tone digit
 RING_LEVEL = 0.6              # the ringer (kept below full scale so the amplifier is not driven hard)
 BEEP_LEVEL = 0.5              # the three beeps of a new message, on the ringer speaker
 
-# ---- the maintenance shell (judicom/maintenance.py) -------------------------------------------------------------------------
+# ---- the hidden menu and the maintenance shell (judicom/maintenance.py) ------------------------------------------------------
 ARM_SECONDS = 3.0             # both buttons held this long, handset on the hook: a bong
 KNOCK_SECONDS = 10.0          # then each corner within this long of the last
 CORNER_PX = 170               # how far from the edges a tap still counts as in the corner
 SHELL_IDLE_SECONDS = 600.0    # back to the photos after this long without a key
+MENU_SECONDS = 60.0           # the menu goes back to the photos after this long untouched
 SHELL_COLUMNS, SHELL_ROWS = 58, 32                 # 10 x 19 pixels each, above the keyboard
 SHELL_TOP = 36                # the first row starts this far down: the bezel covers the top of the screen
 SHELL_RIGHT = 20              # and the shell and the keyboard stop this far from the right edge, which the bezel covers too
 BONG_LEVEL = 0.4              # on the ringer speaker
 
-# ---- the hidden game (judicom/game.py) ---------------------------------------------------------------------------------------
-# Opened like the maintenance shell, but with the corners counter-clockwise from the bottom right.  Lifting the handset ends it.
+# ---- the hidden game, "Invaders" in the hidden menu (judicom/game.py) ---------------------------------------------------------
+# Lifting the handset ends it.
 GAME_LEVEL = 0.35             # its sounds, on the ringer speaker
 GAME_SOUND_AFTER = 1.0        # its sound starts this long after it opens (the last bong has finished with the speaker by then)
 GAME_BEST_FILE = Path(os.environ.get("JUDICOM_GAME_BEST", "/home/joe/.judicom-game-best"))    # the high score

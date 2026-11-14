@@ -1,4 +1,4 @@
-"""The hidden game: hold both buttons, then tap the corners counter-clockwise from the bottom right (judicom/maintenance.py).
+"""The hidden game, "Invaders" in the hidden menu (judicom/maintenance.py).
 
 A formation of 55 raiders (5 rows of 11) marches from side to side, a step down at each edge, faster as fewer are left, and
 shoots down at the turret at the bottom.  Four shelters between them wear away where they are hit.  Now and then a bonus ship
@@ -445,6 +445,7 @@ class Session:
         self._was = self.game.state
         self.steps = 0                                  # steps run by the last step(): 0 = nothing to draw again
         self._opened, self._frames = clock(), 0
+        self._view = None
 
     def step(self, held):
         """One frame.  Returns False when the game wants to close (no new game after "game over")."""
@@ -474,6 +475,13 @@ class Session:
                 self.best_file.write_text("%d\n" % self.game.best)
             except OSError as exc:
                 self.log("(the game's high score cannot be kept: %s)" % exc)
+
+    def draw(self):
+        """The game's picture now (a W x H canvas, for display.present_small)."""
+        if self._view is None:
+            from .game_view import GameView
+            self._view = GameView()
+        return self._view.draw(self.game)
 
     def close(self):
         self._save_best()
