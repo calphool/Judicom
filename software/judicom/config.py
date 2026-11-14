@@ -138,6 +138,8 @@ GAME_SOUND_AFTER = 1.0        # its sound starts this long after it opens (the l
 GAME_BEST_FILE = Path(os.environ.get("JUDICOM_GAME_BEST", "/home/joe/.judicom-game-best"))    # the high score
 # Brick Breaker (judicom/bricks.py): the same sound level; its own high score.
 BRICKS_BEST_FILE = Path(os.environ.get("JUDICOM_BRICKS_BEST", "/home/joe/.judicom-bricks-best"))
+# Mars Patrol (judicom/mars.py): its own high score.
+MARS_BEST_FILE = Path(os.environ.get("JUDICOM_MARS_BEST", "/home/joe/.judicom-mars-best"))
 
 # ---- the info screen and the night clock ------------------------------------------------------------------------------------
 INFO_EVERY_PHOTOS = 5         # after this many photos, the next of the info screen (date, time, upcoming events), a verse or

@@ -460,6 +460,10 @@ class Session:
         self.game = (make_game or Game)(best=read_best(self.best_file), seed=seed)
         self._sound_at = clock() + config.GAME_SOUND_AFTER
         self._sound = False
+        self._sound_set = None                          # made in the background: it takes a second or two on the Pi
+        import threading
+        self.sound_maker = threading.Thread(target=self._make_sounds, name="game sounds", daemon=True)
+        self.sound_maker.start()
         self._was = self.game.state
         self.steps = 0                                  # steps run by the last step(): 0 = nothing to draw again
         self._opened, self._frames = clock(), 0
@@ -469,9 +473,11 @@ class Session:
         """One frame.  Returns False when the game wants to close (no new game after "game over")."""
         now = self.clock()
         self._frames += 1
-        if not self._sound and now >= self._sound_at:
+        if not self._sound and now >= self._sound_at and self._sound_set is not None:
             self._sound = True
-            self.sounds.game_on(self.make_sounds())
+            self.sounds.game_on(self._sound_set)
+            if hasattr(self.game, "loops"):             # loops it asked for before there was sound
+                self.sounds.game_play([name + "_on" for name in self.game.loops()])
         self.steps = self.game.update(now, held)
         events = self.game.take_events()
         if self._sound:
@@ -485,6 +491,12 @@ class Session:
                 self.log("game: a new game")
             self._was = state
         return not self.game.finished
+
+    def _make_sounds(self):
+        try:
+            self._sound_set = self.make_sounds()
+        except Exception as exc:                        # noqa: BLE001 - no sound is no reason to stop the game
+            self.log("(no game sound: %s)" % exc)
 
     def _save_best(self):
         if self.game.best > read_best(self.best_file):

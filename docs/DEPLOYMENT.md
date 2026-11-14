@@ -422,6 +422,24 @@ new game after "game over".  Where the ball meets the paddle steers it: the midd
 The ball quickens every 12 bricks and the first time it gets above the wall; each new wall starts a little quicker.
 Three balls; the handset ends it, as with Invaders.  Its high score is in `/home/joe/.judicom-bricks-best`.
 
+## Mars Patrol
+
+The third game on the hidden menu (`software/judicom/mars.py`): a six-wheeled rover drives itself across Mars through five
+courses (Martian Plains, Red Highlands, Crater Fields, Rocky Escarpment, Hostile Territory) of five checkpoints each, then
+round again, harder.  Left: slower.  Right: faster.  Both (a new press): fire forward and up, and jump if on the ground (no
+double jumps).  The faster the rover, the longer the jump: the widest craters need speed.  A lost rover starts again at the
+last checkpoint; three rovers, one more every 10,000 points; a time bonus at the end of each course.
+
+- The game is wide and the screen upright, so its 800 x 600 world is a band across the middle; the sky (score, course,
+  progress bar) goes on above it and the ground below.
+- Every section is made from a fixed seed, so it plays the same each time.  `autopilot()` drives the title screen's
+  demonstration, and the tests use it to drive the courses through: no crash on the ground in two whole rounds.
+- Fairness rules, found by watching the autopilot: dropped bombs and shots belong to the ground (so changing speed gets
+  out of the way), nothing is dropped near a crater or a ground hazard or while the rover is in the air, and only one attack
+  drone and one bomber are in the sky at a time.
+- The tune is an original bass groove in E over hi-hats, kept quiet.  There is no engine sound (tried, and taken out).
+- Its high score is in `/home/joe/.judicom-mars-best`.  It draws in about 6 ms a frame on the Pi 3A+.
+
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).

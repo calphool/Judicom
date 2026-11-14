@@ -134,6 +134,72 @@ def bricks_sounds(level=None):
     return _cache["bricks"]
 
 
+def noise_pcm(seconds, level, hold_from=1, hold_to=12, seed=3):
+    """A burst of rough noise that sinks lower as it fades (held for longer and longer stretches)."""
+    rng, n, out, held, hold = random.Random(seed), int(seconds * RATE), [], 0.0, 0
+    for i in range(n):
+        if hold <= 0:
+            held, hold = rng.uniform(-1, 1), hold_from + int((hold_to - hold_from) * i / n)
+        hold -= 1
+        out.append(held * (1.0 - i / n) ** 1.3)
+    return _pcm(out, level)
+
+
+# Mars Patrol's tune, written for the Judicom: a bouncing, syncopated bass line in E major over sixteenth-note hi-hats, four
+# bars round and round (A A B C).  Sixteenths at 140 beats a minute; each bar is 16 steps: a note name to play, "." to rest.
+# The bass sounds an octave up (E3 = 164.8 Hz): the little speaker cannot make the real bass notes.
+TUNE_STEP = 60 / 140 / 4
+NOTE = {"E3": 164.8, "F#3": 185.0, "G#3": 207.7, "A3": 220.0, "B3": 246.9, "C#4": 277.2, "D4": 293.7, "D#4": 311.1,
+        "E4": 329.6, "F#4": 370.0, "A4": 440.0, "B4": 493.9}
+TUNE_BARS = (
+    "E3 . E4 . G#3 . A3 B3 . E3 . E4 D4 . B3 .",
+    "E3 . E4 . G#3 . A3 B3 . E3 . E4 D4 . B3 .",
+    "A3 . A4 . C#4 . E4 . B3 . B4 . F#4 D#4 B3 .",
+    "E3 . E4 . G#3 A3 B3 . C#4 . B3 . G#3 . F#3 .",
+)
+
+
+def tune_pcm(level):
+    step = int(TUNE_STEP * RATE)
+    notes = [n for bar in TUNE_BARS for n in bar.split()]
+    out = [0.0] * (step * len(notes))
+    rng = random.Random(8)
+    for k, name in enumerate(notes):
+        base = k * step
+        if name != ".":                                 # a plucked bass note: bright at first, then rounder
+            hz, length = NOTE[name], int(step * 1.8)
+            for i in range(min(length, len(out) - base)):
+                bright = _square(i * hz / RATE)
+                round_ = math.sin(2 * math.pi * i * hz / RATE)
+                fade = (1 - i / length) ** 1.5
+                out[base + i] += 0.55 * fade * (0.4 * bright + 0.6 * round_)
+        tick = int(0.012 * RATE)                        # the hi-hat, on every sixteenth, a little louder off the beat
+        loud = 0.16 if k % 2 else 0.09
+        for i in range(tick):
+            out[base + i] += loud * rng.uniform(-1, 1) * (1 - i / tick)
+    return _pcm(out, level)
+
+
+def mars_sounds(level=None):
+    """Mars Patrol's sounds, made once."""
+    if "mars" not in _cache:
+        level = config.GAME_LEVEL if level is None else level
+        sounds = {"fire": tone_pcm(1800.0, 0.08, level * 0.8, to_hz=600.0),
+                  "jump": tone_pcm(300.0, 0.15, level * 0.7, to_hz=700.0),
+                  "land": tone_pcm(120.0, 0.06, level * 0.8),
+                  "rock": noise_pcm(0.25, level),
+                  "boom": noise_pcm(0.35, level, hold_from=2, hold_to=16, seed=5),
+                  "bomb": noise_pcm(0.2, level * 0.8, hold_from=3, hold_to=10, seed=6),
+                  "die": die_pcm(level),
+                  "checkpoint": notes_pcm((784.0, 987.8, 1174.7), 0.08, 0.02, level),
+                  "course": notes_pcm((523.3, 659.3, 784.0, 1046.5, 784.0, 1046.5), 0.09, 0.02, level),
+                  "over": notes_pcm((659.3, 587.3, 523.3, 440.0, 392.0, 329.6), 0.2, 0.04, level),
+                  "extra": notes_pcm((1318.5, 1318.5, 1318.5), 0.06, 0.04, level),
+                  "music": tune_pcm(level * 0.22)}        # background: well under the game's own sounds
+        _cache["mars"] = sounds
+    return _cache["mars"]
+
+
 def mix(voices, n):
     """n samples of everything in voices ([samples, position, loops?]), moving each on; finished ones are dropped."""
     out = [0] * n

@@ -467,6 +467,7 @@ class ItsSession(unittest.TestCase):
             sounds, t, said = FakeSounds(), [100.0], []
             s = Session(sounds, lambda: t[0], said.append, best_file=best, make_game=BrickGame,
                         make_view=lambda: None, make_sounds=game_sound.bricks_sounds)
+            s.sound_maker.join()
             t[0] += config.GAME_SOUND_AFTER
             s.step(set())
             self.assertIs(sounds.sets[0], game_sound.bricks_sounds())

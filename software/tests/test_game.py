@@ -627,6 +627,7 @@ class TheSession(unittest.TestCase):
         self.best = Path(self.dir.name) / "best"
         self.clock, self.sounds, self.said = Clock(), FakeSounds(), []
         self.session = Session(self.sounds, self.clock, self.said.append, best_file=self.best, seed=1)
+        self.session.sound_maker.join()                 # (its sounds are made in the background)
 
     def test_its_sound_starts_after_the_last_bong(self):
         self.session.step(set())

@@ -294,11 +294,15 @@ def main(argv=None):
             from .shell_view import ShellView
             from .bricks import BrickGame
             from .bricks_view import BrickView
-            from .game_sound import bricks_sounds
+            from .game_sound import bricks_sounds, mars_sounds
+            from .mars import MarsGame
+            from .mars_view import MarsView
             games = {                                                                   # the hidden menu's games, in its order
                 "Invaders": lambda: Session(sounds, time.monotonic, log),
                 "Brick Breaker": lambda: Session(sounds, time.monotonic, log, best_file=config.BRICKS_BEST_FILE,
                                                  make_game=BrickGame, make_view=BrickView, make_sounds=bricks_sounds),
+                "Mars Patrol": lambda: Session(sounds, time.monotonic, log, best_file=config.MARS_BEST_FILE,
+                                               make_game=MarsGame, make_view=MarsView, make_sounds=mars_sounds),
             }
             maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games)
             shell_view = ShellView()
