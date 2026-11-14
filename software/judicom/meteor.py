@@ -75,13 +75,83 @@ class Thing:
         self.t += dt
 
 
-class MeteorGame:
+class Pilot:
+    """The ship and its two buttons, shared by Meteoroids and Stellar Stronghold (judicom/stronghold.py).
+
+    input: "none", "left", "right", "pending" (both, under HOLD), "thrust" (both, held), "wait" (until both are let go).
+    Left / Right turn; both let go within HOLD fire one shot (on letting go: until then it may still become a thrust); both
+    held HOLD or longer thrust until let go, and never fire.  A game using it has self.ship, self.shots, self.events,
+    self.clock, self._fired_at, self.input, self.both_time and self.thrusting, and calls _controls() and _fly() each step."""
+    SHOTS, SHOT_GAP, SHOT_SPEED, SHOT_LIFE, SHOT_R = SHOTS, SHOT_GAP, SHOT_SPEED, SHOT_LIFE, 1.5
+    MAX_SPEED = MAX_SPEED
+
+    def _controls(self, held, both, dt):
+        """The two-button state machine (see Pilot's notes)."""
+        s = self.input
+        if s == "wait":
+            if not held:
+                self.input = "none"
+            return
+        if s == "pending":
+            if not both:                                # let go in time: a shot, however brief the press was
+                self._fire()
+                self.input = self._single(held)
+            else:
+                self.both_time += dt
+                if self.both_time >= HOLD:
+                    self.input = "thrust"
+                    self.thrusting = True
+                    self.events.append("thrust_on")
+            return
+        if s == "thrust":
+            if not both:                                # let go: the thrust stops, and no shot
+                self.thrusting = False
+                self.events.append("thrust_off")
+                self.input = self._single(held)
+            return
+        if both:
+            self.input, self.both_time = "pending", dt  # (this step counts)
+            return
+        self.input = self._single(held)
+        if self.input == "left":
+            self.ship.angle -= TURN_SPEED * dt
+        elif self.input == "right":
+            self.ship.angle += TURN_SPEED * dt
+
+    @staticmethod
+    def _single(held):
+        return "left" if held == {"left"} else "right" if held == {"right"} else "none"
+
+    def _fire(self):
+        if len(self.shots) >= self.SHOTS or self.clock - self._fired_at < self.SHOT_GAP:
+            return
+        self._fired_at = self.clock
+        s, a = self.ship, math.radians(self.ship.angle)
+        shot = Thing("shot", s.x + math.cos(a) * 14, s.y + math.sin(a) * 14,
+                     s.vx + math.cos(a) * self.SHOT_SPEED, s.vy + math.sin(a) * self.SHOT_SPEED, self.SHOT_R)
+        shot.life = self.SHOT_LIFE
+        self.shots.append(shot)
+        self.events.append("fire")
+
+    def _fly(self, dt):
+        """The ship: thrust (up to MAX_SPEED), then on with its drift."""
+        s = self.ship
+        if self.thrusting:
+            a = math.radians(s.angle)
+            s.vx += math.cos(a) * THRUST * dt
+            s.vy += math.sin(a) * THRUST * dt
+            v = math.hypot(s.vx, s.vy)
+            if v > self.MAX_SPEED:
+                s.vx, s.vy = s.vx * self.MAX_SPEED / v, s.vy * self.MAX_SPEED / v
+        s.move(dt)
+
+
+class MeteorGame(Pilot):
     """One game.  update(now, held) moves it on; the rest is read by meteor_view.py.  Sounds are collected in events
     (take_events()): "fire", "bang0" / "bang1" / "bang2" (a large / medium / small rock), "die", "craft_die", "craft_fire",
     "beat0" / "beat1" (the heartbeat), "extra", "wave", "over", and the loops "thrust_on" / "_off", "craft_on" / "_off".
 
-    state: "attract" (the title, rocks drifting by), "playing", "destroyed", "over".
-    input: "none", "left", "right", "pending" (both, under HOLD), "thrust" (both, held), "wait" (until both are let go)."""
+    state: "attract" (the title, rocks drifting by), "playing", "destroyed", "over".  The ship and its buttons: Pilot."""
 
     def __init__(self, best=0, seed=None, attract=True):
         self.rng = random.Random(seed)
@@ -218,69 +288,11 @@ class MeteorGame:
         things = self.rocks + ([self.craft] if self.craft else []) + self.craft_shots
         return all(math.hypot(*near(W / 2, H / 2, t.x, t.y)) > SAFE_R + t.r for t in things)
 
-    # ---- the two buttons ---------------------------------------------------------------------------------------------------
-
-    def _controls(self, held, both, dt):
-        """The two-button state machine (see the class's notes)."""
-        s = self.input
-        if s == "wait":
-            if not held:
-                self.input = "none"
-            return
-        if s == "pending":
-            if not both:                                # let go in time: a shot, however brief the press was
-                self._fire()
-                self.input = self._single(held)
-            else:
-                self.both_time += dt
-                if self.both_time >= HOLD:
-                    self.input = "thrust"
-                    self.thrusting = True
-                    self.events.append("thrust_on")
-            return
-        if s == "thrust":
-            if not both:                                # let go: the thrust stops, and no shot
-                self.thrusting = False
-                self.events.append("thrust_off")
-                self.input = self._single(held)
-            return
-        if both:
-            self.input, self.both_time = "pending", dt  # (this step counts)
-            return
-        self.input = self._single(held)
-        if self.input == "left":
-            self.ship.angle -= TURN_SPEED * dt
-        elif self.input == "right":
-            self.ship.angle += TURN_SPEED * dt
-
-    @staticmethod
-    def _single(held):
-        return "left" if held == {"left"} else "right" if held == {"right"} else "none"
-
-    def _fire(self):
-        if len(self.shots) >= SHOTS or self.clock - self._fired_at < SHOT_GAP:
-            return
-        self._fired_at = self.clock
-        s, a = self.ship, math.radians(self.ship.angle)
-        shot = Thing("shot", s.x + math.cos(a) * 14, s.y + math.sin(a) * 14,
-                     s.vx + math.cos(a) * SHOT_SPEED, s.vy + math.sin(a) * SHOT_SPEED, 1.5)
-        shot.life = SHOT_LIFE
-        self.shots.append(shot)
-        self.events.append("fire")
-
     # ---- one step of the world ---------------------------------------------------------------------------------------------
 
     def _world(self, dt, ship):
         if ship:
-            s = self.ship
-            if self.thrusting:
-                a = math.radians(s.angle)
-                s.vx += math.cos(a) * THRUST * dt
-                s.vy += math.sin(a) * THRUST * dt
-                v = math.hypot(s.vx, s.vy)
-                if v > MAX_SPEED:
-                    s.vx, s.vy = s.vx * MAX_SPEED / v, s.vy * MAX_SPEED / v
-            s.move(dt)
+            self._fly(dt)
             self.shield = max(0.0, self.shield - dt)
         for r in self.rocks:
             r.move(dt)

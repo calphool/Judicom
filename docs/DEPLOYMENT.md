@@ -451,6 +451,19 @@ within half a second): fire.  Both, held half a second: thrust, never a shot.  T
   screen, not turned and scaled as a picture: sharp lines, about 5 ms a frame on the Pi 3A+ (10 ms with 30 rocks).
 - Its high score is in `/home/joe/.judicom-meteor-best`.
 
+## Stellar Stronghold
+
+The fifth game on the hidden menu (`software/judicom/stronghold.py`): a cannon in the middle behind three rings of twelve
+shield segments (blue, yellow, red), each ring turning its own way.  Two hits break a segment; shoot a way through all three
+to the cannon for 1,000 points, a ship more and a quicker stronghold.  Break a whole ring and it grows back.  The cannon
+fires out wherever the gaps line up; three mines hunt the ship, round the walls (intact segments stop them as they stop
+shots).  The ship and controls are Meteoroids' (`meteor.Pilot`): Left / Right turn, both tapped fire, both held thrust.
+
+- Shots move at most 2 pixels between checks against where each segment really is then; the cannon fires only if its shot
+  would get through the rings as they will have turned.
+- Fixes found in play: a lost ship's mines no longer guard the start (no new ship came); mines no longer pass through
+  intact segments, and were calmed down.  Its high score is in `/home/joe/.judicom-stronghold-best`.
+
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).

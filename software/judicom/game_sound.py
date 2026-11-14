@@ -242,6 +242,42 @@ def meteor_sounds(level=None):
     return _cache["meteor"]
 
 
+def chord_pcm(notes, seconds, level, to=None):
+    """Several square notes at once, fading (to: each slides to this many times its pitch)."""
+    n, out, phases = int(seconds * RATE), [], [0.0] * len(notes)
+    for i in range(n):
+        v = 0.0
+        for j, hz in enumerate(notes):
+            f = hz * (1 + ((to or 1) - 1) * i / n)
+            phases[j] += f / RATE
+            v += _square(phases[j])
+        out.append(v / len(notes) * _env(i, n))
+    return _pcm(out, level)
+
+
+def stronghold_sounds(level=None):
+    """Stellar Stronghold's sounds, made once."""
+    if "stronghold" not in _cache:
+        level = config.GAME_LEVEL if level is None else level
+        boom = list(noise_pcm(1.6, level * 0.8, hold_from=2, hold_to=26, seed=31))
+        low = list(chord_pcm((220.0, 277.2, 330.0), 1.6, level * 0.5, to=0.35))
+        _cache["stronghold"] = {
+            "fire": tone_pcm(1300.0, 0.06, level * 0.8, to_hz=700.0),
+            "thrust": rumble_pcm(0.4, level * 0.45),
+            "hit": chord_pcm((1250.0, 1870.0), 0.08, level * 0.6),                 # a metallic ping
+            "segment": noise_pcm(0.15, level * 0.9, hold_from=1, hold_to=4, seed=32),
+            "regrow": notes_pcm((392.0, 523.3, 659.3, 784.0), 0.06, 0.01, level * 0.7),
+            "mine": tone_pcm(1600.0, 0.03, level * 0.25),                          # quiet, now and then
+            "mine_die": noise_pcm(0.2, level * 0.8, hold_from=1, hold_to=6, seed=33),
+            "cannon": chord_pcm((180.0, 270.0), 0.35, level, to=0.4),             # a heavy, falling discharge
+            "die": die_pcm(level),
+            "boom": array.array("h", (max(-32768, min(32767, a + b)) for a, b in zip(boom, low))),
+            "round": notes_pcm((523.3, 659.3, 784.0, 1046.5), 0.08, 0.02, level * 0.8),
+            "over": notes_pcm((659.3, 587.3, 523.3, 440.0, 392.0), 0.18, 0.04, level),
+        }
+    return _cache["stronghold"]
+
+
 def mix(voices, n):
     """n samples of everything in voices ([samples, position, loops?]), moving each on; finished ones are dropped."""
     out = [0] * n

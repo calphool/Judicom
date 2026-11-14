@@ -83,7 +83,27 @@ def _meteoroids(n):
     return s
 
 
-ICONS = {"Shell": _shell, "Invaders": _invaders, "Brick Breaker": _bricks, "Mars Patrol": _mars, "Meteoroids": _meteoroids}
+def _stronghold(n):
+    from .meteor_view import GLOW
+    from .stronghold_view import CORE_COLOUR, RING_COLOURS
+    s = pygame.Surface((n, n), pygame.SRCALPHA)
+    c = n / 2
+    for (r, name, gap) in ((0.45, "outer", 40), (0.32, "middle", 160), (0.19, "inner", 280)):
+        for k in range(6):                               # each ring in pieces, with one piece missing
+            if k * 60 == (gap // 60) * 60:
+                continue
+            a0 = math.radians(k * 60 + gap % 60 + 4)
+            pts = [(c + math.cos(a0 + math.radians(52) * i / 4) * r * n, c + math.sin(a0 + math.radians(52) * i / 4) * r * n)
+                   for i in range(5)]
+            pygame.draw.lines(s, GLOW, False, pts, max(3, n // 18))
+            pygame.draw.lines(s, RING_COLOURS[name], False, pts, max(1, n // 40))
+    hexagon = [(c + math.cos(math.radians(a)) * n * 0.08, c + math.sin(math.radians(a)) * n * 0.08) for a in range(0, 360, 60)]
+    pygame.draw.lines(s, CORE_COLOUR, True, hexagon, max(1, n // 40))
+    return s
+
+
+ICONS = {"Shell": _shell, "Invaders": _invaders, "Brick Breaker": _bricks, "Mars Patrol": _mars, "Meteoroids": _meteoroids,
+         "Stellar Stronghold": _stronghold}
 
 
 def icon(label, size):

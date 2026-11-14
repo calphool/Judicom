@@ -299,7 +299,9 @@ def main(argv=None):
             from .mars_view import MarsView
             from .meteor import MeteorGame
             from .meteor_view import MeteorView
-            from .game_sound import meteor_sounds
+            from .game_sound import meteor_sounds, stronghold_sounds
+            from .stronghold import StrongholdGame
+            from .stronghold_view import StrongholdView
             games = {                                                                   # the hidden menu's games, in its order
                 "Invaders": lambda: Session(sounds, time.monotonic, log),
                 "Brick Breaker": lambda: Session(sounds, time.monotonic, log, best_file=config.BRICKS_BEST_FILE,
@@ -308,6 +310,9 @@ def main(argv=None):
                                                make_game=MarsGame, make_view=MarsView, make_sounds=mars_sounds),
                 "Meteoroids": lambda: Session(sounds, time.monotonic, log, best_file=config.METEOR_BEST_FILE,
                                               make_game=MeteorGame, make_view=MeteorView, make_sounds=meteor_sounds),
+                "Stellar Stronghold": lambda: Session(sounds, time.monotonic, log, best_file=config.STRONGHOLD_BEST_FILE,
+                                                      make_game=StrongholdGame, make_view=StrongholdView,
+                                                      make_sounds=stronghold_sounds),
             }
             maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games)
             shell_view = ShellView()
