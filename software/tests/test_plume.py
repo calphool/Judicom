@@ -1,4 +1,5 @@
 """Plume Knights (judicom/plume.py): the acceptance list it was built to (numbered as in its specification), and its drawing."""
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -136,10 +137,10 @@ class Controls(unittest.TestCase):                                   # 1-9, 35
         self.assertLess(g.me.y, 300 - 150)
         in_the_air(g, y=300)
         g.me.vy = pk.FLAP / 2                                            # (level on average: falling as it flaps)
-        flaps(g, 12, 0.26)                                               # about four a second: about level
+        flaps(g, 9, pk.FLAP / pk.GRAVITY)                                # about three a second: about level
         self.assertAlmostEqual(g.me.y, 300, delta=60)
         in_the_air(g, y=300)
-        run(g, seconds(0.6))                                             # none: down
+        run(g, seconds(0.8))                                             # none: down
         self.assertGreater(g.me.y, 400)
         self.assertLessEqual(g.me.vy, pk.MAX_FALL)
 
@@ -160,7 +161,8 @@ class Controls(unittest.TestCase):                                   # 1-9, 35
             g.tick()
             if i == seconds(0.1):
                 self.assertGreater(g.me.vx, 190)
-        self.assertTrue(20 < g.me.vx < 100)
+        self.assertAlmostEqual(g.me.vx, 240 * math.exp(-pk.DRAG * 1.1), delta=15)     # slowing, not stopped
+        self.assertGreater(g.me.vx, 80)
 
     def test_35_only_two_buttons(self):
         g = game()

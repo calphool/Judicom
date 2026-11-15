@@ -19,8 +19,8 @@ W, H = 580, 880
 TICK = 1 / 120
 MAX_STEPS = 12
 
-GRAVITY, FLAP, MAX_UP, MAX_FALL = 650.0, 170.0, 300.0, 330.0
-ACCEL, MAX_SPEED, DRAG, GROUND_DRAG = 600.0, 240.0, 1.8, 4.0
+GRAVITY, FLAP, MAX_UP, MAX_FALL = 500.0, 220.0, 300.0, 330.0
+ACCEL, MAX_SPEED, DRAG, GROUND_DRAG = 600.0, 240.0, 0.8, 2.5
 FLAP_GAP = 0.10                 # a flap within this long of the last one is ignored
 TURN_AFTER = 0.12               # one button turns and drives the bird once held this long on its own (the other up): so
                                 # both pressed a little apart, or one let go a little early after a flap, is no turn
