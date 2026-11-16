@@ -469,7 +469,7 @@ class PlumeView:
         c.fill((255, 240, 120), (x0 + 3, head - 2, 2, 2))
         c.fill((120, 20, 10), (x0 - 4, head + 3, 9, jaw))
         if g.knight == "grabbed" and int(g.clock * 6) % 2 == 0:
-            self.text("FLAP TO ESCAPE!", cy(g.me.y) - 46, (255, 230, 120), scale=1)
+            self.text("HOLD BOTH TO ESCAPE!", cy(g.me.y) - 46, (255, 230, 120), scale=1)
 
     def _bursts(self, g):
         c = self.canvas
@@ -522,7 +522,7 @@ class PlumeView:
         if g.state == "attract":
             self.text("PLUME", cy(150), (255, 200, 60), scale=6)
             self.text("KNIGHTS", cy(150) + 40, (255, 200, 60), scale=5)
-            for i, line in enumerate(("LEFT: FLY LEFT", "RIGHT: FLY RIGHT", "BOTH: FLAP", "", "FLAP TO FLY",
+            for i, line in enumerate(("HOLD LEFT: FLY LEFT", "HOLD RIGHT: FLY RIGHT", "HOLD BOTH: GO UP", "LET GO: GO DOWN", "",
                                       "HIGHER LANCE WINS")):
                 self.text(line, cy(420) + i * 16, (190, 190, 190))
             if int(g.timer * 2) % 2 == 0:

@@ -44,13 +44,6 @@ def in_the_air(g, x=440, y=300):
     g.me.x, g.me.y, g.me.vx, g.me.vy, g.me.grounded = float(x), float(y), 0.0, 0.0, False
 
 
-def flaps(g, n, every, then=()):
-    """n flaps, `every` seconds apart (both pressed for a moment each time)."""
-    for _ in range(n):
-        run(g, 3, BOTH)
-        run(g, seconds(every) - 3, then)
-
-
 def rider(g, cls, x, y):
     e = g._add_rider(x, y, cls, spawning=False)
     e.think = 10 ** 6                                   # standing still unless a test moves it
@@ -78,25 +71,22 @@ class Controls(unittest.TestCase):                                   # 1-9, 35
         self.assertEqual(g.me.face, 1)                                   # turned at once,
         self.assertLess(g.me.vx, -140)                                   # still sliding left
 
-    def test_3_both_together_is_one_flap_not_a_turn(self):
+    def test_3_both_held_climbs_steadily_and_is_no_turn(self):
         g = game()
-        in_the_air(g)
+        in_the_air(g, y=600)
         g.me.face = 1
-        run(g, seconds(0.04), {"left"})                                  # a little apart: still a flap
-        vy = g.me.vy
-        run(g, 1, BOTH)
-        self.assertEqual(g.take_events().count("flap"), 1)
+        run(g, seconds(0.04), {"left"})                                  # pressed a little apart: still no turn
+        run(g, seconds(1.0), BOTH)
         self.assertEqual(g.me.face, 1)
-        self.assertAlmostEqual(g.me.vy - vy, -pk.FLAP + pk.GRAVITY * pk.TICK, delta=0.1)
+        self.assertAlmostEqual(g.me.vy, -pk.CLIMB, delta=1)
+        self.assertLess(g.me.y, 600 - 150)
+        events = g.take_events()
+        self.assertGreaterEqual(events.count("flap"), 4)                 # its wingbeats, heard
+        self.assertLessEqual(events.count("flap"), 7)
 
-    def test_one_button_left_down_a_moment_after_a_flap_is_no_turn(self):
+    def test_one_button_left_down_a_moment_after_climbing_is_no_turn(self):
         g = game()
-        in_the_air(g, y=200)
-        g.me.face = 1
-        for _ in range(5):                                               # flaps, letting go of right a little late
-            run(g, seconds(0.1), BOTH)
-            run(g, seconds(0.1), {"right"})
-            run(g, seconds(0.05))
+        in_the_air(g, y=600)
         g.me.face = -1
         run(g, seconds(0.15), BOTH)
         run(g, seconds(0.1), {"right"})                                  # 100 ms of right alone, after both: no turn
@@ -113,32 +103,31 @@ class Controls(unittest.TestCase):                                   # 1-9, 35
         self.assertEqual(g.me.face, 1)
         self.assertGreater(g.me.vx, 75)                                  # (only the air's drag: no push back)
 
-    def test_4_5_again_and_again_flaps_but_held_is_one(self):
+    def test_one_button_flies_level(self):
         g = game()
-        in_the_air(g)
+        in_the_air(g, y=300)
+        run(g, seconds(2.0), {"left"})
+        self.assertAlmostEqual(g.me.y, 300, delta=1)
+        self.assertLess(g.me.vx, -200)
+        g.me.vy = 150.0                                                   # (falling, when it was let go of a while)
+        y = g.me.y
+        run(g, seconds(1.0), {"right"})
+        self.assertLess(g.me.y - y, 40)                                   # caught: it levels off
+        self.assertAlmostEqual(g.me.vy, 0, delta=1)
+        g.me.vy = -200.0                                                  # (climbing, then one let go)
+        y = g.me.y
+        run(g, seconds(1.0), {"right"})
+        self.assertGreater(g.me.y - y, -40)
+        self.assertNotIn("flap", g.take_events())                         # (quiet wings when level)
+
+    def test_6_7_8_climb_level_sink(self):
+        g = game()
+        in_the_air(g, y=600)
         run(g, seconds(1.0), BOTH)
-        self.assertEqual(g.take_events().count("flap"), 1)
-        run(g, 2)
-        flaps(g, 5, 0.2)
-        self.assertEqual(g.take_events().count("flap"), 5)
-
-    def test_a_flap_too_soon_after_the_last_is_ignored(self):
-        g = game()
-        in_the_air(g)
-        run(g, 2, BOTH)
-        run(g, 2, {"left"})
-        run(g, 2, BOTH)
-        self.assertEqual(g.take_events().count("flap"), 1)
-
-    def test_6_7_8_climb_hover_fall(self):
-        g = game()
-        in_the_air(g, y=300)
-        flaps(g, 16, 0.125)                                              # eight a second: up
-        self.assertLess(g.me.y, 300 - 150)
-        in_the_air(g, y=300)
-        g.me.vy = pk.FLAP / 2                                            # (level on average: falling as it flaps)
-        flaps(g, 9, pk.FLAP / pk.GRAVITY)                                # about three a second: about level
-        self.assertAlmostEqual(g.me.y, 300, delta=60)
+        self.assertLess(g.me.y, 600 - 150)                                # both: up
+        y = g.me.y
+        run(g, seconds(1.0), {"left"})
+        self.assertAlmostEqual(g.me.y, y, delta=40)                       # one: level
         in_the_air(g, y=300)
         run(g, seconds(0.8))                                             # none: down
         self.assertGreater(g.me.y, 400)
@@ -191,15 +180,14 @@ class Arena(unittest.TestCase):                                      # 10-12, 22
         run(g, seconds(1.0))
         self.assertTrue(g.me.grounded)
         self.assertEqual(g.me.y, 620)
-        run(g, 2, BOTH)
-        run(g, 5)
+        run(g, seconds(0.2), BOTH)
         self.assertLess(g.me.y, 620)
         self.assertFalse(g.me.grounded)
 
     def test_12_the_underside_and_the_sides_of_a_rock_stop_it(self):
         g = game()
         in_the_air(g, x=295, y=560)                                      # under the middle rock (its underside at 488)
-        flaps(g, 8, 0.1)
+        run(g, seconds(1.0), BOTH)
         self.assertGreaterEqual(g.me.y - pk.FIG_H, 488 - 0.5)
         in_the_air(g, x=150, y=500)                                      # level with it, flying at its side
         g.me.vx = 200.0
@@ -210,7 +198,7 @@ class Arena(unittest.TestCase):                                      # 10-12, 22
     def test_the_sky_has_a_roof(self):
         g = game()
         in_the_air(g, x=440, y=100)
-        flaps(g, 10, 0.1)
+        run(g, seconds(1.5), BOTH)
         self.assertGreaterEqual(g.me.y - pk.FIG_H, 0)
 
     def test_22_the_shore_crumbles_as_the_waves_go_on(self):
@@ -447,11 +435,6 @@ class Serpent(unittest.TestCase):                                    # 23, 24
         in_the_air(g, x=50, y=pk.LAVA_Y - 60)
         return g
 
-    def hover(self, g, secs, every=0.25):
-        for _ in range(int(secs / every)):
-            run(g, 3, BOTH)
-            run(g, seconds(every) - 3)
-
     def test_23_it_rises_at_a_knight_low_over_the_lake(self):
         g = self.low()
         run(g, 2)
@@ -471,11 +454,11 @@ class Serpent(unittest.TestCase):                                    # 23, 24
         run(g, 2)
         self.assertIsNone(g.serpent)
 
-    def test_24_three_quick_flaps_break_free(self):
+    def test_24_both_held_breaks_free(self):
         g = self.low()
         run(g, seconds(pk.GRAB_RISE + 0.05))
         self.assertEqual(g.knight, "grabbed")
-        flaps(g, 3, 0.2)
+        run(g, seconds(pk.ESCAPE_HOLD + 0.02), BOTH)
         self.assertEqual(g.knight, "ok")
         self.assertLess(g.me.vy, -100)
         self.assertIn("escape", g.take_events())
@@ -487,7 +470,9 @@ class Serpent(unittest.TestCase):                                    # 23, 24
     def test_too_slow_and_into_the_lake(self):
         g = self.low()
         run(g, seconds(pk.GRAB_RISE + 0.05))
-        flaps(g, 3, 0.7)                                                # three, but not within 1.2 s
+        for _ in range(8):                                              # a moment of both now and then: not enough
+            run(g, seconds(0.05), BOTH)
+            run(g, seconds(0.4))
         run(g, seconds(3))
         self.assertEqual(g.lives, pk.LIVES - 1)
         self.assertIn("serpent_off", g.take_events())
@@ -698,7 +683,7 @@ def _pilot(g, last):
     targets += [(x.x, x.y) for x in g.eggs] + [(h.x, h.y) for h in g.hatchlings] or [(290, 400)]
     tx, ty = min(targets, key=lambda t: abs(pk.wrap_dx(me.x, t[0])) + abs(t[1] - me.y))
     dx = pk.wrap_dx(me.x, tx)
-    if me.y > ty and me.vy > -150 and last != BOTH:
+    if me.y > ty + 20:
         return BOTH
     if abs(dx) > 10:
         return {"right"} if dx > 0 else {"left"}
@@ -740,7 +725,7 @@ class Drawing(unittest.TestCase):
         g.hatchlings.append(Hatchling(470, 640, "elite"))
         g.hatchlings[0].mount = [400.0, 500.0, -1]
         g.raptor = pk.Raptor(1, 300)
-        g.serpent = {"x": 60.0, "t": 0.1, "state": "rise", "flaps": []}
+        g.serpent = {"x": 60.0, "t": 0.1, "state": "rise", "pull": 0.0}
         g.runaways.append([200.0, 300.0, 1, 0.1, "drake"])
         g.bursts = [[200, 300, 0.1, k] for k in ("joust", "knight", "egg", "lava", "raptor")]
         g.popups.append([300, 300, 0.1, 750])

@@ -6,8 +6,9 @@ of riders on drakes (novices, veterans, elites); later the lake's fire serpent r
 wave that goes on too long brings the raptor.  Every few waves a survival wave (a bonus for losing no knight) or an egg
 wave (eggs everywhere: gather them before they hatch).
 
-    Left held: face left and speed up that way.   Right held: the same, right.
-    Both pressed together: one flap (press them together again for the next).
+    Left held: fly left, keeping about the same height (the bird flaps just enough).   Right held: the same, right.
+    Both held: climb, keeping the speed it has.   Neither: no flapping; it sinks, and slowly slows.
+    (No pressing in time: each is a button held, or not.)
 
 The world is W x H (y down).  A rider's x is its middle, its y its feet; its lance is LANCE_UP above its feet, so the lower y
 is the higher lance.  Fixed steps of TICK.  No pygame here: it runs (and is tested) anywhere.
@@ -21,9 +22,11 @@ MAX_STEPS = 12
 
 GRAVITY, FLAP, MAX_UP, MAX_FALL = 500.0, 220.0, 300.0, 330.0
 ACCEL, MAX_SPEED, DRAG, GROUND_DRAG = 600.0, 240.0, 0.8, 2.5
-FLAP_GAP = 0.10                 # a flap within this long of the last one is ignored
+CLIMB, CLIMB_ACCEL = 200.0, 900.0  # both held: up at this speed, reached this quickly
+LEVEL_GRIP = 6.0                # one held: how quickly a rise or fall is stopped (it settles at its height)
+BEAT_CLIMB, BEAT_LEVEL = 0.18, 0.32   # the bird's wingbeat while climbing / flying level (a "flap" sound when climbing)
 TURN_AFTER = 0.12               # one button turns and drives the bird once held this long on its own (the other up): so
-                                # both pressed a little apart, or one let go a little early after a flap, is no turn
+                                # both pressed a little apart, or one let go a little early after climbing, is no turn
 
 BODY_HW, FIG_H = 18, 52         # a rider against the rocks: its middle +- BODY_HW, its feet up FIG_H
 LANCE_UP, LANCE_REACH = 47, 30  # the lance: this far above the feet, its tip this far ahead of the middle
@@ -54,7 +57,7 @@ SURVIVAL_BONUS, EGG_WAVE_BONUS = 3000, 3000
 
 GUARDIAN_FROM = 4               # the fire serpent: from this wave
 GRAB_REACH, GRAB_RISE, PULL = 90, 0.3, 45.0      # it strikes at feet this near the lake; pulls down this fast
-ESCAPE_FLAPS, ESCAPE_WINDOW, ESCAPE_KICK = 3, 1.2, 280.0
+ESCAPE_HOLD, ESCAPE_KICK = 0.5, 280.0           # both held this long (in all) breaks free of the serpent
 GRAB_COOL, MISS_COOL = 4.0, 1.5
 
 RAPTOR_SPEED, RAPTOR_ACCEL, RAPTOR_CLIMB = 300.0, 520.0, 150.0
@@ -203,7 +206,6 @@ class PlumeGame:
         self.clock = 0.0
         self._both_before = True
         self._held_for = {"left": 0.0, "right": 0.0}
-        self._flapped = -1.0
         self.finished = False
         self.score, self.lives, self.wave = 0, LIVES, 1
         self.next_extra = EXTRA_EVERY
@@ -390,9 +392,9 @@ class PlumeGame:
         """Nothing between x and the lake (the shore is not under it)."""
         return not any(x0 - BODY_HW <= x <= x1 + BODY_HW for x0, x1 in self.ground)
 
-    def _fly(self, r, direction, flap, dt, speed, accel, coast=False):
+    def _fly(self, r, direction, flap, dt, speed, accel, coast=False, lift=None):
         """One step of a rider's flying: the same for the knight and the riders.  coast: both buttons held, the speed kept
-        as it is (in the air)."""
+        as it is (in the air).  lift (the knight): "climb" or "level" instead of gravity; None: gravity (and any flap)."""
         was = r.grounded
         if direction:
             r.face = direction
@@ -405,7 +407,12 @@ class PlumeGame:
             r.vy = max(r.vy - FLAP, -MAX_UP)
             r.flap_age = 0.0
         r.flap_age += dt
-        r.vy = min(r.vy + GRAVITY * dt, MAX_FALL)
+        if lift == "climb":
+            r.vy = max(r.vy - CLIMB_ACCEL * dt, -CLIMB) if r.vy > -CLIMB else r.vy + (-CLIMB - r.vy) * min(1.0, LEVEL_GRIP * dt)
+        elif lift == "level":
+            r.vy -= r.vy * min(1.0, LEVEL_GRIP * dt)
+        else:
+            r.vy = min(r.vy + GRAVITY * dt, MAX_FALL)
         fall = r.vy
         landed, bumped = self._move(r, dt, BODY_HW, FIG_H)
         if r.grounded:
@@ -429,25 +436,28 @@ class PlumeGame:
                     self._game_over()
             return
         self.shield = max(0.0, self.shield - dt)
-        flap = False
-        if pressed and self.clock - self._flapped >= FLAP_GAP:
-            flap = True
-            self._flapped = self.clock
-            self.events.append("flap")
+        both = held == {"left", "right"}
+        lift = "climb" if both else "level" if held else None
+        if lift == "level" and me.grounded:
+            lift = None                                     # (running along a rock)
+        beat = BEAT_CLIMB if lift == "climb" else BEAT_LEVEL
+        if lift and me.flap_age >= beat:
+            me.flap_age = 0.0                               # a wingbeat
+            if lift == "climb":
+                self.events.append("flap")
         if self.knight == "grabbed":
-            if flap:
-                self.serpent["flaps"].append(self.clock)
-                me.flap_age = 0.0
+            if both:
+                self.serpent["pull"] += dt
+            me.flap_age += dt
             return
         direction = 0
-        coast = held == {"left", "right"}
-        if coast:
+        if both:
             direction = 0
         elif self._held_for["left"] >= TURN_AFTER:
             direction = -1
         elif self._held_for["right"] >= TURN_AFTER:
             direction = 1
-        thud, _ = self._fly(me, direction, flap, dt, MAX_SPEED, ACCEL, coast)
+        thud, _ = self._fly(me, direction, False, dt, MAX_SPEED, ACCEL, both, lift)
         if thud:
             self.events.append("land")
         if me.y >= LAVA_Y and self.state in ("playing", "intro", "clear"):
@@ -698,7 +708,7 @@ class PlumeGame:
         if s is None:
             if (self.serpent_cool <= 0 and self.knight == "ok" and self.shield <= 0 and self.over_lake(me.x)
                     and me.y > LAVA_Y - GRAB_REACH):
-                self.serpent = {"x": me.x, "t": 0.0, "state": "rise", "flaps": []}
+                self.serpent = {"x": me.x, "t": 0.0, "state": "rise", "pull": 0.0}
                 self.events.append("grab")
             return
         s["t"] += dt
@@ -716,8 +726,7 @@ class PlumeGame:
         elif s["state"] == "hold":
             me.x = s["x"]
             me.y += PULL * dt
-            s["flaps"] = [t for t in s["flaps"] if self.clock - t <= ESCAPE_WINDOW]
-            if len(s["flaps"]) >= ESCAPE_FLAPS:
+            if s["pull"] >= ESCAPE_HOLD:
                 self.knight = "ok"
                 me.vy = -ESCAPE_KICK
                 s["state"], s["t"] = "sink", 0.0
