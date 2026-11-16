@@ -307,6 +307,90 @@ class Site(unittest.TestCase):
         self.assertEqual(Image.open(io.BytesIO(r.data)).size, (360, 180))
         self.assertEqual(self.get("/photos/img/missing.jpg").status_code, 404)
 
+    # ---- Features
+    def test_features_page_all_on_at_first(self):
+        self.assertIn('href="/features"', self.get("/").get_data(as_text=True))
+        page = self.get("/features").get_data(as_text=True)
+        for label in ("Upcoming events", "Bible verses", "Weather", "Jokes", "Night clock", "Hidden games"):
+            self.assertIn(label, page)
+        self.assertNotIn("Info screen", page)
+        self.assertEqual(page.count("checked"), 6)
+
+    def test_turning_some_off_saves_and_hands_it_to_the_judicom(self):
+        self.fake_judicom("got = sys.stdin.read()\nopen(%r, 'w').write(' '.join(sys.argv[1:]) + '\\n' + got)\nprint('ok')"
+                          % str(self.j / "handed"))
+        on = {n: "on" for n in ("info", "verses", "weather", "night")}                   # jokes and games left unticked
+        on.update(night_from="21:00", night_to="06:00")
+        r = self.post("/features", on, follow_redirects=True)
+        self.assertIn("The Judicom has it now", r.get_data(as_text=True))
+        from judicom import features
+        saved = features.parse((self.j / "features.txt").read_text())
+        self.assertEqual(features.turned_off(saved), ["jokes", "games"])
+        handed = (self.j / "handed").read_text()
+        self.assertTrue(handed.startswith("features\n"))
+        self.assertEqual(features.check(handed.split("\n", 1)[1]), saved)
+        page = self.get("/features").get_data(as_text=True)
+        self.assertEqual(page.count("checked"), 4)
+        self.assertIn("Turned off</b>: Jokes, Hidden games", self.get("/").get_data(as_text=True))
+        self.assertIn("No changes", self.post("/features", on, follow_redirects=True).get_data(as_text=True))
+        self.post("/features", dict(on, jokes="on"))
+        self.assertTrue(list((self.j / "history").glob("features.txt.*")))        # the old one kept
+
+    def test_the_night_hours(self):
+        self.fake_judicom("print('ok')")
+        page = self.get("/features").get_data(as_text=True)
+        self.assertIn('name="night_from" value="21:00"', page)
+        self.assertIn('name="night_to" value="06:00"', page)
+        self.assertIn("between 9:00 PM and 6:00 AM", self.get("/screen").get_data(as_text=True))
+        self.post("/features", {"night": "on", "night_from": "22:30", "night_to": "07:00"})
+        from judicom import features
+        self.assertEqual(features.night(features.parse((self.j / "features.txt").read_text())), ((22, 30), (7, 0)))
+        self.assertIn('name="night_from" value="22:30"', self.get("/features").get_data(as_text=True))
+        self.assertIn("between 10:30 PM and 7:00 AM", self.get("/screen").get_data(as_text=True))
+        for bad, why in ((("25:00", "07:00"), "not a time of day"), (("08:00", "08:00"), "different times"),
+                         (("", "07:00"), "not a time of day")):
+            r = self.post("/features", {"night_from": bad[0], "night_to": bad[1]})
+            self.assertEqual(r.status_code, 400)
+            self.assertIn(why, r.get_data(as_text=True))
+            self.assertIn('name="night_from" value="22:30"', self.get("/features").get_data(as_text=True))   # nothing saved
+
+    def fake_previews(self):
+        """Stands in for judicom.previews: writes each picture and marks each run in `drawn`."""
+        script = self.j / "fake_previews.py"
+        self.drawn = self.j / "drawn"
+        script.write_text("import sys, pathlib\nopen(%r, 'a').write('x')\nout = pathlib.Path(sys.argv[2])\n"
+                          "out.mkdir(parents=True, exist_ok=True)\n"
+                          "for n in %r: (out / (n + '.png')).write_bytes(b'\\x89PNG ' + n.encode())\n"
+                          % (str(self.drawn), list(admin.features_mod.NAMES)))
+        self.settings.previews = [sys.executable, str(script)]
+
+    def test_each_part_has_its_little_picture(self):
+        self.fake_previews()
+        page = self.get("/features").get_data(as_text=True)
+        for name in admin.features_mod.NAMES:
+            self.assertIn('src="/features/%s.png"' % name, page)
+        r = self.get("/features/jokes.png")
+        self.assertEqual((r.status_code, r.mimetype, r.data), (200, "image/png", b"\x89PNG jokes"))
+        self.get("/features/info.png")
+        self.assertEqual(self.drawn.read_text(), "x")                        # drawn once, then kept a while
+        import os
+        future = time.time() + 5
+        os.utime(self.j / "events.txt", (future, future))                    # the events changed: drawn again
+        self.get("/features/info.png")
+        self.assertEqual(self.drawn.read_text(), "xx")
+        self.assertEqual(self.get("/features/passwd.png").status_code, 404)
+        self.assertEqual(self.get("/features/..%2Fcontacts.png").status_code, 404)
+
+    def test_the_judicom_off_it_is_saved_all_the_same(self):
+        self.fake_judicom("sys.exit(255)")
+        r = self.post("/features", {"info": "on", "night_from": "21:00", "night_to": "06:00"}, follow_redirects=True)
+        self.assertIn("not answering", r.get_data(as_text=True))
+        self.assertIn("jokes = off", (self.j / "features.txt").read_text())
+
+    def test_features_need_signing_in_and_the_token(self):
+        self.assertEqual(self.post("/features", {"info": "on"}, token=False).status_code, 403)
+        self.assertFalse((self.j / "features.txt").exists())
+
     # ---- See Judicom Now
     def fake_judicom(self, code):
         """Stands in for the ssh command: `code` is Python; `looks` is the file it marks each time it is run."""

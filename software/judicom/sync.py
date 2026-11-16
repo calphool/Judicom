@@ -276,12 +276,28 @@ def sync(fetcher=fetch, path=None, log=print):
     return 0
 
 
+def sync_features(fetcher=None, path=None, log=print):
+    """Fetch which parts are on (judicom/features.py); 0 done, 1 not changed (the reason is logged).  The website also hands
+    each change straight to the Judicom; this catches one made while it was off.  No file on the NAS: everything on."""
+    from . import features
+    fetcher = fetcher or (lambda: fetch(what="features"))
+    try:
+        states = features.check(fetcher())
+    except (RuntimeError, ValueError) as exc:
+        log("features not updated: %s (keeping the current ones)" % exc)
+        return 1
+    changed = features.store(states, path)
+    log("features %s: %s" % ("updated" if changed else "unchanged", features.summary(states)))
+    return 0
+
+
 def main(argv=None):
     argparse.ArgumentParser(prog="python3 -m judicom.sync", description=__doc__.splitlines()[0]).parse_args(argv)
     result = sync()
     sync_events()                                        # the caller list matters more: its result is the exit status
     sync_verses()
     sync_jokes()
+    sync_features()
     sync_people()
     sys.exit(result)
 

@@ -2,6 +2,7 @@
 
     contacts = Contacts(config.CONTACTS_FILE, log)
     contacts.buttons()                  # {"left": Party, "right": Party}: the people on the two buttons
+    contacts.people()                   # everyone with a name, in the file's order (the touch buttons: judicom/call_grid.py)
     contacts.lookup("+13125550187")     # the Party for an incoming number (only the number, if it is not in the file)
     contacts.refresh()                  # True if the file changed and was read again (call now and then)
 
@@ -72,6 +73,12 @@ class Contacts:
         if self._file.missing:
             return buttons_from_config()
         return dict(self._buttons)
+
+    def people(self):
+        """Everyone in the file with a name, in its order; without a file, the demo people on the buttons."""
+        if self._file.missing:
+            return list(buttons_from_config().values())
+        return [p for p in self._people.values() if p.name]
 
     def lookup(self, number):
         """The person with this number, or a Party with only the number (name ""), which the screen shows as

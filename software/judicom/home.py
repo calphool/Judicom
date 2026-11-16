@@ -10,7 +10,8 @@ clock at night.
   WEATHER today's weather and the next days' (weather_view.py), for WEATHER_SECONDS
   JOKE    a joke (joke_view.py): the setup, and PUNCHLINE_SECONDS later the punchline under it, for JOKE_SECONDS in all
           A screen with nothing to show (no verses or jokes; no weather report: no internet) is skipped; its turn goes to the next.
-  NIGHT   from NIGHT_FROM to NIGHT_TO: a dark screen with only the time and the date (not while the "stay awake" file
+          So is one turned off on the NAS's website (judicom/features.py: features); with all of them off, only the photos.
+  NIGHT   (unless turned off) at night (NIGHT_FROM to NIGHT_TO, or the hours set on the NAS's website): a dark screen with only the time and the date (not while the "stay awake" file
           NIGHT_PAUSE_FILE exists and is younger than NIGHT_PAUSE_HOURS: touch /home/joe/judicom-awake)
 A call takes the screen whenever one comes (main.py); afterwards start() is called again and picks the right one of the three, so
 after a call at night the night clock comes back.  Wall-clock time comes from `now` (datetime.now) and timers from `clock`
@@ -25,6 +26,7 @@ from .screens import INFO, JOKE, VERSE, WEATHER, InfoScreen, JokeScreen, VerseSc
 
 PHOTOS, NIGHT = "photos", "night"
 ROTATION = (INFO, VERSE, WEATHER, JOKE)          # the order the screens take turns in (the names of Home.screens)
+FEATURE = {INFO: "info", VERSE: "verses", WEATHER: "weather", JOKE: "jokes"}    # each one's name in judicom/features.py
 
 
 def in_night(now, start=config.NIGHT_FROM, end=config.NIGHT_TO):
@@ -37,10 +39,11 @@ class Home:
                  verse_seconds=config.VERSE_SECONDS, weather_seconds=config.WEATHER_SECONDS,
                  every=config.INFO_EVERY_PHOTOS, info_seconds=config.INFO_SECONDS, night=(config.NIGHT_FROM, config.NIGHT_TO),
                  awake_file=config.NIGHT_PAUSE_FILE, awake_hours=config.NIGHT_PAUSE_HOURS, jokes=None,
-                 joke_seconds=config.JOKE_SECONDS, punchline_seconds=config.PUNCHLINE_SECONDS):
+                 joke_seconds=config.JOKE_SECONDS, punchline_seconds=config.PUNCHLINE_SECONDS, features=None):
         self.awake_file, self.awake_hours = str(awake_file) if awake_file else None, awake_hours
         self._awake_said = None
         self.photos, self.events, self.weather, self.verses = photos, events, weather, verses
+        self.features = features        # (None: everything on)
         self.screens = [InfoScreen(events, info_seconds), VerseScreen(verses, verse_seconds), WeatherScreen(weather, weather_seconds),
                         JokeScreen(jokes, joke_seconds, punchline_seconds, clock)]
         assert tuple(sc.name for sc in self.screens) == ROTATION
@@ -56,9 +59,15 @@ class Home:
         self.version = 0
 
     # ---- the PhotoView interface
-    def is_night(self, now):
-        """Night by the clock, unless the "stay awake" file is there (and not older than awake_hours)."""
-        if not in_night(now, *self.night):
+    def night_hours(self):
+        """(from, to): set on the NAS's website, or as given."""
+        hours = getattr(self.features, "night", None)
+        return hours() if hours else self.night
+
+    def is_night(self, now, quiet=False):
+        """Night by the clock (and the night clock on), unless the "stay awake" file is there (and not older than awake_hours).
+        quiet: the night hours whether or not the night clock is on (messages wait for the morning even with it off)."""
+        if not in_night(now, *self.night_hours()) or not (quiet or self.on("night")):
             return False
         awake = False
         if self.awake_file:
@@ -132,14 +141,21 @@ class Home:
         return (self.mode, now.date(), now.hour, now.minute)
 
     def _next_screen(self):
-        """After a run of photos: the next screen in turn that has something to show (the info screen always does)."""
+        """After a run of photos: the next screen in turn that is on and has something to show (the info screen always does);
+        none of them: the photos go on."""
         for _ in self.screens:
             screen = self.screens[self._turn]
             self._turn = (self._turn + 1) % len(self.screens)
-            if screen.ready():
+            if self.on(FEATURE[screen.name]) and screen.ready():
                 self._go(screen.name)
                 return
-        self._go(INFO)
+        if self.on("info"):
+            self._go(INFO)
+        else:
+            self._photos()
+
+    def on(self, feature):
+        return self.features is None or self.features.on(feature)
 
     def _photos(self):
         self.mode, self.since, self.screen = PHOTOS, self.clock(), None

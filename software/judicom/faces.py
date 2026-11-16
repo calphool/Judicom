@@ -2,6 +2,7 @@
 
     faces = Faces()                          # the folder is config.PEOPLE_DIR (filled from the NAS by judicom.sync)
     faces.get("Ann", 400)                    # a 400 x 400 surface with rounded corners, or None (no picture for Ann)
+    faces.get("Ann", 120, radius=60)         # round (the touch buttons for calling)
 
 "Ann.png", "ann.JPG", "Aunt Sue.jpg" or "Aunt_Sue.jpg" all match (capitals and _ for spaces do not matter).  A picture that is not
 square is cropped from the middle.  The folder is looked at again at most every RESCAN seconds, so new pictures show up without a
@@ -71,7 +72,7 @@ class Faces:
             self._paths, self._seen_at = find(self.folder), now
         return self._paths.get(key(name))
 
-    def get(self, name, size=config.FACE_PX):
+    def get(self, name, size=config.FACE_PX, radius=RADIUS):
         path = self.path(name)
         if path is None:
             return None
@@ -79,7 +80,7 @@ class Faces:
             mtime = os.stat(path).st_mtime
         except OSError:
             return None
-        k = (path, mtime, size)
+        k = (path, mtime, size, radius)
         if k not in self._images:
             if (path, mtime) in self._bad:
                 return None
@@ -87,7 +88,7 @@ class Faces:
             try:
                 img = pygame.image.load(path)
                 self._images = {x: v for x, v in self._images.items() if x[0] != path or x[1] == mtime}   # an older copy: gone
-                self._images[k] = rounded(img, size)
+                self._images[k] = rounded(img, size, radius)
             except (pygame.error, OSError, ValueError) as exc:
                 self._bad.add((path, mtime))
                 self.log("(the picture %s cannot be shown: %s)" % (os.path.basename(path), exc))

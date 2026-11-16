@@ -6,6 +6,9 @@
     Events          birthdays, holidays and visits for the info screen  (/home/pi/judicom/events.txt)
     Caller pictures the faces on the call screens: cropped square from the middle and made 800 x 800 PNG  (/home/pi/judicom/people)
     Photos          the slideshow, with captions  (/mnt/8tbdrive/Photos/Judi, shared with Jellyfin; very big photos are shrunk)
+    Features        which parts of the Judicom are on: upcoming events (the info screen), verses, weather, jokes, the night clock, the
+                    hidden games  (/home/pi/judicom/features.txt; handed to the Judicom at once over SSH, like a message, and
+                    fetched by it every 10 minutes too)
     See Judicom Now what its screen is showing, looked at again every 10 seconds while the page is in view, and a message to
                     send her: a speech bubble with the face of someone in the caller list, and three beeps.  The page says
                     when she has read it.  (Both over SSH with a key that can do nothing else: docs/DEPLOYMENT.md;
@@ -50,9 +53,11 @@ from PIL import Image, ImageOps
 from werkzeug.serving import WSGIRequestHandler
 from werkzeug.utils import secure_filename
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "software"))
+SOFTWARE = Path(__file__).resolve().parents[3] / "software"
+sys.path.insert(0, str(SOFTWARE))
 from judicom import callers as callers_mod  # noqa: E402
 from judicom import events as events_mod  # noqa: E402
+from judicom import features as features_mod  # noqa: E402
 from judicom import messages as messages_mod  # noqa: E402
 from judicom import photos as photos_mod  # noqa: E402
 
@@ -63,6 +68,8 @@ HISTORY_KEEP = 30
 SCREEN_EVERY = 10                   # seconds between looks at the Judicom's screen, while someone has the page in view
 SCREEN_FRESH = 5                    # a look this recent is shared, so two people watching do not double the work on the Judicom
 SCREEN_TIMEOUT = 25                 # seconds; a look takes about 3
+PREVIEW_SECONDS = 300               # the Features page's pictures are drawn again when older than this (or a list changed)
+PREVIEW_TIMEOUT = 60
 SENT_KEEP = 20                      # messages remembered, and shown on the page: the newest 5
 NETS = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                                           "100.64.0.0/10", "fd7a:115c:a1e0::/48", "fe80::/10")]
@@ -117,6 +124,7 @@ class Settings:
     hosts: set = field(default_factory=lambda: set(HOSTS))
     screen: list = field(default_factory=lambda: ["/usr/bin/ssh", "-i", "/home/pi/.ssh/judicom_screen", "-o", "BatchMode=yes",
                                                   "-o", "ConnectTimeout=5", "joe@judicom"])
+    previews: list = field(default_factory=lambda: [sys.executable, "-m", "judicom.previews"])   # + lists folder, out folder
     check_password: object = pam_check
     clock: object = time.monotonic
 
@@ -131,6 +139,10 @@ class Settings:
     @property
     def events(self):
         return self.judicom_dir / "events.txt"
+
+    @property
+    def features(self):
+        return self.judicom_dir / "features.txt"
 
     @property
     def people(self):
@@ -521,6 +533,43 @@ def send_message(command, sender, text):
     return None, "The Judicom did not take the message, so it was not sent."
 
 
+def send_features(command, text):
+    """Hands the features file to the Judicom.  True if it took it (False: it is off or not answering; it fetches the file
+    from here within 10 minutes of coming back)."""
+    try:
+        result = subprocess.run(command + ["features"], input=text.encode(), capture_output=True, timeout=SCREEN_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and result.stdout.strip() == b"ok"
+
+
+def make_previews(s):
+    """Draws the Features page's pictures again if they are old or a list has changed since (judicom/previews.py, in its own
+    process: pygame stays out of the website).  False if it could not."""
+    out = s.cache / "previews"
+    try:
+        made = min((out / ("%s.png" % n)).stat().st_mtime for n in features_mod.NAMES)
+    except (OSError, ValueError):
+        made = 0
+    lists = [s.judicom_dir / n for n in ("events.txt", "verses.txt", "jokes.txt", "contacts.txt")] + picture_files(s.people)
+    changed = max((p.stat().st_mtime for p in lists + [s.people] if p.exists()), default=0)
+    if time.time() - made < PREVIEW_SECONDS and changed < made:
+        return True
+    try:
+        result = subprocess.run(s.previews + [str(s.judicom_dir), str(out)], cwd=str(SOFTWARE), stdin=subprocess.DEVNULL,
+                                capture_output=True, timeout=PREVIEW_TIMEOUT, env=dict(os.environ, SDL_VIDEODRIVER="dummy"))
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if result.returncode != 0:
+        print("(previews not drawn: %s)" % result.stderr.decode(errors="replace").strip()[-300:], file=sys.stderr, flush=True)
+    return result.returncode == 0
+
+
+def read_features(s):
+    """{name: on?} from the NAS's features file (everything on if there is none)."""
+    return features_mod.parse(read(s.features))
+
+
 def judicom_statuses(command):
     """{message id: when it was read, or None}, or None if the Judicom does not say."""
     try:
@@ -598,7 +647,7 @@ def create_app(s=None):
     def common():
         return {"token": token, "signed_in": signed_in(),
                 "nav": [("home", "Home"), ("callers", "Callers"), ("events", "Events"), ("people", "Caller pictures"),
-                        ("photos", "Photos"), ("screen", "See Judicom Now")] if signed_in() else []}
+                        ("photos", "Photos"), ("features", "Features"), ("screen", "See Judicom Now")] if signed_in() else []}
 
     @app.errorhandler(403)
     def forbidden(e):
@@ -657,8 +706,60 @@ def create_app(s=None):
         evs = [e for e in (check_event(r["when"], r["what"])[0] for r in rows if r["kind"] == "event") if e]
         coming = events_mod.upcoming(evs, datetime.datetime.now(), 3)
         log = read(s.judicom_dir / "apply.log").splitlines()[-3:]
+        states = read_features(s)
+        labels = {name: label for name, label, _ in features_mod.FEATURES}
+        off = [labels[name] for name in features_mod.turned_off(states)]
         return render_template("home.html", callers=callers, coming=coming, photos=len(picture_files(s.photos_dir)),
-                               faces=len(picture_files(s.people)), log=log)
+                               faces=len(picture_files(s.people)), log=log, off=off)
+
+    # ---- features
+    @app.route("/features", methods=["GET", "POST"])
+    def features():
+        errors = []
+        if request.method == "POST":
+            states = {name: request.form.get(name) == "on" for name in features_mod.NAMES}
+            for name, words in (("night_from", "starts"), ("night_to", "ends")):
+                hm = features_mod.read_time(request.form.get(name, "").strip())
+                if hm is None:
+                    errors.append("The time the night %s is not a time of day (like 9:00 PM)." % words)
+                states[name] = hm
+            if not errors and states["night_from"] == states["night_to"]:
+                errors.append("The night has to start and end at different times.")
+            if errors:
+                return features_page(states, errors), 400
+            text = features_mod.render(states)
+            if text == read(s.features):
+                flash("No changes.")
+                return redirect(url_for("features"))
+            if s.features.exists():
+                keep_old_version(s, s.features)
+            write_atomically(s.features, text.encode())
+            if send_features(s.screen, text):
+                flash("Saved.  The Judicom has it now.")
+            else:
+                flash("Saved.  The Judicom is not answering just now: it picks this up within 10 minutes of coming back.")
+            return redirect(url_for("features"))
+        return features_page(read_features(s), errors)
+
+    preview_lock = threading.Lock()
+
+    @app.route("/features/<name>.png")
+    def feature_picture(name):
+        if name not in features_mod.NAMES:
+            abort(404)
+        with preview_lock:                                 # the page asks for all of them at once: drawn once, shared
+            make_previews(s)
+        path = s.cache / "previews" / ("%s.png" % name)
+        if not path.exists():
+            abort(404)
+        return send_file(str(path), mimetype="image/png", max_age=0)
+
+    def features_page(states, errors):
+        night_from, night_to = (states.get(n) or d for n, d in features_mod.TIMES.items())
+        return render_template("features.html", title="Features", errors=errors,
+                               rows=[(name, label, words, features_mod.is_on(states, name))
+                                     for name, label, words in features_mod.FEATURES],
+                               night_from="%02d:%02d" % night_from, night_to="%02d:%02d" % night_to)
 
     # ---- callers
     @app.route("/callers", methods=["GET", "POST"])
@@ -823,8 +924,9 @@ def create_app(s=None):
         return screen_page(sender=request.args.get("from", ""))
 
     def screen_page(sender="", text="", errors=None):
+        night = [features_mod.time_words(t) for t in features_mod.night(read_features(s))]
         return render_template("screen.html", title="See Judicom Now", every=SCREEN_EVERY, callers=caller_names(), sender=sender,
-                               text=text, errors=errors, max_text=messages_mod.MAX_TEXT)
+                               text=text, errors=errors, max_text=messages_mod.MAX_TEXT, night=night)
 
     def caller_names():
         return list(dict.fromkeys(c["name"] for c in read_callers(s) if c["name"]))
@@ -917,7 +1019,7 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
     "screen.html": """{% extends "base.html" %}{% block body %}<h1>See Judicom Now</h1>
 <form class="card" method="post" action="{{ url_for('screen_message') }}"><input type="hidden" name="token" value="{{ token }}">
 <b>Send Judi a message</b>
-<p class="help">It appears on her screen in a speech bubble with three beeps, and stays until she touches the screen, presses a button or lifts the handset. During a call it waits until the call is over, and between 9 PM and 6 AM until the morning.</p>
+<p class="help">It appears on her screen in a speech bubble with three beeps, and stays until she touches the screen, presses a button or lifts the handset. During a call it waits until the call is over, and between {{ night[0] }} and {{ night[1] }} until the morning.</p>
 <textarea name="text" rows="3" maxlength="{{ max_text }}" required style="width:100%;padding:7px 8px;font:inherit;border:1px solid var(--line);border-radius:6px" placeholder="Your message, up to {{ max_text }} characters">{{ text }}</textarea>
 <div class="row"><label for="from">From</label><select id="from" name="from" required style="width:auto;flex:1 1 160px"><option value="">Choose a face</option>
 {% for name in callers %}<option{{ " selected" if name == sender else "" }}>{{ name }}</option>{% endfor %}</select><button>Send</button></div>
@@ -982,6 +1084,7 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
 <a href="{{ url_for('events') }}">Edit events</a></div>
 <div class="card"><b>Pictures</b>: {{ photos }} photos in the slideshow (<a href="{{ url_for('photos') }}">add or change</a>),
 {{ faces }} caller pictures (<a href="{{ url_for('people') }}">add or change</a>).</div>
+{% if off %}<div class="card"><b>Turned off</b>: {{ off|join(", ") }}.  <a href="{{ url_for('features') }}">Change</a></div>{% endif %}
 <div class="card help">The Judicom picks up callers, events and caller pictures within 10 minutes, and photos within the hour.
 {% if log %}<br>Phone system: {{ log[-1] }}{% endif %}</div>{% endblock %}""",
 
@@ -1021,6 +1124,22 @@ A one-time event drops off by itself when its day is over.  Grey rows are headin
 </table><div class="row"><button>Save events</button><button name="sort" value="1">Sort by date and save</button>
 <a href="{{ url_for('events') }}">Undo my edits</a></div></form>
 <p class="help">Sort puts each section in calendar order (January first); days like Thanksgiving or Easter go by this year's date.</p>{% endblock %}""",
+
+    "features.html": """{% extends "base.html" %}{% block body %}<h1>Features</h1>
+<p class="help">Which parts of the Judicom are on.  A change goes to the Judicom as soon as it is saved (or, if it is off, within
+10 minutes of it coming back).  The photos and the phone are always on.  Each little picture shows what that part looks
+like; click one for a bigger view (the weather is an example).</p>
+<form method="post" class="card"><input type="hidden" name="token" value="{{ token }}">
+<table>{% for name, label, words, on in rows %}<tr>
+<td style="width:3em"><input type="checkbox" id="f-{{ name }}" name="{{ name }}" value="on" {{ "checked" if on }} style="width:22px;height:22px"></td>
+<td style="width:64px"><a href="{{ url_for('feature_picture', name=name) }}" target="_blank" title="What it looks like (click for a bigger picture)"><img src="{{ url_for('feature_picture', name=name) }}" alt="" width="56" height="96" style="display:block;border-radius:5px;border:1px solid var(--line);background:#24424a"></a></td>
+<td><label for="f-{{ name }}"><b>{{ label }}</b><br><span class="help">{{ words }}</span></label></td>
+<td class="when">{{ "on" if on else "off" }}</td></tr>
+{% if name == "night" %}<tr><td></td><td></td><td colspan="2"><div class="row" style="margin:0 0 4px">From
+<input type="time" name="night_from" value="{{ night_from }}" required style="padding:6px;font:inherit;border:1px solid var(--line);border-radius:6px">
+to <input type="time" name="night_to" value="{{ night_to }}" required style="padding:6px;font:inherit;border:1px solid var(--line);border-radius:6px"></div>
+<span class="help">The night hours: the night clock shows then (when it is on), and messages wait for the morning (always).</span></td></tr>{% endif %}{% endfor %}</table>
+<div class="row"><button>Save</button><a href="{{ url_for('features') }}">Undo my edits</a></div></form>{% endblock %}""",
 
     "people.html": """{% extends "base.html" %}{% set title = "Caller pictures" %}{% block body %}<h1>Caller pictures</h1>
 <p class="help">The face shown while Judi calls someone, talks with them, or when they ring.  Any picture works: it is cropped to a

@@ -5,7 +5,9 @@
     view.animated(machine.mode)              # True while something moves: draw every frame; otherwise only when machine.version changes
 
   LIFTED          "Who would you like to call?" and an arrow down to each button, with the name above it and their picture above
-                  that if there is one (the arrows bob gently)
+                  that if there is one (the arrows bob gently).  With calling by touch on (view.touch): a button on the screen for
+                  each person in the caller list (view.people), a round picture and the name (call_grid.py places them), and no
+                  arrows (the real buttons call nobody then)
   DIALING         the same as CALLING (the touch-tones play meanwhile; the screen does not change when the call goes out)
   CALLING         the handset on a white panel with rings spreading out, "Calling Ann (daughter)..."
   ONGOING         sound waves from the handset, "Speaking with Ann (daughter)"
@@ -25,7 +27,7 @@ import math
 
 import pygame
 
-from . import draw
+from . import call_grid, draw
 from .config import AMBER, BG, BUTTON_X, DARK, FACE_PX, GREEN, INK, LIFTED_FACE_PX, ROSE, SOFT, YELLOW
 from .config import SCREEN_H as H
 from .config import SCREEN_W as W
@@ -90,10 +92,27 @@ def draw_handset(surf, cx, cy, waves=0.0, angle=0.0):
                     pygame.draw.arc(surf, colour, pygame.Rect(x - r, cy - 26 - r, 2 * r, 2 * r), math.radians(60), math.radians(120), 7)
 
 
-def arrow(surf, cx, tip, color):
-    """A fat arrow pointing down, its point at (cx, tip)."""
-    pygame.draw.polygon(surf, color, [(cx - 22, tip - 150), (cx + 22, tip - 150), (cx + 22, tip - 70), (cx + 62, tip - 70), (cx, tip),
-                                      (cx - 62, tip - 70), (cx - 22, tip - 70)])
+def arrow(surf, cx, tip, color, k=1.0):
+    """A fat arrow pointing down, its point at (cx, tip); k: its size (1: 150 pixels long)."""
+    pts = [(-22, -150), (22, -150), (22, -70), (62, -70), (0, 0), (-62, -70), (-22, -70)]
+    pygame.draw.polygon(surf, color, [(cx + x * k, tip + y * k) for x, y in pts])
+
+
+TOUCH_HEADING = "Touch the person you would like to call"      # plain words for Judi: what to do, not a question
+TILE = (255, 255, 255)
+TILE_SOFT = (96, 110, 116)              # the relationship, on a touch button
+INITIALS = ((47, 125, 109), (176, 96, 60), (92, 96, 170), (160, 70, 110), (60, 130, 170), (130, 120, 40))
+
+
+def initials_badge(name, size):
+    """A round badge with the person's initials, for someone without a picture (its colour is always the same for a name)."""
+    badge = pygame.Surface((size, size), pygame.SRCALPHA)
+    colour = INITIALS[sum(map(ord, name)) % len(INITIALS)]
+    pygame.draw.circle(badge, colour, (size // 2, size // 2), size // 2)
+    letters = "".join(w[0] for w in name.split()[:2]).upper() or "?"
+    img = draw.text(letters, "bold", int(size * 0.42), (255, 255, 255), int(size * 0.8))
+    badge.blit(img, ((size - img.get_width()) // 2, (size - img.get_height()) // 2))
+    return badge
 
 
 # ------------------------------------------------------------------ the screens ----------------------------------------------
@@ -101,6 +120,9 @@ class CallView:
     def __init__(self, buttons, faces=None):
         self.buttons = buttons
         self.faces = faces
+        self.touch = False                  # calling by touch: the touch buttons on the LIFTED screen
+        self.people = []                    # whom they call (call_grid.tiles puts them in place)
+        self._badges = {}                   # (name, size) -> the initials badge of someone without a picture
         self._words_key = self._words = None
 
     @staticmethod
@@ -129,6 +151,9 @@ class CallView:
             self.button_face(party)
 
     def draw_lifted(self, surf, t):
+        if self.touch and self.people:
+            self.draw_lifted_touch(surf, t)
+            return
         surf.fill(BG)
         size = 72
         lines = draw.wrap("Who would you like to call?", "bold", size, W - 40)
@@ -152,6 +177,48 @@ class CallView:
             draw.centered(surf, draw.text(party.name or party.dial, "bold", 62, INK, 255), ny, cx)
             if party.relationship:
                 draw.centered(surf, draw.text("(%s)" % party.relationship, "reg", 40, SOFT, 255), ny + 66, cx)
+
+    def round_face(self, party, size):
+        face = self.faces.get(party.name, size, radius=size // 2) if self.faces is not None else None
+        if face is None:
+            key = (party.name or "?", size)
+            if key not in self._badges:
+                self._badges[key] = initials_badge(*key)
+            face = self._badges[key]
+        return face
+
+    def draw_lifted_touch(self, surf, t):
+        """The touch buttons (and nothing pointing at the real ones: they call nobody when calling by touch is on)."""
+        surf.fill(BG)
+        size, width = 56, call_grid.RIGHT - call_grid.LEFT
+        while len(draw.wrap(TOUCH_HEADING, "bold", size, width)) > 2:
+            size -= 2                                                       # two lines, as big as they can be
+        y = call_grid.TOP - 26 - int(size * 1.15) * 2
+        for line in draw.wrap(TOUCH_HEADING, "bold", size, width):
+            draw.centered(surf, draw.text(line, "bold", size, INK), y, (call_grid.LEFT + call_grid.RIGHT) // 2)
+            y += int(size * 1.15)
+        for party, (x, y, w, h) in zip(self.people, call_grid.tiles(len(self.people))):
+            pygame.draw.rect(surf, TILE, (x, y, w, h), border_radius=24)
+            name = party.name or party.dial
+            side = min(h - 20, w // 3)
+            if w - side - 42 >= 140 or (w >= 200 and h < 110):              # the name beside the picture (room, or a low button)
+                face = self.round_face(party, side)
+                surf.blit(face, (x + 10, y + 10))
+                left = x + 10 + face.get_width() + 18
+                big = min(56, int(h * 0.36))
+                img = draw.text(name, "bold", big, DARK, x + w - 14 - left)
+                rel = (draw.text(party.relationship, "reg", int(big * 0.7), TILE_SOFT, x + w - 14 - left)
+                       if party.relationship else None)
+                top = y + (h - img.get_height() - (rel.get_height() if rel else 0)) // 2
+                surf.blit(img, (left, top))
+                if rel:
+                    surf.blit(rel, (left, top + img.get_height()))
+            else:                                                           # narrow: the picture over the name
+                img = draw.text(name, "bold", min(34, int(h * 0.2)), DARK, w - 12)
+                side = max(20, min(w - 24, h - img.get_height() - 22))
+                face = self.round_face(party, side)
+                surf.blit(face, (x + (w - side) // 2, y + 8))
+                draw.centered(surf, img, y + h - 8 - img.get_height(), x + w // 2)
 
     def draw_please_hang_up(self, surf):
         surf.fill(YELLOW)

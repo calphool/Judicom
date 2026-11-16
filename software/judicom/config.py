@@ -189,4 +189,6 @@ LAUGH_DELAY_SECONDS = 2.0     # the jester laughs this long after the punchline 
 LAUGH_SECONDS = 4.0           # ... for this long, then smiles again
 LAUGH_FPS = 12                # the laugh is drawn this many times a second (the rest of the time the screen is still)
 JOKES_FILE = Path(os.environ.get("JUDICOM_JOKES", "/home/joe/jokes.txt"))
+# Which parts are on (judicom/features.py): set on the NAS's housekeeping website; no file: everything on.
+FEATURES_FILE = Path(os.environ.get("JUDICOM_FEATURES", "/home/joe/features.txt"))
 FONT_DIR = Path(__file__).resolve().parent / "fonts"

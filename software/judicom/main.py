@@ -29,6 +29,7 @@ from pathlib import Path
 
 from . import config
 from .calls import NoCalls
+from . import call_grid
 from .keypad import OPEN, Keypad, Knock
 from .machine import Machine, Mode, Party
 
@@ -44,10 +45,11 @@ class Phone:
     The program calls step() once a frame, then draws if step() says the screen changed."""
 
     def __init__(self, machine, controls, calls, sounds, photos, contacts=None, log=None, clock=time.monotonic, postbox=None,
-                 taps=None, maintenance=None):
+                 taps=None, maintenance=None, touch_calls=None):
         self.machine, self.controls, self.calls, self.sounds, self.photos = machine, controls, calls, sounds, photos
         self.contacts, self.clock, self.postbox, self.taps, self.maintenance = contacts, clock, postbox, taps, maintenance
         self.log = log or (lambda msg: None)
+        self.touch_calls = touch_calls or (lambda: False)     # calling by touch on? (judicom/features.py, set on the NAS)
         self._version = None
         self._buttons_changed = False
         self._checked = clock()
@@ -87,6 +89,7 @@ class Phone:
             for event in self.controls.key(key) + ([sim] if sim else []):
                 self._handle(event)
         key_tones = self._keypad(taps)
+        self._touch_call(taps)
         for action in self.machine.tick():
             self.calls.do(action)
         self.sounds.update(self.machine.dial_tone, self.machine.ringing, self.machine.dialing_tones)
@@ -136,6 +139,22 @@ class Phone:
         self.keypad.tick()
         return tones
 
+    def people(self):
+        """Everyone who has a touch button: the caller list (without one, the people on the two buttons)."""
+        return self.contacts.people() if self.contacts is not None else list(self.machine.buttons.values())
+
+    def _touch_call(self, taps):
+        """Calling by touch: a tap on someone's button on the LIFTED screen calls them."""
+        if not taps or self.machine.mode != Mode.LIFTED or not self.touch_calls():
+            return
+        people = self.people()
+        rects = call_grid.tiles(len(people))
+        for x, y in taps:
+            i = call_grid.hit(rects, x, y)
+            if i is not None:
+                self._handle(("call", people[i]))
+                return
+
     @property
     def keypad_needs_draw(self):
         return self.machine.keypad_showing and self.keypad.dirty
@@ -172,6 +191,9 @@ class Phone:
     def _handle(self, event):
         if event[0] in ("lifted", "button") and self.message:
             self.postbox.finish()                       # and the handset or button goes on to do what it always does
+        if event[0] == "button" and self.touch_calls():
+            self.log("button %s: calls nobody (calling by touch is on)" % event[1])
+            return
         if event[0] == "incoming" and len(event) > 1 and not isinstance(event[1], Party):
             if self.contacts is not None:               # the phone software gives a number: put the name to it
                 self.contacts.refresh()
@@ -268,10 +290,12 @@ def main(argv=None):
     else:
         weather = Weather(log=log)
         weather.start()                                  # in the background: never holds the screen up
+    from .features import Features
     from .jokes import JokeDeck
     from .verses import VerseDeck
+    features = Features(log=log)                         # which of them are on: set on the NAS's website
     photos = Home(PhotoView(PhotoDeck(args.folder), log=log), EventList(log=log), weather, log=log,    # photos, info / verse / weather
-                  verses=VerseDeck(log=log), jokes=JokeDeck(log=log))                                 # screens, night clock
+                  verses=VerseDeck(log=log), jokes=JokeDeck(log=log), features=features)              # screens, night clock
     if args.no_calls:
         calls = NoCalls(log)
     else:
@@ -282,7 +306,7 @@ def main(argv=None):
     from .messages import Postbox
     from .touch import Taps
     faces = Faces(log=log)
-    postbox = Postbox(can_show=lambda: not photos.is_night(datetime.datetime.now()), log=log)
+    postbox = Postbox(can_show=lambda: not photos.is_night(datetime.datetime.now(), quiet=True), log=log)
     taps = None if args.demo or args.window else Taps(log, flip=args.flip)
     maintenance = shell_view = None
     if taps is not None:
@@ -323,12 +347,13 @@ def main(argv=None):
                 "Plume Knights": lambda: Session(sounds, time.monotonic, log, best_file=config.PLUME_BEST_FILE,
                                                  make_game=PlumeGame, make_view=PlumeView, make_sounds=plume_sounds),
             }
-            maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games)
+            maintenance = Maintenance(sounds, lambda: Shell(log=log), log=log, games=games,
+                                      games_on=lambda: features.on("games"))
             shell_view = ShellView()
         except ImportError as exc:                       # the phone is what matters: it goes on without the shell
             log("(no maintenance shell: %s - sudo apt install python3-pyte)" % exc)
     phone = Phone(Machine(buttons, clock=clock, log=log, phone_ok=lambda: calls.ready), controls, calls, sounds, photos, contacts,
-                  log, postbox=postbox, taps=taps, maintenance=maintenance)
+                  log, postbox=postbox, taps=taps, maintenance=maintenance, touch_calls=lambda: features.on("touch_calls"))
     call_view = CallView(buttons, faces)
     call_view.preload()
     from . import keypad_view
@@ -382,6 +407,9 @@ def main(argv=None):
                     display.present()
             elif changed or call_view.animated(mode):
                 call_view.buttons = phone.machine.buttons
+                call_view.touch = mode == Mode.LIFTED and phone.touch_calls()
+                if call_view.touch:
+                    call_view.people = phone.people()
                 call_view.draw(display.logical, mode, phone.machine.party, time.monotonic())
                 display.present()
             frames.tick(GAME_FPS if phone.game_showing else FPS)

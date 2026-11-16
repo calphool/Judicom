@@ -80,8 +80,9 @@ quiet time (calls drop while the container is replaced):
 
 **https://naspi.local:8080** at home, **https://naspi-1:8080** over Tailscale (e.g. from a phone away from home).  Pages:
 **Callers** (who may ring Judi, names, the two buttons; applied to Asterisk at once), **Events**, **Caller pictures** (any picture,
-cropped square from the middle and made 800 x 800 PNG, named after the caller) and **Photos** (the slideshow: upload with a
-caption, edit captions, remove).  It edits exactly the files described below, so editing them by hand still works too.
+cropped square from the middle and made 800 x 800 PNG, named after the caller), **Photos** (the slideshow: upload with a
+caption, edit captions, remove) and **Features** (which parts of the Judicom are on).  It edits exactly the files described below,
+so editing them by hand still works too.
 
 - It speaks HTTPS with a self-signed certificate (`deploy/nas/admin/make_cert.sh`; the key stays in `/home/pi/judicom/tls`), so each
   browser warns once.  Plain `http://` no longer works on this port.
@@ -94,6 +95,19 @@ caption, edit captions, remove).  It edits exactly the files described below, so
   problem and not saved.  Each saved list's previous version is kept in `/home/pi/judicom/history/` (newest 30 each).
 - Removed pictures are moved to `/mnt/8tbdrive/.judicom-deleted/` (`caller pictures/`, `photos/`), not erased.
 - Uploaded photos bigger than 3000 pixels are shrunk (and turned upright); others are stored as they came.
+- **Features** turns parts of the Judicom on or off: upcoming events (the info screen: the day, date and time over the events
+  coming up), Bible verses, the weather, jokes,
+  the night clock (off: the photos all night), the hidden games (off: the hidden menu has only the shell), and **Call by touch**
+  (off until turned on: with the handset up, a touch button for everyone in the caller list, with a round picture or their
+  initials, and no arrows; a touch calls them as a button would, and the two real buttons call nobody.  Holding both for the
+  hidden menu, the games, and clearing a message still work).  The photos and the
+  phone are always on.  It also sets the night hours (9 PM to 6 AM unless changed): the night clock shows then, and messages
+  wait for the morning then even with the night clock off.  Saved in `/home/pi/judicom/features.txt` (`info = on`,
+  `jokes = off` ..., `night_from = 21:00`, `night_to = 06:00`; a part not named, or no file, is on) and handed to the Judicom at once with the "See Judicom Now" key (`tools/nas_request.py features`); the Judicom also fetches
+  it every 10 minutes, so a change made while it was off still arrives.  Its copy: `/home/joe/features.txt`.
+  Each part has a little picture of how it looks, drawn on the NAS by the Judicom's own drawing code from the NAS's lists
+  (`python3 -m judicom.previews`, in its own process, again every 5 minutes or when a list changes; kept in
+  `/home/pi/judicom/web-cache/previews/`; the weather one is an example).
 - Code: `deploy/nas/admin/judicom_admin.py` (Flask + Pillow, both from Debian), run from a clone of this repository at
   `/home/pi/Judicom` by `judicom-admin.service` (as pi; `Nice=10`, `MemoryMax=400M` to stay out of Jellyfin's way).
   Install: `git clone https://github.com/calphool/Judicom.git ~/Judicom && bash ~/Judicom/deploy/nas/admin/install_admin.sh`.
@@ -131,8 +145,8 @@ which can only run `software/tools/nas_request.py` (the picture, a message, and 
 - The Judicom fetches the same file itself every 10 minutes (section 3), with its own key.  That key's line in
   `/home/pi/.ssh/authorized_keys` only lets it read this list and the events list (below):
   `restrict,command="/home/pi/judicom/serve_list.sh" ssh-ed25519 AAAA... judicom-contacts-sync`
-  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events`, `verses`, `jokes`, `people-list` or
-  `people`, and refuses anything else).
+  (`serve_list.sh`, from `deploy/nas/judicom/`, answers `contacts`, the default, `events`, `verses`, `jokes`, `features`,
+  `people-list` or `people`, and refuses anything else).
 
 ### Pictures of the people
 

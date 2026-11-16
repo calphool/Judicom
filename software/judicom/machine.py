@@ -3,6 +3,7 @@ No pygame, no GPIO, no SIP: events go in, actions come out, so all of it can be 
 
     machine = Machine()
     actions = machine.handle("lifted")              # from inputs.py: lifted, hung_up, button (with "left" / "right")
+    actions = machine.handle("call", party)         # a touch button on the LIFTED screen (calling by touch: call_grid.py)
     actions = machine.handle("incoming", party)     # from the call software: incoming (with a Party), answered, call_failed, remote_ended
     actions = machine.tick()                        # call often: the timed changes
     machine.mode, machine.party, machine.dial_tone, machine.ringing, machine.dialing_tones
@@ -198,7 +199,14 @@ class Machine:
         if party is None:
             self.log("      (no one is set up for the %s button)" % key)
             return None
-        if self.mode in (Mode.LIFTED, Mode.PLEASE_HANG_UP) and self.off_hook:
+        return self._call(party, "%s button" % key, (Mode.LIFTED, Mode.PLEASE_HANG_UP))
+
+    def _on_call(self, party):
+        """Someone touched on the screen: only on the LIFTED screen, where the touch buttons are."""
+        return self._call(party, "touch call", (Mode.LIFTED,))
+
+    def _call(self, party, what, modes):
+        if self.mode in modes and self.off_hook:
             self.party = party
             if not self.phone_ok():
                 self.log("      the phone cannot make calls now (no connection to the PBX)")
@@ -209,7 +217,7 @@ class Machine:
                 return None
             self._go(Mode.CALLING)
             return [("dial", party)]
-        self.log("      (%s button ignored: %s)" % (key, self.mode.value))
+        self.log("      (%s ignored: %s)" % (what, self.mode.value))
         return None
 
     def _on_keypad(self, _):

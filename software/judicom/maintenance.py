@@ -88,11 +88,13 @@ class Maintenance:
     """What main.py asks each frame: step() -> True when the menu, the shell or a game has just opened or closed (the screen must
     be drawn again)."""
 
-    def __init__(self, sounds, make_shell, log=None, clock=time.monotonic, idle_seconds=config.SHELL_IDLE_SECONDS, games=None):
+    def __init__(self, sounds, make_shell, log=None, clock=time.monotonic, idle_seconds=config.SHELL_IDLE_SECONDS, games=None,
+                 games_on=None):
         """games: {menu label: make()} for each game, make() giving a new session like game.Session: step(held) -> keep open?,
         steps (0: nothing new to draw), draw() -> its small canvas, close()."""
         self.sounds, self.make_shell, self.clock, self.idle_seconds = sounds, make_shell, clock, idle_seconds
         self.games = dict(games or {})
+        self.games_on = games_on or (lambda: True)          # False: the menu has only the shell (turned off on the NAS)
         self.log = log or (lambda msg: None)
         self.knock = Knock(clock)
         self.keyboard = None
@@ -152,7 +154,7 @@ class Maintenance:
             self.sounds.bong(bong)
             if bong != LAST_BONG:
                 return False
-            self.menu = Menu([SHELL] + list(self.games), self.clock)
+            self.menu = Menu([SHELL] + (list(self.games) if self.games_on() else []), self.clock)
             self.log("menu open")
             return True
         if not self.shell.poll():
