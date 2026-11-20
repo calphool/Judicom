@@ -316,6 +316,20 @@ class Site(unittest.TestCase):
         self.assertNotIn("Info screen", page)
         self.assertEqual(page.count("checked"), 6)
 
+    def test_calm_mode_is_on_the_page_and_said_on_the_home_page(self):
+        self.fake_judicom("print('ok')")
+        page = self.get("/features").get_data(as_text=True)
+        self.assertIn("Calm mode", page)
+        self.assertNotIn("Calm mode is on", self.get("/").get_data(as_text=True))
+        on = {n: "on" for n in ("calm", "info", "verses", "weather", "jokes", "night", "games")}
+        on.update(night_from="21:00", night_to="06:00")
+        self.post("/features", on)
+        from judicom import features
+        self.assertTrue(features.parse((self.j / "features.txt").read_text())["calm"])
+        home = self.get("/").get_data(as_text=True)
+        self.assertIn("Calm mode is on", home)
+        self.assertNotIn("Turned off", home)
+
     def test_turning_some_off_saves_and_hands_it_to_the_judicom(self):
         self.fake_judicom("got = sys.stdin.read()\nopen(%r, 'w').write(' '.join(sys.argv[1:]) + '\\n' + got)\nprint('ok')"
                           % str(self.j / "handed"))

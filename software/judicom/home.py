@@ -66,7 +66,10 @@ class Home:
 
     def is_night(self, now, quiet=False):
         """Night by the clock (and the night clock on), unless the "stay awake" file is there (and not older than awake_hours).
-        quiet: the night hours whether or not the night clock is on (messages wait for the morning even with it off)."""
+        quiet: the night hours whether or not the night clock is on (messages wait for the morning even with it off).
+        Calm mode (features.py "calm"): the clock all day too (but quiet still answers by the hours: messages show by day)."""
+        if not quiet and self.features is not None and self.on("calm"):
+            return True
         if not in_night(now, *self.night_hours()) or not (quiet or self.on("night")):
             return False
         awake = False

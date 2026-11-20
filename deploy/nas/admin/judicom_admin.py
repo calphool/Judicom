@@ -710,7 +710,8 @@ def create_app(s=None):
         labels = {name: label for name, label, _ in features_mod.FEATURES}
         off = [labels[name] for name in features_mod.turned_off(states)]
         return render_template("home.html", callers=callers, coming=coming, photos=len(picture_files(s.photos_dir)),
-                               faces=len(picture_files(s.people)), log=log, off=off)
+                               faces=len(picture_files(s.people)), log=log, off=off,
+                               calm=features_mod.is_on(states, "calm"))
 
     # ---- features
     @app.route("/features", methods=["GET", "POST"])
@@ -1084,6 +1085,8 @@ button.quiet{background:#e7ecec;color:var(--ink)}button.danger{background:#fff;c
 <a href="{{ url_for('events') }}">Edit events</a></div>
 <div class="card"><b>Pictures</b>: {{ photos }} photos in the slideshow (<a href="{{ url_for('photos') }}">add or change</a>),
 {{ faces }} caller pictures (<a href="{{ url_for('people') }}">add or change</a>).</div>
+{% if calm %}<div class="card"><b>Calm mode is on</b>: the Judicom shows only the clock.  Calls and messages work as usual.
+<a href="{{ url_for('features') }}">Change</a></div>{% endif %}
 {% if off %}<div class="card"><b>Turned off</b>: {{ off|join(", ") }}.  <a href="{{ url_for('features') }}">Change</a></div>{% endif %}
 <div class="card help">The Judicom picks up callers, events and caller pictures within 10 minutes, and photos within the hour.
 {% if log %}<br>Phone system: {{ log[-1] }}{% endif %}</div>{% endblock %}""",

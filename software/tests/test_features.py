@@ -13,20 +13,20 @@ from types import SimpleNamespace
 
 from judicom import config, features, sync
 from judicom.features import Features
-from judicom.home import INFO, JOKE, NIGHT, PHOTOS, VERSE, Home
+from judicom.home import INFO, JOKE, NIGHT, PHOTOS, VERSE, Home, in_night
 from judicom.maintenance import SHELL, Maintenance
 from tests.test_home import Clock, FakePhotos
 from tests.test_maintenance import BOTH, CLOCKWISE, FakeSounds
 
 
 class Fixed:
-    """Features as a test sets them: everything on except those named."""
+    """Features as a test sets them: as usual except those named off (and those named in turn_on on)."""
 
-    def __init__(self, *off, night=((21, 0), (6, 0))):
-        self.off, self.hours = set(off), night
+    def __init__(self, *off, night=((21, 0), (6, 0)), turn_on=()):
+        self.off, self.hours, self.turned_on = set(off), night, set(turn_on)
 
     def on(self, name):
-        return name not in self.off
+        return name not in self.off and (name not in features.OFF_UNLESS_SET or name in self.turned_on)
 
     def night(self):
         return self.hours
@@ -103,13 +103,13 @@ class Screens(unittest.TestCase):
         def next(self):
             return self.item
 
-    def make(self, *off, night=((21, 0), (6, 0))):
+    def make(self, *off, night=((21, 0), (6, 0)), turn_on=()):
         self.clock = Clock()
         self.photos = FakePhotos(self.clock)
         self.home = Home(self.photos, now=self.clock.now, clock=self.clock, every=1, info_seconds=10, awake_file=None,
                          verses=self.Deck(SimpleNamespace(reference="Psalm 23:1")),
                          jokes=self.Deck(SimpleNamespace(setup="Why?", punchline="Because.")), verse_seconds=10,
-                         joke_seconds=10, features=Fixed(*off, night=night))
+                         joke_seconds=10, features=Fixed(*off, night=night, turn_on=turn_on))
         self.home.start()
 
     def turns(self, n):
@@ -137,6 +137,29 @@ class Screens(unittest.TestCase):
         self.make("info", "verses", "weather", "jokes")
         self.assertEqual(self.turns(200), [])
         self.assertGreater(self.photos.shown, 10)
+
+    def test_calm_mode_only_the_clock_day_and_night(self):
+        self.make(turn_on=["calm"])
+        self.assertEqual(self.home.mode, NIGHT)                                 # (the test clock: by day)
+        self.assertFalse(in_night(self.clock.now()))
+        self.assertEqual(self.turns(300), [NIGHT])                              # nothing comes round
+        self.assertEqual(self.photos.shown, 0)
+        self.assertFalse(self.home.is_night(self.clock.now(), quiet=True))      # messages still show by day
+        self.home.start()                                                       # (after a call)
+        self.assertEqual(self.home.mode, NIGHT)
+
+    def test_calm_mode_turned_off_the_photos_come_back(self):
+        self.make(turn_on=["calm"])
+        self.home.features.turned_on.clear()
+        self.clock.t += 0.5
+        self.home.tick()
+        self.assertEqual(self.home.mode, PHOTOS)
+
+    def test_calm_mode_off_unless_turned_on(self):
+        self.assertFalse(features.is_on({}, "calm"))
+        self.assertTrue(features.parse("calm = on\n")["calm"])
+        self.assertEqual(features.summary({"calm": True}), "on: calm")
+        self.assertEqual(features.NAMES[0], "calm")                            # first on the website
 
     def test_an_old_events_line_is_passed_over_quietly(self):
         said = []

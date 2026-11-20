@@ -95,12 +95,14 @@ so editing them by hand still works too.
   problem and not saved.  Each saved list's previous version is kept in `/home/pi/judicom/history/` (newest 30 each).
 - Removed pictures are moved to `/mnt/8tbdrive/.judicom-deleted/` (`caller pictures/`, `photos/`), not erased.
 - Uploaded photos bigger than 3000 pixels are shrunk (and turned upright); others are stored as they came.
-- **Features** turns parts of the Judicom on or off: upcoming events (the info screen: the day, date and time over the events
+- **Features** turns parts of the Judicom on or off: **Calm mode** (off until turned on: for a restless day, only the
+  night clock's screen, day and night, with nothing coming round; calls in and out and messages from the website work as
+  usual, and messages still wait for the morning at night; the home page says when it is on), upcoming events (the info screen: the day, date and time over the events
   coming up), Bible verses, the weather, jokes,
   the night clock (off: the photos all night), the hidden games (off: the hidden menu has only the shell), and **Call by touch**
   (off until turned on: with the handset up, a touch button for everyone in the caller list, with a round picture or their
   initials, and no arrows; a touch calls them as a button would, and the two real buttons call nobody.  Holding both for the
-  hidden menu, the games, and clearing a message still work).  The photos and the
+  hidden menu, the games, and clearing a message still work).  The photos (except in calm mode) and the
   phone are always on.  It also sets the night hours (9 PM to 6 AM unless changed): the night clock shows then, and messages
   wait for the morning then even with the night clock off.  Saved in `/home/pi/judicom/features.txt` (`info = on`,
   `jokes = off` ..., `night_from = 21:00`, `night_to = 06:00`; a part not named, or no file, is on) and handed to the Judicom at once with the "See Judicom Now" key (`tools/nas_request.py features`); the Judicom also fetches

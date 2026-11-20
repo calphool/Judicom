@@ -58,7 +58,7 @@ def draw(name, lists, now):
         found = jokes.parse(_read(lists / "jokes.txt"))
         joke_view.draw_joke(surf, found[0] if found else jokes.Joke("Why did the cookie go to the doctor?",
                                                                     "Because it felt crummy!"), True)
-    elif name == "night":
+    elif name in ("night", "calm"):
         from . import info_view
         info_view.draw_night(surf, now)
     elif name == "games":

@@ -22,6 +22,9 @@ from . import config
 from .watched_file import WatchedFile
 
 FEATURES = (     # (name, what the website calls it, what it is)
+    ("calm", "Calm mode", "For a restless day: only the clock on the screen, day and night, like the night clock.  No photos, "
+                          "events, verses, weather or jokes.  Calls in and out, and messages from this website, work as "
+                          "usual."),
     ("info", "Upcoming events", "The day, the date, the time, and the birthdays, holidays and visits coming up with their "
                                 "countdowns, now and then between the photos."),
     ("verses", "Bible verses", "A verse on a page like an old Bible, now and then between the photos."),
@@ -33,7 +36,7 @@ FEATURES = (     # (name, what the website calls it, what it is)
                                      "picture; the two real buttons then call nobody.  Off: the two buttons, with arrows "
                                      "pointing to them."),
 )
-OFF_UNLESS_SET = {"touch_calls"}
+OFF_UNLESS_SET = {"touch_calls", "calm"}
 NAMES = tuple(name for name, _, _ in FEATURES)
 TIMES = {"night_from": config.NIGHT_FROM, "night_to": config.NIGHT_TO}      # (hour, minute)
 HEADER = ("# Which parts of the Judicom are on.  The master is /home/pi/judicom/features.txt on the NAS: change it on the\n"
