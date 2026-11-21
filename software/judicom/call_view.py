@@ -4,10 +4,11 @@
     view.draw(surface, machine.mode, machine.party, t)
     view.animated(machine.mode)              # True while something moves: draw every frame; otherwise only when machine.version changes
 
-  LIFTED          "Who would you like to call?" and an arrow down to each button, with the name above it and their picture above
+  LIFTED          "Press or touch the person you would like to call" and an arrow down to each button, with the name above it and their picture above
                   that if there is one (the arrows bob gently).  With calling by touch on (view.touch): a button on the screen for
                   each person in the caller list (view.people), a round picture and the name (call_grid.py places them), and no
-                  arrows (the real buttons call nobody then)
+                  arrows (the real buttons call nobody then).  Off: a touch on a picture, name or arrow calls that
+                  person too, like the button below it (call_grid.button_areas)
   DIALING         the same as CALLING (the touch-tones play meanwhile; the screen does not change when the call goes out)
   CALLING         the handset on a white panel with rings spreading out, "Calling Ann (daughter)..."
   ONGOING         sound waves from the handset, "Speaking with Ann (daughter)"
@@ -99,6 +100,7 @@ def arrow(surf, cx, tip, color, k=1.0):
 
 
 TOUCH_HEADING = "Touch the person you would like to call"      # plain words for Judi: what to do, not a question
+BUTTONS_HEADING = "Press or touch the person you would like to call"   # calling by touch off: the real buttons or the screen
 TILE = (255, 255, 255)
 TILE_SOFT = (96, 110, 116)              # the relationship, on a touch button
 INITIALS = ((47, 125, 109), (176, 96, 60), (92, 96, 170), (160, 70, 110), (60, 130, 170), (130, 120, 40))
@@ -156,22 +158,25 @@ class CallView:
             return
         surf.fill(BG)
         size = 72
-        lines = draw.wrap("Who would you like to call?", "bold", size, W - 40)
+        while len(draw.wrap(BUTTONS_HEADING, "bold", size, W - 40)) > 3:
+            size -= 2                                                       # three lines, as big as they can be
+        lines = draw.wrap(BUTTONS_HEADING, "bold", size, W - 40)
         pictures = {key: self.button_face(party) for key, party in self.buttons.items()}
         y = (H - int(size * 1.15) * len(lines)) // 2 - 120                    # above the middle: the names and arrows are below
         if any(pictures.values()):
             y -= 70                                                           # and the pictures above them
+        y = min(y, call_grid.AREA_TOP - 16 - int(size * 1.15) * len(lines))  # a touch on the heading calls nobody
         for line in lines:
             draw.centered(surf, draw.text(line, "bold", size, INK), y)
             y += int(size * 1.15)
         nudge = int(12 * (0.5 + 0.5 * math.sin(t * 2 * math.pi * 1.1)))     # the arrows bob toward the buttons; all else holds still
-        tip = H - 40
+        tip = call_grid.ARROW_TIP
         for key, party in self.buttons.items():
             cx = BUTTON_X.get(key)
             if cx is None:
                 continue
             arrow(surf, cx, tip + nudge, AMBER)
-            ny = tip - 150 - 16 - 62 - 44
+            ny = call_grid.NAME_Y                                             # (a touch from here down calls them too)
             if pictures[key] is not None:
                 surf.blit(pictures[key], (cx - LIFTED_FACE_PX // 2, ny - 14 - LIFTED_FACE_PX))
             draw.centered(surf, draw.text(party.name or party.dial, "bold", 62, INK, 255), ny, cx)

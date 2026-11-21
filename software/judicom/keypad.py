@@ -1,6 +1,6 @@
 """The hidden keypad: a touch-tone keypad on the screen, for calling any number (for the family or staff, not for Judi).
 
-To open it, with the handset up (the "Who would you like to call?" screen, or the yellow "please hang up" one):
+To open it, with the handset up (the choose-who-to-call screen, or the yellow "please hang up" one):
     tap the top left corner twice, then the top right corner twice, each tap within KEYPAD_KNOCK_SECONDS of the last:
     a bong for each tap, higher each time (the same bongs as the maintenance shell's knock).
 A wrong tap or too long a wait starts the knock again, without a sound.  Hanging up closes the keypad.

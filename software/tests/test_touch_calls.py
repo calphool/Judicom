@@ -1,4 +1,4 @@
-"""Calling by touch (features.py "touch_calls"): the touch buttons on the "Who would you like to call?" screen, their places
+"""Calling by touch (features.py "touch_calls"): the touch buttons on the choose-who-to-call screen, their places
 (call_grid.py), the machine's "call" event, the phone's taps, the caller list, and the drawing.
 Run from the software folder:   python3 -m unittest -v"""
 import tempfile
@@ -122,10 +122,31 @@ class Taps_(unittest.TestCase):
         self.assertEqual(self.machine.party, HANNAH)
         self.assertEqual(self.machine.mode, Mode.DIALING)
 
-    def test_off_a_tap_does_nothing(self):
+    def test_off_a_tap_on_the_heading_does_nothing(self):
         self.make(False)
-        self.tap(middle(self.rects[2]))
+        self.tap((300, 300))
         self.assertEqual(self.machine.mode, Mode.LIFTED)
+
+    def test_off_a_tap_on_a_picture_name_or_arrow_calls_that_button(self):
+        for key, person, spots in (("left", FRANK, ((171, 600), (171, 740), (171, 950))),
+                                   ("right", ANN, ((429, 600), (429, 740), (429, 950)))):
+            for spot in spots:
+                self.make(False)
+                self.tap(spot)
+                self.assertEqual((self.machine.mode, self.machine.party), (Mode.DIALING, person), (key, spot))
+
+    def test_off_between_the_two_nothing(self):
+        self.make(False)
+        self.tap((300, 740))
+        self.assertEqual(self.machine.mode, Mode.LIFTED)
+
+    def test_off_only_on_the_who_would_you_like_to_call_screen(self):
+        self.make(False)
+        self.clock.t += config.LIFTED_SECONDS + 1
+        self.phone.step()
+        self.assertEqual(self.machine.mode, Mode.PLEASE_HANG_UP)
+        self.tap((171, 740))
+        self.assertEqual((self.machine.mode, self.calls.done), (Mode.PLEASE_HANG_UP, []))
 
     def test_between_the_buttons_nothing(self):
         self.make(True)
@@ -138,6 +159,15 @@ class Taps_(unittest.TestCase):
             self.tap(spot)
         self.assertEqual(self.sounds.bongs[-1], OPEN)
         self.assertEqual(self.machine.mode, Mode.KEYPAD)
+
+    def test_off_the_areas_are_over_the_buttons_below_the_heading_and_the_knock(self):
+        areas = call_grid.button_areas({"left": FRANK, "right": ANN})
+        for key, (x, y, w, h) in areas.items():
+            self.assertTrue(x <= config.BUTTON_X[key] < x + w, key)
+            self.assertGreater(y, config.CORNER_PX)
+            self.assertEqual(y + h, config.SCREEN_H)
+        self.assertLessEqual(areas["left"][0] + areas["left"][2], areas["right"][0] - call_grid.AREA_GAP)
+        self.assertEqual(call_grid.button_areas({}), {})
 
     def test_on_the_real_buttons_call_nobody(self):
         self.make(True)
@@ -212,11 +242,19 @@ class Drawing(unittest.TestCase):
         self.assertGreaterEqual(size, 40)
         self.draw([FRANK, ANN])
 
+    def test_off_the_heading_says_press_or_touch_in_three_lines_at_most(self):
+        from judicom import call_view, draw
+        self.assertEqual(call_view.BUTTONS_HEADING, "Press or touch the person you would like to call")
+        size = 72
+        while len(draw.wrap(call_view.BUTTONS_HEADING, "bold", size, config.SCREEN_W - 40)) > 3:
+            size -= 2
+        self.assertGreaterEqual(size, 48)
+
     def test_off_or_nobody_the_screen_as_before(self):
         from judicom.config import BG
         surf = self.draw([FRANK, ANN], touch=False)
         x, y, w, h = call_grid.tiles(2)[0]
-        self.assertEqual(surf.get_at((x + w // 2, y + 3))[:3], BG)
+        self.assertEqual(surf.get_at((x + 3, y + h // 2))[:3], BG)              # (the left edge: clear of the words)
         self.draw([])
 
     def test_a_picture_round_or_the_initials(self):

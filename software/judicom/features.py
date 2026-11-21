@@ -34,7 +34,7 @@ FEATURES = (     # (name, what the website calls it, what it is)
     ("games", "Hidden games", "The games on the hidden menu (the maintenance shell is always there)."),
     ("touch_calls", "Call by touch", "With the handset up, a button on the screen for everyone in the caller list, with their "
                                      "picture; the two real buttons then call nobody.  Off: the two buttons, with arrows "
-                                     "pointing to them."),
+                                     "pointing to them; a touch on a picture, name or arrow calls that person too."),
 )
 OFF_UNLESS_SET = {"touch_calls", "calm"}
 NAMES = tuple(name for name, _, _ in FEATURES)

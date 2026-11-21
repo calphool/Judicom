@@ -5,7 +5,7 @@
 
 Each is drawn by the Judicom's own drawing code, from the same lists, at half the screen's size (300 x 512): the info screen
 with the events coming up now, the first verse, the first joke with its punchline, the night clock at this minute, the hidden
-menu, and the "Who would you like to call?" screen with a touch button for each caller.  The weather is an example (the NAS does not fetch a forecast).  A separate program, so the website itself never loads
+menu, and the choose-who-to-call screen with a touch button for each caller.  The weather is an example (the NAS does not fetch a forecast).  A separate program, so the website itself never loads
 pygame; it runs this again when the pictures are a few minutes old.
 """
 import argparse

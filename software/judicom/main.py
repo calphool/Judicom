@@ -144,8 +144,18 @@ class Phone:
         return self.contacts.people() if self.contacts is not None else list(self.machine.buttons.values())
 
     def _touch_call(self, taps):
-        """Calling by touch: a tap on someone's button on the LIFTED screen calls them."""
-        if not taps or self.machine.mode != Mode.LIFTED or not self.touch_calls():
+        """A tap on someone on the LIFTED screen calls them: their touch button (calling by touch on), or their picture,
+        name or arrow over a real button (off; the button still calls them too)."""
+        if not taps or self.machine.mode != Mode.LIFTED:
+            return
+        if not self.touch_calls():
+            buttons = self.machine.buttons
+            areas = call_grid.button_areas(buttons)
+            for x, y in taps:
+                for key, (ax, ay, w, h) in areas.items():
+                    if ax <= x < ax + w and ay <= y < ay + h:
+                        self._handle(("call", buttons[key]))
+                        return
             return
         people = self.people()
         rects = call_grid.tiles(len(people))

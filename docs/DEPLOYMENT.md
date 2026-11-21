@@ -516,7 +516,7 @@ hatches into a better rider.  Lances within 8 pixels: both bounce.
 ## Hidden keypad
 
 A touch-tone keypad on the screen, for calling any number from the Judicom (for family or staff; Judi has her two buttons).
-With the handset **up** (the "Who would you like to call?" screen, or the yellow "please hang up" one):
+With the handset **up** (the choose-who-to-call screen, or the yellow "please hang up" one):
 
 1. Tap the top left corner twice, then the top right corner twice, each tap within 4 seconds of the last.  Each tap bongs
    higher, and the fourth opens the keypad.  A wrong tap or a longer wait starts again without a sound.
